@@ -1,4 +1,4 @@
-from Ax12 import Ax12
+from magpie.Ax12 import Ax12
 import math
 class Motors:
     def __init__(self,portName = "/dev/ttyACM0"):

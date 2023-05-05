@@ -53,34 +53,34 @@ def vec_angle_between(v1, v2):
     return np.cross(v1_u, v2_u), angle
 
 
-def np_add(*args):
-    """ Perform 'np.add' on more than two args """
-    if len(args) > 2:  # If there are more than 2 args, add the first arg to recur on remainder of args
-        # Note the star operator is needed for recursive call, unpack to positional args
-        return np.add(args[0], np_add(*args[1:]))
-    else:  # base case, there are 2 args*, use vanilla 'np.add'
-        # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
-        return np.add(args[0], args[1])
+# def np_add(*args):
+#     """ Perform 'np.add' on more than two args """
+#     if len(args) > 2:  # If there are more than 2 args, add the first arg to recur on remainder of args
+#         # Note the star operator is needed for recursive call, unpack to positional args
+#         return np.add(args[0], np_add(*args[1:]))
+#     else:  # base case, there are 2 args*, use vanilla 'np.add'
+#         # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
+#         return np.add(args[0], args[1])
 
 
-def np_dot(*args):
-    """ Perform 'np.dot' on more than two args """
-    if len(args) > 2:  # If there are more than 2 args, add the first arg to recur on remainder of args
-        # Note the star operator is needed for recursive call, unpack to positional args
-        return np.dot(args[0], np_dot(*args[1:]))
-    else:  # base case, there are 2 args*, use vanilla 'np.add'
-        # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
-        return np.dot(args[0], args[1])
+# def np_dot(*args):
+#     """ Perform 'np.dot' on more than two args """
+#     if len(args) > 2:  # If there are more than 2 args, add the first arg to recur on remainder of args
+#         # Note the star operator is needed for recursive call, unpack to positional args
+#         return np.dot(args[0], np_dot(*args[1:]))
+#     else:  # base case, there are 2 args*, use vanilla 'np.add'
+#         # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
+#         return np.dot(args[0], args[1])
 
 
-def np_subtract(*args):
-    """ Perform 'np.subtract' on more than two args """
-    if len(args) > 2:  # If there are more than 2 args, subtract the last arg from the preceeding remainder of args
-        # Note the star operator is needed for recursive call, unpack to positional args
-        return np.subtract(np_subtract(*args[:-1]), args[-1])
-    else:  # base case, there are 2 args*, use vanilla 'np.subtract'
-        # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
-        return np.subtract(args[0], args[1])
+# def np_subtract(*args):
+#     """ Perform 'np.subtract' on more than two args """
+#     if len(args) > 2:  # If there are more than 2 args, subtract the last arg from the preceeding remainder of args
+#         # Note the star operator is needed for recursive call, unpack to positional args
+#         return np.subtract(np_subtract(*args[:-1]), args[-1])
+#     else:  # base case, there are 2 args*, use vanilla 'np.subtract'
+#         # *NOTE: This function assumes there are at least two args, if only 1 an error will occur
+#         return np.subtract(args[0], args[1])
 
 
 def ver(theta):
