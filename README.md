@@ -1,4 +1,4 @@
-# MAGPIE$^2$
+# MAGPIE $^2$
 #### **M**ultiple **A**pplication **G**ripper made of **P**LA for **I**nexpensive **E**xperiments
 (The beak)
 #### **M**anipulation **A**rchitecture for **G**oal **P**lanning, **I**nference, and **E**xecution
