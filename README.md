@@ -1,5 +1,8 @@
-# MAGPIE
-### **M**anipulation **A**rchitecture for **G**oal **P**lanning, **I**nference, and **E**xecution
+# MAGPIE$^2$
+#### **M**ultiple **A**pplication **G**ripper made of **P**LA for **I**nexpensive **E**xperiments
+(The beak)
+#### **M**anipulation **A**rchitecture for **G**oal **P**lanning, **I**nference, and **E**xecution
+(The brains)
 
 # Dependencies
 * Python 3.9
@@ -12,3 +15,6 @@
 * Python Imaging Library (Fork)
     1. Remove conflicting installations
     1. `python3.9 -m pip install Pillow --user`
+* Servo Communication
+    1. `python3.9 -m pip install pyax12 --user`
+    1. `python3.9 -m pip install dynamixel-sdk --user`
