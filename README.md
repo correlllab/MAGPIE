@@ -18,3 +18,6 @@
 * Servo Communication
     1. `python3.9 -m pip install pyax12 --user`
     1. `python3.9 -m pip install dynamixel-sdk --user`
+    1. `sudo cp openCM.rules /etc/udev/rules.d/`
+    1. `sudo adduser $USER dialout`
+    1. Logout or Restart
