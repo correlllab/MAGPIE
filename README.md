@@ -15,7 +15,7 @@
     1. Remove conflicting installations
     1. `python3.9 -m pip install Pillow --user`
 * Python Libraries: 
-    1. `python3.9 -m pip install spatialmath-python splines py-trees --user`
+    1. `python3.9 -m pip install spatialmath-python splines py-trees pybullet --user`
 * Servo Communication
     1. `python3.9 -m pip install dynamixel-sdk pyax12 --user`
     1. `sudo cp openCM.rules /etc/udev/rules.d/`

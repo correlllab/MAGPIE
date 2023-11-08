@@ -7,8 +7,11 @@ Brainstorming / Steering / Planning Document
 * Poses should be expressed in homogeneous coordinates (Numpy array)
 
 ## Preliminaries
-1. `[ ]` Install PDDLStream and test at least one example
-    * `[ ]` Document steps including additional dependencies
+1. `[Y]` Install PDDLStream and test at least one example, 2023-11-07: Only last 2 PyBullet examples and below seem to work.
+    * `[Y]` Document steps including additional dependencies, 2023-11-07: Some examples require PyBullet
+1. `[>]` Attempt to build a PDDLStream example
+    * `[N]` Tutorial?, 2023-11-07: No direct tutprial, Move to example
+    * `[>]` Choose simplest example as basis
 1. `[ ]` Q: What data structures does PDDLStream rely on?
 1. `[ ]` Use the Block Stacking Problem for Development and Testing?
     * `(+)` Simpler segmentation
