@@ -28,3 +28,5 @@ def solve_pddl():
     plan, cost = solve_from_pddl( domain_pddl, problem_pddl )
     print( 'Plan:', plan )
     print( 'Cost:', cost )
+
+# FIXME: START HERE
