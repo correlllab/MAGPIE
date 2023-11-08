@@ -6,6 +6,13 @@ Brainstorming / Steering / Planning Document
 * Experiments should be able to run from a Jupyter Lab notebook.
 * Poses should be expressed in homogeneous coordinates (Numpy array)
 
+## Preliminaries
+1. `[ ]` Install PDDLStream and test at least one example
+    * `[ ]` Document steps including additional dependencies
+1. `[ ]` Q: What data structures does PDDLStream rely on?
+1. `[ ]` Use the Block Stacking Problem for Development and Testing?
+    * `(+)` Simpler segmentation
+    * `(-)` Very different from intended use cases
 
 ## Camera Process
 * The Camera Process maintains a live feed from the RealSense D405 in the MAGPIE palm.
