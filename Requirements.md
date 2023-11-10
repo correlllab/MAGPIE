@@ -1,5 +1,16 @@
 # Requirements & Development Plan
-Brainstorming / Steering / Planning Document
+Brainstorming / Steering / Planning Document  
+* Claim ownership of a task with **your name in bold text**.
+* Coordinate with individuals writing client code of your API.
+* <u>Progress Key</u>: _Please use this to indicate work status_
+    - `[ ]` Task not started
+    - `[>]` Task in progress
+    - `[Y]` Task completed, YYYY-MM-DD: Completion comment
+    - `[N]` Task cancelled, YYYY-MM-DD: Reason for abandonment
+    - `[P]` Task paused / suspended
+    - `{ }` Optional / Unsure
+    - `[ ]` Q: Question to answer
+    - `[ ]` E: Evaluate feature & Describe results
 
 ## General Requirements
 * Python 3.9.x
@@ -9,13 +20,15 @@ Brainstorming / Steering / Planning Document
 ## Preliminaries
 1. `[Y]` Install PDDLStream and test at least one example, 2023-11-07: Only last 2 PyBullet examples and below seem to work.
     * `[Y]` Document steps including additional dependencies, 2023-11-07: Some examples require PyBullet
-1. `[>]` Attempt to build a PDDLStream example
+1. `[Y]` Attempt to build simplest PDDLStream example, 2023-11-09: Simple blocksworld solution, no perception
+    * Blocks World example, 2023-11-09: We have an IRL blocksworld problem
     * `[N]` Tutorial?, 2023-11-07: No direct tutprial, Move to example
-    * `[>]` Choose simplest example as basis
-1. `[ ]` Q: What data structures does PDDLStream rely on?
-1. `[ ]` Use the Block Stacking Problem for Development and Testing?
-    * `(+)` Simpler segmentation
-    * `(-)` Very different from intended use cases
+    * `[Y]` Choose simplest example as basis, 2023-11-09: Simple blocksworld solution, no perception
+        - `[Y]` Identify function calls, 2023-11-09: Simple blocksworld solution, no perception
+1. `[>]` Examine PDDLStream problem with actual streams (**James**)
+    * Problem Chosen: 
+    * `[>]` Determine stream format, How to create one?
+    * `[ ]` Determine program flow, What is called and when?
 
 ## Camera Process
 * The Camera Process maintains a live feed from the RealSense D405 in the MAGPIE palm.
@@ -54,15 +67,18 @@ Brainstorming / Steering / Planning Document
     - Object Permanence: Objects that leave the frame do not receive belief updates unless an operator acts on it, or a contradiction is observed
     - Special cases?: `in_hand( OBJ )`, ...
 
-1. `[ ]` Define object symbol
-    * `[ ]` Timestamp
-    * `[ ]` Current / Stale?
+1. `[ ]` Define object belief symbol
+    * `[ ]` Class
+    * `[ ]` Confidence
+    * `[ ]` Mean Pose
+    * `[ ]` Pose Distribution
+    * `{ }` Current / Stale?
 1. `[ ]` Define observation
     * `[ ]` Timestamp
 1. `[ ]` Define predicate structure
     * `[ ]` Q: Probabilistic?
 1. `[ ]` Q: When a predicates evaluated?
-1. `[ ]` Do symbols/observations require a spatial distribution?
+1. `[Y]` Do symbols/observations require a spatial distribution?, 2023-11-09: Yes!
 1. `[ ]` Need a reasoned algo to strengthen/decay beliefs
 1. `[ ]` Detect observations that contradict existing symbols
 1. `[ ]` Define a minimum threshold of confidence such that symbols are only retained above it, otherwise erase
@@ -96,7 +112,7 @@ Brainstorming / Steering / Planning Document
 
 ### PDDL Solver
 
-1. `[ ]` Re-implement solver API from [Previous Project](https://github.com/correlllab/Factor-Graphs-for-Failure-Analysis/blob/main/zc_WeBots_PDDL/50_PDDL_Asm-Gear.ipynb)
+1. `[N]` Re-implement solver API from [Previous Project](https://github.com/correlllab/Factor-Graphs-for-Failure-Analysis/blob/main/zc_WeBots_PDDL/50_PDDL_Asm-Gear.ipynb), 2023-11-09: No, that is very silly???
 
 ### Symbolic Plans --to-> Motion Plans
 
