@@ -25,10 +25,35 @@ Brainstorming / Steering / Planning Document
     * `[N]` Tutorial?, 2023-11-07: No direct tutprial, Move to example
     * `[Y]` Choose simplest example as basis, 2023-11-09: Simple blocksworld solution, no perception
         - `[Y]` Identify function calls, 2023-11-09: Simple blocksworld solution, no perception
-1. `[>]` Examine PDDLStream problem with actual streams (**James**)
-    * Problem Chosen: 
-    * `[>]` Determine stream format, How to create one?
-    * `[ ]` Determine program flow, What is called and when?
+1. `[Y]` Examine PDDLStream problem with actual streams (**James**), 2023-11-09: Use this as a roadmap for building example
+    * Problem Chosen: `examples.pybullet.pr2_belief.run`
+    * `[Y]` Determine stream format, How to create one?
+        - Streams are declared in a PDDL file
+            * Name
+            * List of input objects
+            * Predicates that must be true of the inputs
+            * List of output objects
+            * Predicates that are certified true of the outputs when stream is evaluated
+        - `PDDLProblem` Class Constructor
+            * PDDL Domain
+            * Dictionary of problem constants
+            * Stream PDDL specification
+            * Mapping of strings to functions
+            * Initial state
+            * Goal state
+    * `[Y]` Determine program flow, What is called and when?, 2023-11-09: Use this as a roadmap for building example
+        1. Solve PDDL: `pddlstream_from_state`, `solve`
+        1. Associate actions with robot commands: `plan_commands`
+        1. Run robot commands: `apply_commands`
+
+1. `[>]` Implement PDDLStream version of the RGB Block Problem, MVP (**James**)
+    * Main Loop
+        1. `[ ]` Locate blocks
+        1. `[ ]` Resolve block predicates
+        1. `[ ]` If goal met, then BREAK
+        1. `[ ]` PDDLStream Solution
+        1. `[ ]` Behavior Tree for one action
+        1. `[ ]` Execute
 
 ## Camera Process
 * The Camera Process maintains a live feed from the RealSense D405 in the MAGPIE palm.
