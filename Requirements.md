@@ -48,7 +48,8 @@ Brainstorming / Steering / Planning Document
 
 1. `[>]` Implement PDDLStream version of the RGB Block Problem, MVP (**James**)
     * Main Loop
-        1. `[ ]` Locate blocks
+        1. `[>]` Locate blocks
+            - `[>]` Inspect localization code from 
         1. `[ ]` Resolve block predicates
         1. `[ ]` If goal met, then BREAK
         1. `[ ]` PDDLStream Solution
