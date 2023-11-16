@@ -48,6 +48,7 @@ Brainstorming / Steering / Planning Document
 
 1. `[>]` Implement PDDLStream version of the RGB Block Problem, MVP (**James**)
     * Main Loop
+        1. `[>]` Q: WHAT IS EVEN HAPPENING? Get better understanding of the PDDLStream workflow.
         1. `[>]` Locate blocks
             - `[>]` Inspect localization code from 
         1. `[ ]` Resolve block predicates
@@ -55,6 +56,40 @@ Brainstorming / Steering / Planning Document
         1. `[ ]` PDDLStream Solution
         1. `[ ]` Behavior Tree for one action
         1. `[ ]` Execute
+
+### How does the solver work?
+
+#### INCREMENTAL
+(**James**)  
+Location: incremental.py  
+`solve_incremental( ... )`
+1. `parse_problem` -> 
+    * `evaluations`
+    * `goal_expression`
+    * `domain`
+    * `externals`
+1. Create a `SolutionStore`: Appears to mediate whether the solver is running or not???
+    * Can this be repurposed as the plan queue in "working memory"?
+1. `compile_fluents_as_attachments`: Appears to initiate external sources of predicates???
+1. Create an `Instantiator`: Handles instantiating streams
+1. `process_stream_queue`: Appears to evaluate streams up to a certain complexity?
+    * The idea that we would monitor the number of times that the stream is evaluated seems at odds with the idea of a continuously-updatings "stream" of sensory information.  Different paradigm ...
+1. While under the complexity limit && Not terminated
+    1. Increment iterations
+    1. Print status
+    1. `solve_finite`: **FIXME**: ADD DETAIL
+    1. If got a plan, then store it
+    1. If terminated, then `break`
+    1. Increment complexity
+    1. `process_stream_queue`: Appears to evaluate streams up to a certain complexity?
+1. Get and print summary
+1. Store statistics
+1. Return solution
+
+
+#### FOCUSED
+#### BINDING
+#### ADAPTIVE
 
 ## Camera Process
 * The Camera Process maintains a live feed from the RealSense D405 in the MAGPIE palm.
