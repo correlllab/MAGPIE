@@ -77,8 +77,39 @@ Location: incremental.py
 1. While under the complexity limit && Not terminated
     1. Increment iterations
     1. Print status
-    1. `solve_finite`: **FIXME**: ADD DETAIL
+    1. `solve_finite`
+        * **FIXME**: 
+            - I DON'T REALLY UNDERSTAND THE NEED FOR ALL THESE **BRANCHES**! 
+            - WHY CAN'T WE USE FASTDOWNWARD FOR **ALL** PDDL PROBLEMS?
+        * Q: I don't understand the difference between sequential and temporal solvers
+        * If the domain is `SimplifiedDomain`, then `solve_temporal`
+            * Q: What is a simplified domain? Why do we assume that a simplfied domain is temporal?
+            1. `get_problem_pddl`
+            1. `solve_tfd`: Solve with the selected PDDL planner
+        * Else `solve_sequential`
+            * Q: What is a sequential solver and why do we need it here?
+            1. `get_problem`
+            1. `task_from_domain_problem`
+                * Q: Is this a subgoal?
+                1. Break the problem into components
+                1. Extract "Requirements"
+                1. Check for duplicate objects
+                1. Create a `pddl.Task`, "normalize" it, and return it
+                    * What does "normalize" mean?
+            1. If there are external attachments, then `solve_pyplanners`
+                1. Check paths and import libraries
+                1. Process actions
+                1. Process axioms
+                1. Process the goal state
+                1. `solve_strips`
+                1. Return actions and cost
+            1. Else `abstrips_solve_from_task`
+                * If `hierarchy == SERIALIZE` then `serialized_solve_from_task`
+                    - `plan_subgoals`
+                * Else `solve_from_task`
+                    - `run_search`
     1. If got a plan, then store it
+        * Note that we are continuing to solve at deeper levels up until the specified level in the hopes that there is a lower cost solution at a deeper level
     1. If terminated, then `break`
     1. Increment complexity
     1. `process_stream_queue`: Appears to evaluate streams up to a certain complexity?
@@ -86,10 +117,52 @@ Location: incremental.py
 1. Store statistics
 1. Return solution
 
-
 #### FOCUSED
+(**James**)  
+Location: focused.py  
+`solve_focused_original( ... )`  
+1. `solve_abstract(problem, max_skeletons=None, search_sample_ratio=None,bind=False, max_failures=max_failures, **kwargs)`
+    * See below
+
 #### BINDING
+(**James**)  
+Location: focused.py  
+`solve_binding( ... )`  
+1. `solve_abstract(problem, max_skeletons=None, search_sample_ratio=None,bind=True, max_failures=max_failures, **kwargs)`
+    * See below
+
 #### ADAPTIVE
+(**James**)  
+Location: focused.py  
+`solve_adaptive( ... )`  
+1. `solve_abstract(problem, max_skeletons=max_skeletons, search_sample_ratio=search_sample_ratio,bind=None, max_failures=None, **kwargs)`
+    * See below
+
+#### ABSTRACT
+Location: focused.py  
+`solve_abstract( ... )`  
+1. `parse_problem`
+1. `automatically_negate_externals`
+1. `enforce_simultaneous`
+1. `compile_fluent_streams`
+1. `load_stream_statistics`
+1. `partition_externals`
+1. Create `SolutionStore`
+1. Create `Instantiator`
+1. `process_stream_queue`: Appears to evaluate streams up to a certain complexity?
+    * The idea that we would monitor the number of times that the stream is evaluated seems at odds with the idea of a continuously-updatings "stream" of sensory information.  Different paradigm ...
+1. While under the complexity limit && Not terminated
+    1. Increment iterations
+    1. Print status
+    1. `solve_finite`: See above
+    1. If got a plan, then store it
+        * Note that we are continuing to solve at deeper levels up until the specified level in the hopes that there is a lower cost solution at a deeper level
+    1. If terminated, then `break`
+    1. Increment complexity
+    1. `process_stream_queue`: Appears to evaluate streams up to a certain complexity?
+1. Get and print summary
+1. Store statistics
+1. Return solution
 
 ## Camera Process
 * The Camera Process maintains a live feed from the RealSense D405 in the MAGPIE palm.
