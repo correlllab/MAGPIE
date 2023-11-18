@@ -54,6 +54,7 @@ class UR5_Interface:
     
     def __init__( self, robotIP = "192.168.0.6" ):
         """ Store connection params and useful constants """
+        self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
         self.ctrl       = None # -- `RTDEControlInterface` object 
         self.recv       = None # -- `RTDEReceiveInterface` object 
@@ -80,6 +81,11 @@ class UR5_Interface:
         self.ctrl.servoStop()
         self.ctrl.stopScript()
         
+
+    def get_name( self ):
+        """ Get string that represents this robot """
+        return self.name
+    
         
     def get_joint_angles( self ):
         """ Returns a 6 element numpy array of joint angles (radians) """
