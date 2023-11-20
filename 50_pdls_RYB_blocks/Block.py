@@ -10,6 +10,7 @@ class Block:
         # :pcd Open3D Point Cloud that contains only the block
         # :urPose 4x4 Matrix or SE3 Transform that is the current pose of the Nth frame of the UR5 (given by ur.getPose) when the image was taken
         self.blockPCD = pcd
+        print( "PCD:", self.blockPCD, type( self.blockPCD ) )
         self.name = name
         # Removes outlier points by fitting block into largest cluster
         self.clusterBlockPCD()
@@ -31,7 +32,8 @@ class Block:
                 o3d.utility.VerbosityLevel.Error) as cm:
             # eps is radius
             # rejects points that are too small
-            labels = np.array(self.blockPCD.cluster_dbscan(eps=0.005, min_points=20, print_progress=False))
+            # labels = np.array(self.blockPCD.cluster_dbscan(eps=0.005, min_points=20, print_progress=False))
+            labels = np.array(self.blockPCD.cluster_dbscan(eps=0.005, min_points=10, print_progress=False))
 
         max_label = labels.max()
         colors = plt.get_cmap("tab20")(labels / (max_label if max_label > 0 else 1))
@@ -50,10 +52,21 @@ class Block:
             clusterPCDs.append((len(clusterPCD.points), clusterPCD))
 
         print(clusterPCDs)
-        clusterPCDs.sort()
+
+        def myFunc(e):
+            """ https://www.w3schools.com/python/ref_list_sort.asp """
+            # return e[0]
+            return len(e)
+        
+        clusterPCDs.sort( key = myFunc )
         clusterPCDs.reverse()
 
+        print( f"Found {len(clusterPCDs)} clouds!" )
+
+        print( type( clusterPCDs[0] ) )
+        
         self.blockPCD = clusterPCDs[0][1]
+        # self.blockPCD = clusterPCDs[0]
 
     def getCenterInGripperFrame(self):
         # returns the center of the block in the gripper frame given PCD with no extrinsics applied

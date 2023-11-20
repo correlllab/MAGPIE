@@ -203,6 +203,35 @@ class ObjectDetection:
                 return scaledMask
         return None
 
+    def get_basic_color_mask( self, colorImage, colorName, thresh = 0.85 ):
+        """ Just filter for basic colors """
+        cImg = np.array( colorImage )
+        clrs = {
+            'red': [1, 0, 0],
+            'ylw': [1, 1, 0],
+            'blu': [0, 0, 1]
+        }
+        if colorName not in clrs:
+            print( "Color must be in", clrs.keys() )
+            raise KeyError( "BAD COLOR NAME!" )
+        cMsk = clrs[ colorName ]
+        thresh *= 255.0 * sum( cMsk )
+        print( cImg.shape )
+        mask = np.zeros( cImg.shape[:2] )
+        M = cImg.shape[0]
+        N = cImg.shape[1]
+        pixMet = 0
+        for i in range(M):
+            for j in range(N):
+                clr_ij = cImg[i,j,:]
+                if np.dot( clr_ij, cMsk ) >= thresh:
+                    mask[i,j] = 1
+                    pixMet += 1
+                else:
+                    mask[i,j] = 0
+        print( f"Found {pixMet} relevant pixels!" )
+        return mask
+
     def getBlocksFromImages(self, colorImage, depthImage, urPose, display=False):
         # :colorImage 3-channel rgb image as numpy array
         # :depthImage 1-channel of measurements in z-axis as numpy array
@@ -219,6 +248,17 @@ class ObjectDetection:
         redMask = self.getSegmentationMask(result, 'Red')
         yellowMask = self.getSegmentationMask(result, 'Yellow')
         blueMask = self.getSegmentationMask(result, 'Blue')
+
+        colorThresh = 0.95
+        
+        if (redMask is None):
+            redMask    = self.get_basic_color_mask( colorImage, 'red', thresh = colorThresh )
+        if (yellowMask is None):
+            yellowMask = self.get_basic_color_mask( colorImage, 'ylw', thresh = colorThresh )
+        if (blueMask is None):
+            blueMask   = self.get_basic_color_mask( colorImage, 'blu', thresh = colorThresh )
+
+        # print( "Masks:", redMask, yellowMask, blueMask )
 
         '''
         if display:
@@ -254,9 +294,9 @@ class ObjectDetection:
             ax[2].set_title("Blue Mask")
             plt.show()
 
-        redDepthImage = np.multiply(depthImage, redMask.astype(int)).astype('float32')
+        redDepthImage    = np.multiply(depthImage, redMask.astype(int)).astype('float32')
         yellowDepthImage = np.multiply(depthImage, yellowMask.astype(int)).astype('float32')
-        blueDepthImage = np.multiply(depthImage, blueMask.astype(int)).astype('float32')
+        blueDepthImage   = np.multiply(depthImage, blueMask.astype(int)).astype('float32')
 
         # SEGMENT PCD INTO RED,YELLOW,BLUE BLOCKS
         depthScale = self.real.depthScale

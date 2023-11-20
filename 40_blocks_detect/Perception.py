@@ -220,6 +220,8 @@ class ObjectDetection:
         yellowMask = self.getSegmentationMask(result, 'Yellow')
         blueMask = self.getSegmentationMask(result, 'Blue')
 
+        print( "Masks:", redMask, yellowMask, blueMask )
+
         '''
         if display:
             print("Color Image")
