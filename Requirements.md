@@ -46,7 +46,7 @@ Brainstorming / Steering / Planning Document
         1. Associate actions with robot commands: `plan_commands`
         1. Run robot commands: `apply_commands`
 
-1. `[>]` Implement PDDLStream version of the RGB Block Problem, Minimum Viable Prototype (**James**)
+1. `[>]` Implement PDDLStream version of the RYB Block Problem, Minimum Viable Prototype (**James**)
     1. `[Y]` Q: WHAT IS EVEN HAPPENING? --> Get better understanding of the PDDLStream workflow.
         * 2023-11-20: See synopsis below: "**How does the solver work?**"
         * 2023-11-20: This is a wider issue, See items below
@@ -64,6 +64,8 @@ Brainstorming / Steering / Planning Document
         * `[ ]` Behavior Tree for one action
         * `[ ]` Behavior Tree for all actions
     1. `[ ]` Postmortem Question: How will MAGPIE differ from PDDLStream?
+        * `[ ]` Discuss required engineering with team
+        * `[ ]` Discuss GPL3 licensing with advisor/team
 
 ### How does the solver work?
 
@@ -126,21 +128,18 @@ Location: incremental.py
 1. Return solution
 
 #### FOCUSED
-(**James**)  
 Location: focused.py  
 `solve_focused_original( ... )`  
 1. `solve_abstract(problem, max_skeletons=None, search_sample_ratio=None,bind=False, max_failures=max_failures, **kwargs)`
     * See below
 
 #### BINDING
-(**James**)  
 Location: focused.py  
 `solve_binding( ... )`  
 1. `solve_abstract(problem, max_skeletons=None, search_sample_ratio=None,bind=True, max_failures=max_failures, **kwargs)`
     * See below
 
 #### ADAPTIVE
-(**James**)  
 Location: focused.py  
 `solve_adaptive( ... )`  
 1. `solve_abstract(problem, max_skeletons=max_skeletons, search_sample_ratio=search_sample_ratio,bind=None, max_failures=None, **kwargs)`
