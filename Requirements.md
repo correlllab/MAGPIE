@@ -46,16 +46,24 @@ Brainstorming / Steering / Planning Document
         1. Associate actions with robot commands: `plan_commands`
         1. Run robot commands: `apply_commands`
 
-1. `[>]` Implement PDDLStream version of the RGB Block Problem, MVP (**James**)
-    * Main Loop
-        1. `[>]` Q: WHAT IS EVEN HAPPENING? Get better understanding of the PDDLStream workflow.
-        1. `[>]` Locate blocks
-            - `[>]` Inspect localization code from 
-        1. `[ ]` Resolve block predicates
-        1. `[ ]` If goal met, then BREAK
-        1. `[ ]` PDDLStream Solution
-        1. `[ ]` Behavior Tree for one action
-        1. `[ ]` Execute
+1. `[>]` Implement PDDLStream version of the RGB Block Problem, Minimum Viable Prototype (**James**)
+    1. `[Y]` Q: WHAT IS EVEN HAPPENING? --> Get better understanding of the PDDLStream workflow.
+        * 2023-11-20: See synopsis below: "**How does the solver work?**"
+        * 2023-11-20: This is a wider issue, See items below
+    1. `[>]` Locate blocks
+        - `[Y]` Inspect localization code from Andrea/Dylan, 2023-11-20: Needs testing
+        - `[>]` Confirm that the segmentation pipline runs
+    1. `[ ]` PDDLStream --to--> MAGPIE Investigation
+        * `[ ]` De-tangle camera from detector
+        * `[ ]` Create a local copy of "incremental.py" to allow inspection and debugging of PDDLStream pipeline
+            - `[ ]` Display which solver was chosen by `solve_finite`
+    1. `[ ]` Resolve block predicates
+        - `[ ]` Grasp block
+    1. `[ ]` PDDLStream Solution <-from-- "Incremental"
+    1. `[ ]` Execute
+        * `[ ]` Behavior Tree for one action
+        * `[ ]` Behavior Tree for all actions
+    1. `[ ]` Postmortem Question: How will MAGPIE differ from PDDLStream?
 
 ### How does the solver work?
 
