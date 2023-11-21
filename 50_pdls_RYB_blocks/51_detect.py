@@ -46,9 +46,7 @@ class Pose:
         self.pose = pose
         self.surf = surf # WARNING: I do not like that this is part of the predicate!
         self.index = next( self.num )
-    # @property
-    # def value( self ):
-    #     return self.pose
+        
 
 class BodyConf:
     """ A robot configuration """
@@ -63,6 +61,13 @@ class BodyGrasp:
         self.body          = body
         self.grasp_pose    = grasp_pose
         self.approach_pose = approach_pose
+
+
+class BodyPath:
+    """ Path of something between two configs """
+    def __init__( self, body, path ):
+        self.body = body
+        self.path = path[:]
 
 
 class MagpieWorld:
@@ -142,8 +147,9 @@ def get_pose_stream( robot, detector, world ):
             world.add_object( obj )
             print( "Instantiating a", blockName )
             yield (obj,) # WARNING: HACK, The supporting object is hardcoded
-        else:
-            yield tuple()
+            # FIXME: WHAT HAPPENS IF I YIELD ALL THREE OBJECTS IN ONE CALL?
+            
+        # else yield nothing if we cannot certify the object!
 
     return stream_func
 
@@ -161,7 +167,10 @@ def get_grasp_stream( world ):
     def stream_func( *args ):
         """ A function that returns grasps """
         objName = args[0]
-        objPose = world.get_object_pose( objName )
+        objPose = args[1].pose
+
+        print( "Grasp args:", args, ", Got pose:", objPose, "\n" )
+        
         if objPose is not None:
 
             grasp_pose = objPose.copy()
@@ -172,18 +181,46 @@ def get_grasp_stream( world ):
             
             grasp = BodyGrasp( objName, grasp_pose, approach_pose )
             print( "Got a grasp!\n", grasp_pose )
-            return (grasp,)
+            yield (grasp,)
             
-        else:
-            return tuple()
-    
-        # for arg in args:
-        #     print( "Grasp Arg:", arg )
-        #     print( dir( arg ) )
-        #     print()
-        # return tuple()
+        # else yield nothing if we cannot certify the object!
 
     return stream_func
+
+
+def get_free_motion_planner():
+    """ Return a function that checks if the path is free """
+
+    def stream_func( *args ):
+        """ A function that checks if the path is free """
+        # for arg in args:
+        #     print( "MP Arg:", type( arg ), arg )
+        # print()
+
+        (bgn, end) = args
+        
+        yield (BodyPath( "robot", [bgn.cnfg, end.cnfg] ),) # FIXME: 
+
+    return stream_func
+
+
+def get_IK_solver():
+    """ Return a function that computes Inverse Kinematics for a pose """
+
+    def stream_func( *args ):
+        """ A function that computes Inverse Kinematics for a pose """
+        # for arg in args:
+        #     print( "IK Arg:", type( arg ), arg )
+        # print()
+
+        (trgt, pose, grasp) = args
+        
+        #     ( <IK Sol'n>                           , <Trajectory>             )
+        yield ( BodyConf( "robot", grasp.grasp_pose ), BodyPath( "robot", [pose.pose, grasp.approach_pose, grasp.grasp_pose ] ) )
+
+    return stream_func
+        
+        
 
 ########## PROBLEM SETUP ###########################################################################
 
@@ -198,7 +235,6 @@ def pddlstream_from_problem( robot, detector, world ):
     print( 'Robot:', robot.get_name() )
     conf = BodyConf( robot.get_name(), robot.get_joint_angles() )
     init = [('CanMove',),
-            ('Conf', conf),
             ('AtConf', conf),
             ('HandEmpty',)]
     print( "Robot grounded!" )
@@ -213,8 +249,10 @@ def pddlstream_from_problem( robot, detector, world ):
     )
 
     stream_map = {
-        'sample-pose': from_gen_fn( get_pose_stream( robot, detector, world ) ), # WARNING: UNSURE OF THE WRAPPER PURPOSE
-        'sample-grasp': from_gen_fn( get_grasp_stream( world ) ),
+        'sample-pose':        from_gen_fn( get_pose_stream( robot, detector, world ) ), 
+        'sample-grasp':       from_gen_fn( get_grasp_stream( world ) ),
+        'plan-free-motion':   from_gen_fn( get_free_motion_planner(  ) ),
+        'inverse-kinematics': from_gen_fn( get_IK_solver() ),
     }
 
     print( "About to create problem ... " )
@@ -224,6 +262,7 @@ def pddlstream_from_problem( robot, detector, world ):
 
 
 ########## MAIN ################################################################################
+from pprint import pprint
 
 if __name__ == "__main__":
 
@@ -243,6 +282,11 @@ if __name__ == "__main__":
         print( "Solver has completed!" )
         print_solution( solution )
         plan, cost, evaluations = solution
+
+        print 
+        for elem in solution.certificate[0]:
+            pprint( elem )
+            print()
 
     except KeyboardInterrupt as e:
         print( f"Solver was stopped by the user at {time.time()}!" )

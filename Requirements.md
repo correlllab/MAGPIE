@@ -50,15 +50,17 @@ Brainstorming / Steering / Planning Document
     1. `[Y]` Q: WHAT IS EVEN HAPPENING? --> Get better understanding of the PDDLStream workflow.
         * 2023-11-20: See synopsis below: "**How does the solver work?**"
         * 2023-11-20: This is a wider issue, See items below
-    1. `[>]` Locate blocks
+    1. `[Y]` Locate blocks
         - `[Y]` Inspect localization code from Andrea/Dylan, 2023-11-20: Needs testing
-        - `[>]` Confirm that the segmentation pipline runs
+        - `[Y]` Confirm that the segmentation pipline runs, 2023-11-21: Segmentation hack depends on simple color mask, needs testing
+    1. `[ ]` Resolve block predicates
+        * REMEMBER: Streams should `yield` instead of `return`!
+        - `[ ]` "Dummy" IK Solver
     1. `[ ]` PDDLStream --to--> MAGPIE Investigation
         * `[ ]` De-tangle camera from detector
         * `[ ]` Create a local copy of "incremental.py" to allow inspection and debugging of PDDLStream pipeline
             - `[ ]` Display which solver was chosen by `solve_finite`
-    1. `[ ]` Resolve block predicates
-        - `[ ]` Grasp block
+    
     1. `[ ]` PDDLStream Solution <-from-- "Incremental"
     1. `[ ]` Execute
         * `[ ]` Behavior Tree for one action

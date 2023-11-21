@@ -33,7 +33,8 @@
                        (AtConf ?q1) (HandEmpty) (CanMove)
                   )
     :effect (and (AtConf ?q2)
-                 (not (AtConf ?q1)) (not (CanMove)))
+                 (not (AtConf ?q1))
+    )
   )
 
   (:action pick
