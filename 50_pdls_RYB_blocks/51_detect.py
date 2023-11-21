@@ -38,7 +38,7 @@ _SUPPORT_NAME = 'table'
 #     def value(self):
 #         return self.pose
     
-class Pose: # ??? WHY DOES THIS HAVE TO BE A SEQUENCE ???
+class Pose: 
     """ A named object, it's pose, and the surface that supports it """
     num = count()
     def __init__( self, name, pose, surf ):
@@ -46,11 +46,9 @@ class Pose: # ??? WHY DOES THIS HAVE TO BE A SEQUENCE ???
         self.pose = pose
         self.surf = surf # WARNING: I do not like that this is part of the predicate!
         self.index = next( self.num )
-    @property
-    def value(self):
-        return self.pose
-
-
+    # @property
+    # def value( self ):
+    #     return self.pose
 
 class BodyConf:
     """ A robot configuration """
@@ -59,6 +57,28 @@ class BodyConf:
         self.cnfg = config
 
 
+class BodyGrasp:
+    """ Enough info to pick up something """
+    def __init__( self, body, grasp_pose, approach_pose ):
+        self.body          = body
+        self.grasp_pose    = grasp_pose
+        self.approach_pose = approach_pose
+
+
+class MagpieWorld:
+    """ Container for Objects """
+    def __init__( self ):
+        self.objects = {}
+
+    def add_object( self, pose ):
+        self.objects[ pose.name ] = pose
+
+    def get_object_pose( self, name ):
+        if name in self.objects:
+            self.objects[ name ].pose
+        else:
+            return None
+        
 
 ########## MAGPIE ##################################################################################
 
@@ -91,6 +111,7 @@ def magpie_shutdown( robot, camera ):
 
 
 ########## STREAMS #################################################################################
+_APPROACH_ABOVE_M = 0.070
 
 def get_blocks( robot, detector ):
     """ Get block poses from YOLO """
@@ -100,38 +121,73 @@ def get_blocks( robot, detector ):
     return detector.getBlocksFromImages( colorImage, depthImage, urPose, display = False )
 
 
-def get_pose_stream( robot, detector ):
+def get_pose_stream( robot, detector, world ):
     """ Return a function that returns poses """
     # NOTE: ??? This function assumes that the camera, detector, and robot were initialized ???
-
-    blockNames  = ['redBlock', 'ylwBlock', 'bluBlock',]
 
     def stream_func( *args ):
         """ A function that returns poses """
 
+        blockName, spprtName = args
         print( "Stream Args:", args )
 
         blocks = get_blocks( robot, detector )
         
         print( "!HEY!, The pose stream was evaluated!" )
 
-        # while True:
-        if len( blocks ):
-            for i, blockName in enumerate( blockNames ):
-                pose = blocks[i].worldFrameCoords
-                print( "Instantiating a", blockName )
-                yield (Pose( blockName, pose, _SUPPORT_NAME ),) # WARNING: HACK, The supporting object is hardcoded
+        if len( blocks ) and ( blockName in _BLOCK_NAMES ):
+            i    = _BLOCK_NAMES.index( blockName )
+            pose = blocks[i].worldFrameCoords
+            obj  = Pose( blockName, pose, _SUPPORT_NAME )
+            world.add_object( obj )
+            print( "Instantiating a", blockName )
+            yield (obj,) # WARNING: HACK, The supporting object is hardcoded
         else:
             yield tuple()
-            
-        # blocks = get_blocks( robot, detector )
 
     return stream_func
 
 
+# def get_grasp_stream( robot )
+def get_grasp_stream( world ):
+    """ Return a function that returns grasps """
+
+    examplePose = np.array( [[ 8.07158441e-04,  9.99998327e-01,  1.64138068e-03, -3.13368658e-01],
+                             [ 9.99999674e-01, -8.07102857e-04, -3.45258112e-05, -5.94166567e-02],
+                             [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
+                             [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] )
+    exOrient = examplePose[0:3,0:3]
+    
+    def stream_func( *args ):
+        """ A function that returns grasps """
+        objName = args[0]
+        objPose = world.get_object_pose( objName )
+        if objPose is not None:
+
+            grasp_pose = objPose.copy()
+            grasp_pose[0:3,0:3] = exOrient
+
+            approach_pose = grasp_pose.copy()
+            approach_pose[2,3] += _APPROACH_ABOVE_M
+            
+            grasp = BodyGrasp( objName, grasp_pose, approach_pose )
+            print( "Got a grasp!\n", grasp_pose )
+            return (grasp,)
+            
+        else:
+            return tuple()
+    
+        # for arg in args:
+        #     print( "Grasp Arg:", arg )
+        #     print( dir( arg ) )
+        #     print()
+        # return tuple()
+
+    return stream_func
+
 ########## PROBLEM SETUP ###########################################################################
 
-def pddlstream_from_problem( robot, detector ):
+def pddlstream_from_problem( robot, detector, world ):
     """ Set up a PDDLStream problem with the UR5 """
 
     domain_pddl = read(get_file_path(__file__, 'domain.pddl'))
@@ -157,7 +213,8 @@ def pddlstream_from_problem( robot, detector ):
     )
 
     stream_map = {
-        'sample-pose': from_gen_fn( get_pose_stream( robot, detector ) ),
+        'sample-pose': from_gen_fn( get_pose_stream( robot, detector, world ) ), # WARNING: UNSURE OF THE WRAPPER PURPOSE
+        'sample-grasp': from_gen_fn( get_grasp_stream( world ) ),
     }
 
     print( "About to create problem ... " )
@@ -172,13 +229,14 @@ if __name__ == "__main__":
 
     robot, camera, detector = magpie_init()
     print( "Hardware ON!" )
+    world = MagpieWorld()
 
     parser = create_parser()
     args = parser.parse_args()
     print('Arguments:', args)
 
     try:
-        problem = pddlstream_from_problem( robot, detector )
+        problem = pddlstream_from_problem( robot, detector, world )
         print( "Problem created!" )
     
         solution = solve( problem, algorithm="incremental", unit_costs=True, success_cost=INF )
@@ -194,9 +252,6 @@ if __name__ == "__main__":
         print(traceback.format_exc())
         magpie_shutdown( robot, camera )
         exit()
-
-    
-        
 
     magpie_shutdown( robot, camera )
     print( "Hardware OFF!" )
