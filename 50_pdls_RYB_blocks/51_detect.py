@@ -22,18 +22,30 @@ from pddlstream.language.constants import print_solution, PDDLProblem
 _BLOCK_NAMES  = ['redBlock', 'ylwBlock', 'bluBlock',]
 _SUPPORT_NAME = 'table'
 
-class Pose(Sequence): # ??? WHY DOES THIS HAVE TO BE A SEQUENCE ???
+# class Pose(Sequence): # ??? WHY DOES THIS HAVE TO BE A SEQUENCE ???
+#     """ A named object, it's pose, and the surface that supports it """
+#     num = count()
+#     def __init__( self, name, pose, surf ):
+#         self.name = name
+#         self.pose = pose
+#         self.surf = surf # WARNING: I do not like that this is part of the predicate!
+#         self.index = next(self.num)
+#     def __getitem__( self, i ):
+#         return self.pose
+#     def __len__( self ):
+#         return 1
+#     @property
+#     def value(self):
+#         return self.pose
+    
+class Pose: # ??? WHY DOES THIS HAVE TO BE A SEQUENCE ???
     """ A named object, it's pose, and the surface that supports it """
     num = count()
     def __init__( self, name, pose, surf ):
         self.name = name
         self.pose = pose
         self.surf = surf # WARNING: I do not like that this is part of the predicate!
-        self.index = next(self.num)
-    def __getitem__( self, i ):
-        return self.pose
-    def __len__( self ):
-        return 1
+        self.index = next( self.num )
     @property
     def value(self):
         return self.pose
@@ -145,7 +157,7 @@ def pddlstream_from_problem( robot, detector ):
     )
 
     stream_map = {
-        'sample-pose': get_pose_stream( robot, detector ),
+        'sample-pose': from_gen_fn( get_pose_stream( robot, detector ) ),
     }
 
     print( "About to create problem ... " )
