@@ -46,6 +46,11 @@ class Pose:
         self.pose = pose
         self.surf = surf # WARNING: I do not like that this is part of the predicate!
         self.index = next( self.num )
+    def __repr__( self ):
+        return f"<Pose: {self.name}, [{self.pose[0,3]}, {self.pose[1,3]}, {self.pose[2,3]}]>"
+    @property
+    def value( self ):
+        return self.pose
         
 
 class BodyConf:
@@ -53,6 +58,14 @@ class BodyConf:
     def __init__( self, name, config ):
         self.name = name
         self.cnfg = config
+    def __repr__( self ):
+        return f"<Config: {self.name}, [{self.cnfg[0,3]}, {self.cnfg[1,3]}, {self.cnfg[2,3]}]>"
+    @property
+    def value( self ):
+        return self.cnfg
+    @property # WARNING: IS THIS REDUNDANT?
+    def values( self ):
+        return self.cnfg
 
 
 class BodyGrasp:
@@ -61,6 +74,11 @@ class BodyGrasp:
         self.body          = body
         self.grasp_pose    = grasp_pose
         self.approach_pose = approach_pose
+    def __repr__( self ):
+        return f"<Grasp: {self.body}, [{self.grasp_pose[0,3]}, {self.grasp_pose[1,3]}, {self.grasp_pose[2,3]}]>"
+    @property
+    def value( self ):
+        return self.grasp_pose
 
 
 class BodyPath:
@@ -68,12 +86,18 @@ class BodyPath:
     def __init__( self, body, path ):
         self.body = body
         self.path = path[:]
+    def __repr__( self ):
+        return f"<Trajectory: {self.body}>"
+    @property
+    def value( self ):
+        return self.path
 
 
 class MagpieWorld:
     """ Container for Objects """
-    def __init__( self ):
-        self.objects = {}
+    def __init__( self, robotName ):
+        self.objects   = {}
+        self.robotName = robotName
 
     def add_object( self, pose ):
         self.objects[ pose.name ] = pose
@@ -188,7 +212,7 @@ def get_grasp_stream( world ):
     return stream_func
 
 
-def get_free_motion_planner():
+def get_free_motion_planner( world ):
     """ Return a function that checks if the path is free """
 
     def stream_func( *args ):
@@ -198,13 +222,13 @@ def get_free_motion_planner():
         # print()
 
         (bgn, end) = args
-        
-        yield (BodyPath( "robot", [bgn.cnfg, end.cnfg] ),) # FIXME: 
+        if bgn != end:
+            yield (BodyPath( world.robotName, [bgn.cnfg, end.cnfg] ),) 
 
     return stream_func
 
 
-def get_IK_solver():
+def get_IK_solver( world ):
     """ Return a function that computes Inverse Kinematics for a pose """
 
     def stream_func( *args ):
@@ -216,7 +240,7 @@ def get_IK_solver():
         (trgt, pose, grasp) = args
         
         #     ( <IK Sol'n>                           , <Trajectory>             )
-        yield ( BodyConf( "robot", grasp.grasp_pose ), BodyPath( "robot", [pose.pose, grasp.approach_pose, grasp.grasp_pose ] ) )
+        yield ( BodyConf( world.robotName, grasp.grasp_pose ), BodyPath( world.robotName, [pose.pose, grasp.approach_pose, grasp.grasp_pose ] ) )
 
     return stream_func
         
@@ -233,8 +257,9 @@ def pddlstream_from_problem( robot, detector, world ):
     print( "Read files!" )
 
     print( 'Robot:', robot.get_name() )
-    conf = BodyConf( robot.get_name(), robot.get_joint_angles() )
+    conf = BodyConf( robot.get_name(), robot.get_tcp_pose() )
     init = [('CanMove',),
+            ('Conf', conf),
             ('AtConf', conf),
             ('HandEmpty',)]
     print( "Robot grounded!" )
@@ -243,16 +268,18 @@ def pddlstream_from_problem( robot, detector, world ):
         init += [('Graspable', body),]
         init += [('Stackable', body, _SUPPORT_NAME)]
 
-    goal = ('and',
-            ('AtConf' , conf), # Move back to the original config
-            ('Holding', 'redBlock'), # Be holding the red block
-    )
+    # goal = ('and',
+    #         ('Holding', 'redBlock'), # Be holding the red block
+    #         ('AtConf' , conf), # Move back to the original config
+    # )
+
+    goal = ('Holding', 'redBlock') # Be holding the red block
 
     stream_map = {
         'sample-pose':        from_gen_fn( get_pose_stream( robot, detector, world ) ), 
         'sample-grasp':       from_gen_fn( get_grasp_stream( world ) ),
-        'plan-free-motion':   from_gen_fn( get_free_motion_planner(  ) ),
-        'inverse-kinematics': from_gen_fn( get_IK_solver() ),
+        'plan-free-motion':   from_gen_fn( get_free_motion_planner( world ) ),
+        'inverse-kinematics': from_gen_fn( get_IK_solver( world ) ),
     }
 
     print( "About to create problem ... " )
@@ -268,17 +295,17 @@ if __name__ == "__main__":
 
     robot, camera, detector = magpie_init()
     print( "Hardware ON!" )
-    world = MagpieWorld()
+    world = MagpieWorld( robot.get_name() )
 
     parser = create_parser()
     args = parser.parse_args()
-    print('Arguments:', args)
+    print('Arguments:', args, '\n', dir( args ) )
 
     try:
         problem = pddlstream_from_problem( robot, detector, world )
         print( "Problem created!" )
     
-        solution = solve( problem, algorithm="incremental", unit_costs=True, success_cost=INF )
+        solution = solve( problem, algorithm="incremental", unit_costs=True, success_cost=1 )
         print( "Solver has completed!" )
         print_solution( solution )
         plan, cost, evaluations = solution

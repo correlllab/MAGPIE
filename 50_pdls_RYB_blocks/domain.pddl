@@ -2,15 +2,22 @@
 ;   (:requirements :strips :equality)
   (:requirements :strips :equality :negative-preconditions :derived-predicates)
   (:predicates
-    (Stackable ?o ?r)
+
     (Pose ?o ?p)
     (Grasp ?o ?g)
-    (Graspable ?o)
+    (Conf ?q)
+    (Traj ?t)
+
     (Kin ?o ?p ?g ?q ?t)
+
+    (Stackable ?o ?r)
+    
+    (Graspable ?o)
+    
     (FreeMotion ?q1 ?t ?q2)
     (HoldingMotion ?q1 ?t ?q2 ?o ?g)
     (Supported ?o ?p ?r)
-    (Traj ?t)
+    
 
     (TrajCollision ?t ?o2 ?p2)
     (CFreePosePose ?o ?p ?o2 ?p2)
@@ -24,7 +31,6 @@
     (CanMove)
     (On ?o ?r)
     (Holding ?o)
-
   )
 
   (:action move_free
@@ -52,7 +58,7 @@
                        (AtConf ?q1) (AtGrasp ?o ?g) (CanMove)
                   )
     :effect (and (AtConf ?q2)
-                 (not (AtConf ?q1)) (not (CanMove)))
+                 (not (AtConf ?q1))) ;(not (CanMove)))
   )
 
   
