@@ -98,6 +98,7 @@ class MagpieWorld:
     def __init__( self, robotName ):
         self.objects   = {}
         self.robotName = robotName
+        self.scans     = []
 
     def add_object( self, pose ):
         self.objects[ pose.name ] = pose
@@ -160,18 +161,18 @@ def get_pose_stream( robot, detector, world ):
         blockName, spprtName = args
         print( "Stream Args:", args )
 
-        blocks = get_blocks( robot, detector )
+        if len( world.scans ) == 0: # FIXME: THIS SHOULD UPDATE WITH SOME PERIODICITY
+            world.scans = get_blocks( robot, detector )
         
         print( "!HEY!, The pose stream was evaluated!" )
 
-        if len( blocks ) and ( blockName in _BLOCK_NAMES ):
+        if len( world.scans ) and ( blockName in _BLOCK_NAMES ): # HACK: BLOCKS ARE THE ONLY OBJECTS
             i    = _BLOCK_NAMES.index( blockName )
-            pose = blocks[i].worldFrameCoords
+            pose = world.scans[i].worldFrameCoords
             obj  = Pose( blockName, pose, _SUPPORT_NAME )
             world.add_object( obj )
             print( "Instantiating a", blockName )
             yield (obj,) # WARNING: HACK, The supporting object is hardcoded
-            # FIXME: WHAT HAPPENS IF I YIELD ALL THREE OBJECTS IN ONE CALL?
             
         # else yield nothing if we cannot certify the object!
 
