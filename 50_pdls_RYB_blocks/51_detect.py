@@ -47,7 +47,8 @@ class Pose:
         self.surf = surf # WARNING: I do not like that this is part of the predicate!
         self.index = next( self.num )
     def __repr__( self ):
-        return f"<Pose: {self.name}, [{self.pose[0,3]}, {self.pose[1,3]}, {self.pose[2,3]}]>"
+        # return f"<Pose: {self.name}, [{self.pose[0,3]}, {self.pose[1,3]}, {self.pose[2,3]}]>"
+        return f"<Pose: {self.index}>"
     @property
     def value( self ):
         return self.pose
@@ -55,11 +56,14 @@ class Pose:
 
 class BodyConf:
     """ A robot configuration """
+    num = count()
     def __init__( self, name, config ):
         self.name = name
         self.cnfg = config
+        self.index = next( self.num )
     def __repr__( self ):
-        return f"<Config: {self.name}, [{self.cnfg[0,3]}, {self.cnfg[1,3]}, {self.cnfg[2,3]}]>"
+        # return f"<Config: {self.name}, [{self.cnfg[0,3]}, {self.cnfg[1,3]}, {self.cnfg[2,3]}]>"
+        return f"<Config: {self.name}, {self.index}>"
     @property
     def value( self ):
         return self.cnfg
@@ -70,12 +74,15 @@ class BodyConf:
 
 class BodyGrasp:
     """ Enough info to pick up something """
+    num = count()
     def __init__( self, body, grasp_pose, approach_pose ):
         self.body          = body
         self.grasp_pose    = grasp_pose
         self.approach_pose = approach_pose
+        self.index = next( self.num )
     def __repr__( self ):
-        return f"<Grasp: {self.body}, [{self.grasp_pose[0,3]}, {self.grasp_pose[1,3]}, {self.grasp_pose[2,3]}]>"
+        # return f"<Grasp: {self.body}, [{self.grasp_pose[0,3]}, {self.grasp_pose[1,3]}, {self.grasp_pose[2,3]}]>"
+        return f"<Grasp: {self.body}, {self.index}>"
     @property
     def value( self ):
         return self.grasp_pose
@@ -83,11 +90,17 @@ class BodyGrasp:
 
 class BodyPath:
     """ Path of something between two configs """
+    num = count()
     def __init__( self, body, path ):
         self.body = body
         self.path = path[:]
+        self.index = next( self.num )
     def __repr__( self ):
-        return f"<Trajectory: {self.body}>"
+        wpStr = "["
+        for wp in self.path:
+            wpStr += str( wp ) + ","
+        wpStr += "]"
+        return f"<Trajectory: {self.body}, {self.index}, {wpStr}>"
     @property
     def value( self ):
         return self.path
@@ -168,7 +181,7 @@ def get_pose_stream( robot, detector, world ):
 
         if len( world.scans ) and ( blockName in _BLOCK_NAMES ): # HACK: BLOCKS ARE THE ONLY OBJECTS
             i    = _BLOCK_NAMES.index( blockName )
-            pose = world.scans[i].worldFrameCoords
+            pose = np.around( world.scans[i].worldFrameCoords, 4 )
             obj  = Pose( blockName, pose, _SUPPORT_NAME )
             world.add_object( obj )
             print( "Instantiating a", blockName )
@@ -183,10 +196,12 @@ def get_pose_stream( robot, detector, world ):
 def get_grasp_stream( world ):
     """ Return a function that returns grasps """
 
-    examplePose = np.array( [[ 8.07158441e-04,  9.99998327e-01,  1.64138068e-03, -3.13368658e-01],
-                             [ 9.99999674e-01, -8.07102857e-04, -3.45258112e-05, -5.94166567e-02],
-                             [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
-                             [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] )
+    examplePose = np.around( np.array( 
+        [[ 8.07158441e-04,  9.99998327e-01,  1.64138068e-03, -3.13368658e-01],
+         [ 9.99999674e-01, -8.07102857e-04, -3.45258112e-05, -5.94166567e-02],
+         [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
+         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] 
+    ), 4)
     exOrient = examplePose[0:3,0:3]
     
     def stream_func( *args ):
@@ -224,7 +239,8 @@ def get_free_motion_planner( world ):
 
         (bgn, end) = args
         if bgn != end:
-            yield (BodyPath( world.robotName, [bgn.cnfg, end.cnfg] ),) 
+            # yield (BodyPath( world.robotName, [bgn.cnfg, end.cnfg] ),) 
+            yield (BodyPath( world.robotName, [bgn, end] ),) 
 
     return stream_func
 
@@ -241,11 +257,19 @@ def get_IK_solver( world ):
         (trgt, pose, grasp) = args
         
         #     ( <IK Sol'n>                           , <Trajectory>             )
-        yield ( BodyConf( world.robotName, grasp.grasp_pose ), BodyPath( world.robotName, [pose.pose, grasp.approach_pose, grasp.grasp_pose ] ) )
+        yield ( BodyConf( world.robotName, grasp.grasp_pose ), BodyPath( world.robotName, [
+            BodyConf( world.robotName, grasp.approach_pose ),
+            BodyConf( world.robotName, grasp.grasp_pose ),
+        ] ) )
 
     return stream_func
         
-        
+def get_safe_pose_test( ):
+    def test( *args ):
+        """ WARNING: TEST ALWAYS PASSES """
+        print( "Pose Test Args:", args, '\n' )
+        return True
+    return test
 
 ########## PROBLEM SETUP ###########################################################################
 
@@ -258,7 +282,7 @@ def pddlstream_from_problem( robot, detector, world ):
     print( "Read files!" )
 
     print( 'Robot:', robot.get_name() )
-    conf = BodyConf( robot.get_name(), robot.get_tcp_pose() )
+    conf = BodyConf( robot.get_name(), np.around( robot.get_tcp_pose(), 4 ) )
     init = [('CanMove',),
             ('Conf', conf),
             ('AtConf', conf),
@@ -277,10 +301,13 @@ def pddlstream_from_problem( robot, detector, world ):
     goal = ('Holding', _BLOCK_NAMES[0]) # Be holding the red block
 
     stream_map = {
+        ### Symbol Streams ###
         'sample-pose':        from_gen_fn( get_pose_stream( robot, detector, world ) ), 
         'sample-grasp':       from_gen_fn( get_grasp_stream( world ) ),
         'plan-free-motion':   from_gen_fn( get_free_motion_planner( world ) ),
         'inverse-kinematics': from_gen_fn( get_IK_solver( world ) ),
+        ### Symbol Tests ###
+        'test-cfree-pose-pose': from_test( get_safe_pose_test() ),
     }
 
     print( "About to create problem ... " )

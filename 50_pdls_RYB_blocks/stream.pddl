@@ -31,4 +31,11 @@
     :outputs (?q ?t)
     :certified (and (Conf ?q) (Traj ?t) (Kin ?o ?p ?g ?q ?t))
   )
+
+  ;; Pose Collision Test ;;
+  (:stream test-cfree-pose-pose
+    :inputs (?o1 ?p1 ?o2 ?p2)
+    :domain (and (Pose ?o1 ?p1) (Pose ?o2 ?p2))
+    :certified (CFreePosePose ?o1 ?p1 ?o2 ?p2)
+  )
 )

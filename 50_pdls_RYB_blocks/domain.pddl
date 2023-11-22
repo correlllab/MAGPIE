@@ -58,12 +58,12 @@
   (:action pick
     :parameters (?o ?p ?g ?q ?t)
     :precondition (and (Kin ?o ?p ?g ?q ?t)
-                       (AtPose ?o ?p) (HandEmpty) (AtConf ?q)
+                       (HandEmpty) (AtConf ?q)
                        (not (UnsafeApproach ?o ?p ?g))
                        (not (UnsafeTraj ?t))
                   )
     :effect (and (AtGrasp ?o ?g) (CanMove)
-                 (not (AtPose ?o ?p)) (not (HandEmpty)))
+                 (not (HandEmpty)))
   )
   (:action place
     :parameters (?o ?p ?g ?q ?t)
