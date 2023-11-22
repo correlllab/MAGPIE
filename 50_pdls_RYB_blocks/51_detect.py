@@ -4,9 +4,9 @@ from __future__ import print_function
 import sys, os, traceback
 from itertools import count
 try:
-    from collections import Sequence
-except ImportError:
     from collections.abc import Sequence
+except ImportError:
+    print( "IMPORT FAILED" )
 
 ### Special ###
 import numpy as np
@@ -274,7 +274,7 @@ def pddlstream_from_problem( robot, detector, world ):
     #         ('AtConf' , conf), # Move back to the original config
     # )
 
-    goal = ('Holding', 'redBlock') # Be holding the red block
+    goal = ('Holding', _BLOCK_NAMES[0]) # Be holding the red block
 
     stream_map = {
         'sample-pose':        from_gen_fn( get_pose_stream( robot, detector, world ) ), 
