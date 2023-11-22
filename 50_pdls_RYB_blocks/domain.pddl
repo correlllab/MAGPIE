@@ -58,7 +58,7 @@
   (:action pick
     :parameters (?o ?p ?g ?q ?t)
     :precondition (and (Kin ?o ?p ?g ?q ?t)
-                       (HandEmpty) (AtConf ?q)
+                       (HandEmpty) (AtConf ?q) ; `AtPose` was INCONSISTENT precond!
                        (not (UnsafeApproach ?o ?p ?g))
                        (not (UnsafeTraj ?t))
                   )
