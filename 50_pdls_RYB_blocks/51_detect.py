@@ -316,6 +316,108 @@ def pddlstream_from_problem( robot, detector, world ):
 
 
 
+########## PLAN --TO--> CONTROL ################################################################
+
+class MoveFree:
+    def __init__( self, *args ):
+        self.bgn  = args[0]
+        self.end  = args[1]
+        self.traj = args[2]
+
+class Pick:
+    def __init__( self, *args ):
+        self.target = args[0]
+        self.grasp  = args[1]
+        self.traj   = args[2]
+        
+
+def parse_plan( plan ):
+    """ Translate the plan into actions executable by the robot """
+    actionDict = {
+        "move_free": MoveFree,
+        "pick":      Pick,
+    }
+    actionPlan = []
+    for step in plan:
+        stepKey = step.name
+        if stepKey in actionDict:
+            clsCon = actionDict[ stepKey ]
+            actionPlan.append( clsCon( *(step.args) ) )
+        else:
+            print( "Cannot package action:", stepKey )
+    return actionPlan
+
+
+
+########## VISUALIZATION #######################################################################
+import open3d as o3d
+from homog_utils import xform_from_vertical_at_position, vec_mag
+
+_BLOCK_EDGE_M      = 0.020
+_AXES_SCALE_M      = 0.050
+_DEFAULT_VEC_COLOR = [255/255, 106/255, 0/255]
+
+def get_vec_arrow_geo( origin, vec, 
+                       graphicScale = 1.0, arrowFrac = 0.25, cylinderRadFrac = 0.01, coneRadFrac = 0.02,
+                       color = _DEFAULT_VEC_COLOR ):
+    """ Get geometry object showing `vec` as it starts from `origin` (Lab Frame) """
+    mag = vec_mag( vec )
+    if mag > 0.0:
+        headLen = mag * graphicScale * arrowFrac
+        tailLen = mag * graphicScale * (1.0-arrowFrac)
+        xform   = xform_from_vertical_at_position( origin, vec )
+        arrow = o3d.geometry.TriangleMesh.create_arrow(  
+            cylinder_radius = mag * cylinderRadFrac,
+            cone_radius     = mag * coneRadFrac,
+            cylinder_height = tailLen, 
+            cone_height     = headLen, 
+            resolution      = 4,  # 20
+            cylinder_split  = 4, 
+            cone_split      = 1
+        )
+        arrow.transform( xform )
+        arrow.paint_uniform_color( color )
+        return [arrow,]
+    else:
+        return []
+
+def visualize_cert( certificate, geo = None ):
+    """ Visualize certain important certified facts """
+    if geo is None:
+        geo = [ o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M ) ]
+    else:
+        geo.append( o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M ) )
+        
+    for fact in certificate:
+
+        if fact is None:
+            continue
+        
+        name = fact[0]
+
+        ## Object Poses ##
+        if name == "pose":
+            objName = fact[1]
+            objPose = fact[2].pose
+            block   = o3d.geometry.TriangleMesh.create_box( _BLOCK_EDGE_M, _BLOCK_EDGE_M, _BLOCK_EDGE_M )
+            block.transform( objPose )
+            if 'red' in objName:
+                block.paint_uniform_color( [1, 0, 0] )
+            elif 'ylw' in objName:
+                block.paint_uniform_color( [1, 1, 0] )
+            elif 'blu' in objName:
+                block.paint_uniform_color( [0, 0, 1] )
+            else:
+                block.paint_uniform_color( [0, 0, 0] )
+            geo.append( block )
+
+    o3d.visualization.draw_geometries( geo )
+
+# FIXME, START HERE: VISUALIZE PLAN
+# FIXME: VISUALIZE MOVE
+# FIXME: VISUALIZE PICK
+
+
 ########## MAIN ################################################################################
 from pprint import pprint
 
@@ -338,10 +440,28 @@ if __name__ == "__main__":
         print_solution( solution )
         plan, cost, evaluations = solution
 
-        print 
-        for elem in solution.certificate[0]:
-            pprint( elem )
+        print( "\n########## PLAN ##########\n" )
+
+        aPlan = parse_plan( plan )
+        print( aPlan )
+        
+        if 0:
+            for step in plan:
+                print( step.name )
+                for arg_i in step.args:
+                    print( type( arg_i ), dir( arg_i ) )
+                # print( type( step.args ), dir( step.args ) )
+                # print()
+        print()
+
+        if 0:
+            print( "\n########## CERTIFIED FACTS ##########\n" ) 
+            for elem in solution.certificate[0]:
+                pprint( elem )
+                print()
             print()
+
+        visualize_cert( solution.certificate[0] )
 
     except KeyboardInterrupt as e:
         print( f"Solver was stopped by the user at {time.time()}!" )

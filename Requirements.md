@@ -53,21 +53,28 @@ Brainstorming / Steering / Planning Document
     1. `[Y]` Locate blocks
         - `[Y]` Inspect localization code from Andrea/Dylan, 2023-11-20: Needs testing
         - `[Y]` Confirm that the segmentation pipline runs, 2023-11-21: Segmentation hack depends on simple color mask, needs testing
-    1. `[ ]` Resolve block predicates
+    1. `[Y]` Resolve block predicates, 2023-11-21: WARNING, Visualization indicates blocks are below deck!
         * REMEMBER: Streams should `yield` instead of `return`!
-        - `[ ]` "Dummy" IK Solver
-    1. `[ ]` PDDLStream --to--> MAGPIE Investigation
-        * `[ ]` De-tangle camera from detector
-        * `[ ]` Create a local copy of "incremental.py" to allow inspection and debugging of PDDLStream pipeline
-            - `[ ]` Display which solver was chosen by `solve_finite`
-    
-    1. `[ ]` PDDLStream Solution <-from-- "Incremental"
+        - `[Y]` "Dummy" IK Solver, 2023-11-21: Just use the pose
+    1. `[Y]` PDDLStream Solution <-from-- "Incremental", 2023-11-21: Solution obtained!
+    1. `[ ]` Visualize
+        * `[ ]` Visualize `move_free` action
+        * `[ ]` Visualize `pick` action
+        * `[ ]` ISSUE: Blocks are BELOW the table level!
+            - `[ ]` Check the camera transform
+        * `[ ]` ISSUE: Red and Yellow blocks occupy the same space!
+            - `[ ]` Is there a different way to define the color filter?
     1. `[ ]` Execute
         * `[ ]` Behavior Tree for one action
         * `[ ]` Behavior Tree for all actions
     1. `[ ]` Postmortem Question: How will MAGPIE differ from PDDLStream?
         * `[ ]` Discuss required engineering with team
         * `[ ]` Discuss GPL3 licensing with advisor/team
+    1. `[ ]` PDDLStream --to--> MAGPIE Investigation
+        * `[ ]` De-tangle camera from detector
+        * `[ ]` Create a local copy of "incremental.py" to allow inspection and debugging of PDDLStream pipeline
+            - `[ ]` Display which solver was chosen by `solve_finite`
+
 
 ### How does the solver work?
 
