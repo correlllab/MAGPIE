@@ -351,7 +351,7 @@ def parse_plan( plan ):
 
 ########## VISUALIZATION #######################################################################
 import open3d as o3d
-from homog_utils import xform_from_vertical_at_position, vec_mag
+from homog_utils import xform_from_vertical_at_position, vec_mag, posn_from_xform
 
 _BLOCK_EDGE_M      = 0.020
 _AXES_SCALE_M      = 0.050
@@ -384,9 +384,9 @@ def get_vec_arrow_geo( origin, vec,
 def visualize_cert( certificate, geo = None ):
     """ Visualize certain important certified facts """
     if geo is None:
-        geo = [ o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M ) ]
+        geo = [ o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M*2.0 ) ]
     else:
-        geo.append( o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M ) )
+        geo.append( o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M*2.0 ) )
         
     for fact in certificate:
 
@@ -411,12 +411,52 @@ def visualize_cert( certificate, geo = None ):
                 block.paint_uniform_color( [0, 0, 0] )
             geo.append( block )
 
-    o3d.visualization.draw_geometries( geo )
+    return geo
 
 # FIXME, START HERE: VISUALIZE PLAN
 # FIXME: VISUALIZE MOVE
 # FIXME: VISUALIZE PICK
 
+def viz_traj( waypoints ):
+    """ Represent motion through a series of waypoints (homogeneous) """
+    bgn  = waypoints[0]
+    last = bgn
+    frm1 = o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M )
+    frm1.transform( bgn )
+    geo = [frm1,]
+    if len( waypoints ) >= 2:
+        for wp in waypoints[1:]:
+            frm_i = o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M )
+            frm_i.transform( wp )
+            geo.append( frm_i )
+            psn_i = posn_from_xform( last )
+            vctr = posn_from_xform( wp ) - psn_i
+            geo.extend( get_vec_arrow_geo( psn_i, vctr ) )
+    return geo
+
+def visualize_move_free( action ):
+    """ Represent motion of the effector """
+    return viz_traj( [action.bgn.cnfg, action.end.cnfg] )
+
+def visualize_pick( action ):
+    pass
+
+def visualize_plan( plan, geo = None ):
+    """ Visualize each step of a parsed PDDLStream plan """
+    if geo is None:
+        geo = [ o3d.geometry.TriangleMesh.create_coordinate_frame( size = _AXES_SCALE_M*2.0 ) ]
+    for action in plan:
+        if isinstance( action, MoveFree ):
+            geo.extend( visualize_move_free( action ) )
+        else:
+            print( f"Action {type(action)} is does NOT have a visualization!" )
+    return geo
+
+def visualize_solution( plan, cert ):
+    """ Visualize the plan and the certified facts in the same window """
+    elems = visualize_plan( plan, geo = visualize_cert( cert[0] ) )
+    o3d.visualization.draw_geometries( elems )
+    
 
 ########## MAIN ################################################################################
 from pprint import pprint
@@ -444,6 +484,8 @@ if __name__ == "__main__":
 
         aPlan = parse_plan( plan )
         print( aPlan )
+
+        visualize_solution( aPlan, solution.certificate )
         
         if 0:
             for step in plan:
@@ -461,7 +503,7 @@ if __name__ == "__main__":
                 print()
             print()
 
-        visualize_cert( solution.certificate[0] )
+        # visualize_cert( solution.certificate[0] )
 
     except KeyboardInterrupt as e:
         print( f"Solver was stopped by the user at {time.time()}!" )
