@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+########## INIT ################################################################################
+
 ### Standard ###
 import sys, os, traceback
 from itertools import count
@@ -18,7 +20,7 @@ from pddlstream.language.generator import from_gen_fn, from_fn, empty_gen, from_
 from pddlstream.utils import read, INF, get_file_path, find_unique, Profiler, str_from_object, negate_test
 from pddlstream.language.constants import print_solution, PDDLProblem
 
-########## DOMAIN OBJECTS ##########################################################################
+########## DOMAIN OBJECTS ######################################################################
 _BLOCK_NAMES  = ['redBlock', 'ylwBlock', 'bluBlock',]
 _SUPPORT_NAME = 'table'
 
@@ -123,7 +125,7 @@ class MagpieWorld:
             return None
         
 
-########## MAGPIE ##################################################################################
+########## MAGPIE ##############################################################################
 
 import sys, time
 sys.path.append( "../" )
@@ -154,13 +156,21 @@ def magpie_shutdown( robot, camera ):
 
 
 ########## STREAMS #################################################################################
+from homog_utils import R_krot, homog_xform
 _APPROACH_ABOVE_M = 0.070
+_CAMERA_XFORM     = homog_xform( # TCP --to-> Camera
+    rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ), 
+    posnVctr = [0.0, 0.0, 0.084-0.2818] 
+)
+
+
 
 def get_blocks( robot, detector ):
     """ Get block poses from YOLO """
     _, rgbdImage = detector.real.get_PCD()
     depthImage, colorImage = rgbdImage.depth, rgbdImage.color
-    urPose = robot.get_tcp_pose()
+    # urPose = np.dot( _CAMERA_XFORM, robot.get_tcp_pose() )
+    urPose = np.dot( robot.get_tcp_pose(), _CAMERA_XFORM )
     return detector.getBlocksFromImages( colorImage, depthImage, urPose, display = False )
 
 
@@ -439,7 +449,9 @@ def visualize_move_free( action ):
     return viz_traj( [action.bgn.cnfg, action.end.cnfg] )
 
 def visualize_pick( action ):
-    pass
+    """ Represent grasping an object """
+    print( action.traj )
+    return list()
 
 def visualize_plan( plan, geo = None ):
     """ Visualize each step of a parsed PDDLStream plan """

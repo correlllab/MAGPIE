@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import cv2
 import open3d as o3d
 import spatialmath as sm
+import matplotlib.image
 
 ### Local ###
 import Block as bl
@@ -156,6 +157,9 @@ class DepthCam:
 
 
 
+
+
+
 ########## OBJECT SEGMENTATION #####################################################################
 
 class ObjectDetection:
@@ -249,14 +253,17 @@ class ObjectDetection:
         yellowMask = self.getSegmentationMask(result, 'Yellow')
         blueMask = self.getSegmentationMask(result, 'Blue')
 
-        colorThresh = 0.95
+        colorThresh = 0.90
         
         if (redMask is None):
-            redMask    = self.get_basic_color_mask( colorImage, 'red', thresh = colorThresh )
+            redMask = self.get_basic_color_mask( colorImage, 'red', thresh = colorThresh )
+            matplotlib.image.imsave( 'redMask.png', redMask )
         if (yellowMask is None):
             yellowMask = self.get_basic_color_mask( colorImage, 'ylw', thresh = colorThresh )
+            matplotlib.image.imsave( 'yellowMask.png', yellowMask )
         if (blueMask is None):
-            blueMask   = self.get_basic_color_mask( colorImage, 'blu', thresh = colorThresh )
+            blueMask = self.get_basic_color_mask( colorImage, 'blu', thresh = colorThresh )
+            matplotlib.image.imsave( 'blueMask.png', blueMask )
 
         # print( "Masks:", redMask, yellowMask, blueMask )
 
