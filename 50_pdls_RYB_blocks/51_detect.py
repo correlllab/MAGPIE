@@ -146,7 +146,7 @@ def magpie_init():
         except RuntimeError as e:
             print( "Hardware start failed due to", e )
             time.sleep(1)
-        # exit()
+    return None, None, None
 
 def magpie_shutdown( robot, camera ):
     """ Start MAGPIE-related hardware """
