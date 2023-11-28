@@ -3,6 +3,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import spatialmath as sm
 
+########## Simple Block ############################################################################
+
+class SimpleBlock:
+    """ Use this to ground the RYB blocks """
+    def __init__( self, name, pcd, pose ):
+        self.name = name
+        self.pcd  = pcd
+        self.pose = pose
+
+
+
+########## Complex Block ###########################################################################
+
 class Block:
     
     def __init__(self, name, pcd, urPose):

@@ -16,9 +16,10 @@ import open3d as o3d
 
 ### Local ###
 sys.path.append( "../pddlstream/" )
+sys.path.append( ".." )
 
 ########## RANSAC SEGMENTATION #####################################################################
-from homog_utils import R_krot, homog_xform
+from magpie.homog_utils import R_krot, homog_xform, apply_homog_to_posn_vec
 
 def get_pcd_centroid( pcd ):
     """ Get the average point of the PCD """
@@ -45,9 +46,11 @@ def get_oriented_box_R( obb ):
     R[:,1] = Y
     R[:,2] = Z
     return R
-    
-    
-    
+
+def transform_pcd( xform, pcd ):
+    """ Transform every coordinate to the new frame """
+    for i, pnt in enumerate( np.asarray( pcd.points ) ):
+        pcd.points[i] = apply_homog_to_posn_vec( xform, pnt )
     
 
 class SimpleBlock:
@@ -98,26 +101,27 @@ class PlanarEnv:
             clusters[ label ].append(i)
         for cluster in clusters:
             cloud_i = self.pcd.select_by_index( cluster )
-            if len( cloud_i.points ) > 150:
+            if len( cloud_i.points ) > 100:
                 self.obj.append( cloud_i )
             
         print( f"Found {len(self.obj)} objects!, {[len(o.points) for o in self.obj]}" )
 
         return self.obj
 
-    def filter_objects( self, boxMax = 0.050 ):
+    def filter_objects( self, robotRef, boxMax = 0.050 ):
         """ Filter objects by size """
         res = []
+        camXform = robotRef.get_cam_pose()
         for cloud in self.obj:
             obb = cloud.get_oriented_bounding_box()
             coordMax = max( obb.extent )
             if coordMax <= boxMax:
-                res.append( cloud )
-                self.pos.append( homog_xform( 
+                self.pos.append( robotRef.get_sensor_pose_in_robot_frame( homog_xform( 
                     rotnMatx = get_oriented_box_R( obb ), 
                     posnVctr = get_pcd_centroid( cloud )  
-                ) )
-                # print( self.pos[-1] )
+                ) ) )
+                transform_pcd( camXform, cloud )
+                res.append( cloud )
         self.obj = res
         print( f"There are {len(self.obj)} filtered objects!" )
         return res
@@ -199,7 +203,7 @@ if __name__ == "__main__":
     detector.remove_plane( pcd )
     objClouds = detector.cluster_objects()
     # display_PCD_list( objClouds )
-    objClouds = detector.filter_objects( 0.040 )
+    objClouds = detector.filter_objects( robot, 0.045 )
     blocks    = detector.get_blocks_RYB()
 
     print( [block.name for block in blocks] )

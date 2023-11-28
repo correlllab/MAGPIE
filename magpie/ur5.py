@@ -1,5 +1,6 @@
 ########## INIT ####################################################################################
 
+##### Imports ####################################
 # Numpy
 import numpy as np
 from numpy import radians
@@ -18,7 +19,14 @@ from magpie.Motor_Code import Motors
 # Poses is from rmlib and used for converting between 4 x 4 homogenous pose and 6 element vector representation (x,y,z,rx,ry,rz)
 from magpie import poses
 
+##### Constants ##################################
+from magpie.homog_utils import homog_xform, R_krot
 
+_CAMERA_XFORM = homog_xform( # TCP --to-> Camera
+    rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ), 
+    # posnVctr = [0.0, 0.0, 0.084-0.2818] 
+    posnVctr = [0.0, 0.0, -0.084] 
+)
 
 ########## HELPER FUNCTIONS ########################################################################
 
@@ -51,8 +59,13 @@ def get_USB_port_with_desc( descStr ):
 
 class UR5_Interface:
     """ Interface class to `ur_rtde` """
+
+    def set_tcp_to_camera_xform( self, xform ):
+        """ Set the camera transform """
+        self.camXform = np.array( xform )
+        
     
-    def __init__( self, robotIP = "192.168.0.6" ):
+    def __init__( self, robotIP = "192.168.0.6", cameraXform = None ):
         """ Store connection params and useful constants """
         self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
@@ -62,8 +75,13 @@ class UR5_Interface:
         self.Q_safe     = [ radians( elem ) for elem in [ 12.30, -110.36, 95.90, -75.48, -89.59, 12.33 ] ]
         self.torqLim    = 600
         self.gripClos_m = 0.002
-        
-        
+        self.camXform   = np.eye(4)
+        if cameraXform is None:
+            self.set_tcp_to_camera_xform( _CAMERA_XFORM )
+        else:
+            self.set_tcp_to_camera_xform( cameraXform )
+
+    
     def start( self ):
         """ Connect to RTDE and the gripper """
         self.ctrl = rtde_control.RTDEControlInterface( self.robotIP )
@@ -96,6 +114,27 @@ class UR5_Interface:
         """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
         # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
         return pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
+
+    
+    def get_cam_pose( self ):
+        """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
+        # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
+        return np.dot(
+            pose_vector_to_homog_coord( self.recv.getActualTCPPose() ),
+            self.camXform
+            # self.camXform,
+            # pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
+        )
+
+    
+    def get_sensor_pose_in_robot_frame( self, sensorPose ):
+        """ Get a pose obtained from segmentation in the robot frame """
+        return np.dot(
+            self.get_cam_pose(),
+            sensorPose
+            # sensorPose,
+            # self.get_cam_pose()
+        )
     
     
     def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
