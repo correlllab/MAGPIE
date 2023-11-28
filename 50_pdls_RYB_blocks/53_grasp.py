@@ -315,7 +315,10 @@ from magpie.BT import Move_Arm, Close_Gripper, run_BT_until_done, Sequence, conn
 class MoveFree( Move_Arm ):
     def __init__( self, *args ):
         pose = args[1].cnfg.copy()
-        pose[0:3,0:3] = _PROTO_PICK_ROT # WARNING: FOR NOW DON'T TRUST ORIENTATIONS FROM BLOCK SEGMENTATION
+
+        # FIXME: EITHER GUARANTEE VALID MOVE POSES OR UNCOMMENT THIS LINE
+        # pose[0:3,0:3] = _PROTO_PICK_ROT # WARNING: FOR NOW DON'T TRUST ORIENTATIONS FROM BLOCK SEGMENTATION
+        
         super().__init__( pose, name = "MoveFree" )
         # print( "MoveFree:", [type(arg) for arg in args] )
         self.bgn  = args[0]
@@ -511,12 +514,16 @@ def visualize_solution( plan, cert ):
 
 ########## MAIN ################################################################################
 from pprint import pprint
+from time import sleep
 
 if __name__ == "__main__":
 
     robot, camera, detector = magpie_init()
     print( "Hardware ON!" )
     world = MagpieWorld( robot.get_name() )
+
+    robot.open_gripper()
+    sleep(2)
 
     parser = create_parser()
     args = parser.parse_args()

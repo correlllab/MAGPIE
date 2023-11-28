@@ -56,6 +56,9 @@ def pose_vec_to_mtrx(vec):
     matrix[:3, :3] = np.array([[r11, r12, r13], [r21, r22, r23], [r31, r32, r33]])
     return matrix
 
+from spatialmath import SO3
+from spatialmath.base import tr2angvec, r2q
+from spatialmath.quaternion import UnitQuaternion
 
 def pose_mtrx_to_vec( matrix, epsilon = 1e-6 ):
     """
@@ -75,46 +78,59 @@ def pose_mtrx_to_vec( matrix, epsilon = 1e-6 ):
     vector: [6,] list
         Vector.\n
         [x, y, z, rX, rY, rZ]
+        position, axis-angle
     """
 
-    if not is_rotation_mtrx( matrix[0:3, 0:3], epsilon ):
-        raise ValueError(
-            "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
-        )
+    Q = UnitQuaternion( r2q( matrix[0:3,0:3] ) )
+    theta, k = Q.SO3().angvec()
+    # print( R )
+    # print( type(R), '\n', dir(R) )
+    x  = matrix[0,3]
+    y  = matrix[1,3]
+    z  = matrix[2,3]
+    rx = k[0] * theta
+    ry = k[1] * theta
+    rz = k[2] * theta
+    return np.array( [x,y,z,rx,ry,rz,] )
 
-    r11 = matrix[0, 0]
-    r12 = matrix[0, 1]
-    r13 = matrix[0, 2]
-    r21 = matrix[1, 0]
-    r22 = matrix[1, 1]
-    r23 = matrix[1, 2]
-    r31 = matrix[2, 0]
-    r32 = matrix[2, 1]
-    r33 = matrix[2, 2]
+    # if not is_rotation_mtrx( matrix[0:3, 0:3], epsilon ):
+    #     raise ValueError(
+    #         "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
+    #     )
 
-    val = (r11 + r22 + r33 - 1) / 2.0
-    while val < -1.0:
-        val += 2.0
-    while val > 1.0:
-        val -= 2.0
-    theta = np.arccos(val)
+    # r11 = matrix[0, 0]
+    # r12 = matrix[0, 1]
+    # r13 = matrix[0, 2]
+    # r21 = matrix[1, 0]
+    # r22 = matrix[1, 1]
+    # r23 = matrix[1, 2]
+    # r31 = matrix[2, 0]
+    # r32 = matrix[2, 1]
+    # r33 = matrix[2, 2]
 
-    if theta == 0.0:
-        theta = 1e-8
-    sth = np.sin(theta)
-    kx = (r32 - r23) / (2 * sth)
-    ky = (r13 - r31) / (2 * sth)
-    kz = (r21 - r12) / (2 * sth)
+    # val = (r11 + r22 + r33 - 1) / 2.0
+    # while val < -1.0:
+    #     val += 2.0
+    # while val > 1.0:
+    #     val -= 2.0
+    # theta = np.arccos(val)
 
-    rv1 = theta * kx
-    rv2 = theta * ky
-    rv3 = theta * kz
+    # if theta == 0.0:
+    #     theta = 1e-8
+    # sth = np.sin(theta)
+    # kx = (r32 - r23) / (2 * sth)
+    # ky = (r13 - r31) / (2 * sth)
+    # kz = (r21 - r12) / (2 * sth)
 
-    x = matrix[0, -1]
-    y = matrix[1, -1]
-    z = matrix[2, -1]
+    # rv1 = theta * kx
+    # rv2 = theta * ky
+    # rv3 = theta * kz
 
-    return [float(x), float(y), float(z), float(rv1), float(rv2), float(rv3)]
+    # x = matrix[0, -1]
+    # y = matrix[1, -1]
+    # z = matrix[2, -1]
+
+    # return [float(x), float(y), float(z), float(rv1), float(rv2), float(rv3)]
 
 
 def origin_pose():
