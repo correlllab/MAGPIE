@@ -1,5 +1,6 @@
 ########## INIT ####################################################################################
 
+##### Imports ####################################
 # Numpy
 import numpy as np
 from numpy import radians
@@ -18,7 +19,13 @@ from magpie.Motor_Code import Motors
 # Poses is from rmlib and used for converting between 4 x 4 homogenous pose and 6 element vector representation (x,y,z,rx,ry,rz)
 from magpie import poses
 
+##### Constants ##################################
+from magpie.homog_utils import homog_xform, R_krot
 
+_CAMERA_XFORM = homog_xform( # TCP --to-> Camera
+    rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ), 
+    posnVctr = [0.0, 0.0, -0.084-0.030] # WARNING: HAND-TUNED VALUES
+)
 
 ########## HELPER FUNCTIONS ########################################################################
 
@@ -29,10 +36,10 @@ def pose_vector_to_homog_coord( poseVec ):
     return poses.pose_vec_to_mtrx( poseVec )
 
 
-def homog_coord_to_pose_vector( poseMatrix ):
+def homog_coord_to_pose_vector( poseMatrix, epsilon = 1e-6 ):
     """ Converts poseMatrix into a 6 element list of [x, y, z, rX, rY, rZ] """
     # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
-    return poses.pose_mtrx_to_vec( np.array( poseMatrix ) )
+    return poses.pose_mtrx_to_vec( np.array( poseMatrix ), epsilon )
 
 
 def get_USB_port_with_desc( descStr ):
@@ -51,9 +58,15 @@ def get_USB_port_with_desc( descStr ):
 
 class UR5_Interface:
     """ Interface class to `ur_rtde` """
+
+    def set_tcp_to_camera_xform( self, xform ):
+        """ Set the camera transform """
+        self.camXform = np.array( xform )
+        
     
-    def __init__( self, robotIP = "192.168.0.6" ):
+    def __init__( self, robotIP = "192.168.0.6", cameraXform = None ):
         """ Store connection params and useful constants """
+        self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
         self.ctrl       = None # -- `RTDEControlInterface` object 
         self.recv       = None # -- `RTDEReceiveInterface` object 
@@ -61,8 +74,13 @@ class UR5_Interface:
         self.Q_safe     = [ radians( elem ) for elem in [ 12.30, -110.36, 95.90, -75.48, -89.59, 12.33 ] ]
         self.torqLim    = 600
         self.gripClos_m = 0.002
-        
-        
+        self.camXform   = np.eye(4)
+        if cameraXform is None:
+            self.set_tcp_to_camera_xform( _CAMERA_XFORM )
+        else:
+            self.set_tcp_to_camera_xform( cameraXform )
+
+    
     def start( self ):
         """ Connect to RTDE and the gripper """
         self.ctrl = rtde_control.RTDEControlInterface( self.robotIP )
@@ -80,6 +98,11 @@ class UR5_Interface:
         self.ctrl.servoStop()
         self.ctrl.stopScript()
         
+
+    def get_name( self ):
+        """ Get string that represents this robot """
+        return self.name
+    
         
     def get_joint_angles( self ):
         """ Returns a 6 element numpy array of joint angles (radians) """
@@ -90,6 +113,27 @@ class UR5_Interface:
         """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
         # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
         return pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
+
+    
+    def get_cam_pose( self ):
+        """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
+        # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
+        return np.dot(
+            pose_vector_to_homog_coord( self.recv.getActualTCPPose() ),
+            self.camXform
+            # self.camXform,
+            # pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
+        )
+
+    
+    def get_sensor_pose_in_robot_frame( self, sensorPose ):
+        """ Get a pose obtained from segmentation in the robot frame """
+        return np.dot(
+            self.get_cam_pose(),
+            sensorPose
+            # sensorPose,
+            # self.get_cam_pose()
+        )
     
     
     def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
@@ -98,11 +142,11 @@ class UR5_Interface:
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
     
     
-    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
+    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True, epsilon = 1e-6 ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
-        self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
+        self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix, epsilon ), linSpeed, linAccel, asynch )
     
     
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):

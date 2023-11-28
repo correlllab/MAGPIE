@@ -30,7 +30,7 @@ class BasicBehavior( Behaviour ):
         self.ctrl = ctrl
         self.logger.debug( f"[{self.name}::__init__()]" )
         if self.ctrl is None:
-            self.logger.warn( f"{self.name} is NOT conntected to a robot controller!" )
+            self.logger.warning( f"{self.name} is NOT conntected to a robot controller!" )
 
         
     def setup(self):
@@ -69,6 +69,16 @@ PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
 
 ### Set important BB items ###
 MP2BB[ SCAN_POSE_KEY ] = dict()
+
+########## HELPERS #################################################################################
+
+def connect_BT_to_robot( bt, robot ):
+    """ Assign `robot` controller to `bt` and recursively to all nodes below """
+    if hasattr( bt, 'ctrl' ):
+        bt.ctrl = robot
+    if len( bt.children ):
+        for child in bt.children:
+            connect_BT_to_robot( child, robot )
 
 ########## MOVEMENT BEHAVIORS ######################################################################
 
@@ -126,12 +136,13 @@ class Move_Arm( BasicBehavior ):
         self.linSpeed = linSpeed
         self.linAccel = linAccel
         self.asynch   = asynch
+        self.epsilon  = 1e-5
         
         
     def initialise( self ):
         """ Actually Move """
         super().initialise()
-        self.ctrl.moveL( self.pose, self.linSpeed, self.linAccel, self.asynch )
+        self.ctrl.moveL( self.pose, self.linSpeed, self.linAccel, self.asynch, self.epsilon )
         
         
     def update( self ):
