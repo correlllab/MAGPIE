@@ -151,6 +151,9 @@ _DOWNWARD_POSE = np.around( np.array(
      [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
      [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] 
 ), 4)
+_PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
+                             [ 1.0,  0.0,  0.0, ],
+                             [ 0.0,  0.0, -1.0, ]] )
 
 
 def get_blocks( robot, camera, detector ):
@@ -196,8 +199,7 @@ def get_pose_stream( robot, camera, detector, world ):
 def get_grasp_stream( world ):
     """ Return a function that returns grasps """
 
-    
-    exOrient = _DOWNWARD_POSE[0:3,0:3]
+    exOrient = _PROTO_PICK_ROT
     
     def stream_func( *args ):
         """ A function that returns grasps """
@@ -308,12 +310,12 @@ def pddlstream_from_problem( robot, detector, world ):
 
 
 ########## PLAN --TO--> CONTROL ################################################################
-from magpie.BT import Move_Arm, Close_Gripper, run_BT_until_done, Sequence
+from magpie.BT import Move_Arm, Close_Gripper, run_BT_until_done, Sequence, connect_BT_to_robot
 
 class MoveFree( Move_Arm ):
     def __init__( self, *args ):
-        pose = args[1].copy()
-        pose[0:3,0:3] = _DOWNWARD_POSE[0:3,0:3] # WARNING: FOR NOW DON'T TRUST ORIENTATIONS FROM BLOCK SEGMENTATION
+        pose = args[1].cnfg.copy()
+        pose[0:3,0:3] = _PROTO_PICK_ROT # WARNING: FOR NOW DON'T TRUST ORIENTATIONS FROM BLOCK SEGMENTATION
         super().__init__( pose, name = "MoveFree" )
         # print( "MoveFree:", [type(arg) for arg in args] )
         self.bgn  = args[0]
@@ -322,9 +324,9 @@ class MoveFree( Move_Arm ):
 
 class Pick( Close_Gripper ):
     def __init__( self, *args ):
-        super().__init__( name = "Pick" )
+        super().__init__( name = "Pick: " )
         # print( "Pick:", [type(arg) for arg in args] )
-        self.name   = args[0]
+        self.name  += str( args[0] )
         self.target = args[1]
         self.grasp  = args[2]
         self.cnfg   = args[3]
@@ -532,28 +534,17 @@ if __name__ == "__main__":
         print( "\n########## PLAN ##########\n" )
 
         aPlan, aBT = parse_plan( plan )
+        connect_BT_to_robot( aBT, robot )
         print( aPlan )
-        print( aBT   )
+        print( aBT, "connected to the robot!" )
 
+        print( "Close visualization window to execute!" )
         visualize_solution( aPlan, solution.certificate )
         
-        if 0:
-            for step in plan:
-                print( step.name )
-                for arg_i in step.args:
-                    print( type( arg_i ), dir( arg_i ) )
-                # print( type( step.args ), dir( step.args ) )
-                # print()
-        print()
-
-        if 0:
-            print( "\n########## CERTIFIED FACTS ##########\n" ) 
-            for elem in solution.certificate[0]:
-                pprint( elem )
-                print()
-            print()
-
-        # visualize_cert( solution.certificate[0] )
+        run_BT_until_done(
+            aBT,
+            successTree = 1
+        )
 
     except KeyboardInterrupt as e:
         print( f"Solver was stopped by the user at {time.time()}!" )

@@ -24,8 +24,7 @@ from magpie.homog_utils import homog_xform, R_krot
 
 _CAMERA_XFORM = homog_xform( # TCP --to-> Camera
     rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ), 
-    # posnVctr = [0.0, 0.0, 0.084-0.2818] 
-    posnVctr = [0.0, 0.0, -0.084] 
+    posnVctr = [0.0, 0.0, -0.084-0.050] # WARNING: HAND-TUNED VALUES
 )
 
 ########## HELPER FUNCTIONS ########################################################################
@@ -37,10 +36,10 @@ def pose_vector_to_homog_coord( poseVec ):
     return poses.pose_vec_to_mtrx( poseVec )
 
 
-def homog_coord_to_pose_vector( poseMatrix ):
+def homog_coord_to_pose_vector( poseMatrix, epsilon = 1e-6 ):
     """ Converts poseMatrix into a 6 element list of [x, y, z, rX, rY, rZ] """
     # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
-    return poses.pose_mtrx_to_vec( np.array( poseMatrix ) )
+    return poses.pose_mtrx_to_vec( np.array( poseMatrix ), epsilon )
 
 
 def get_USB_port_with_desc( descStr ):
@@ -143,11 +142,11 @@ class UR5_Interface:
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
     
     
-    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
+    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True, epsilon = 1e-6 ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
-        self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
+        self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix, epsilon ), linSpeed, linAccel, asynch )
     
     
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):

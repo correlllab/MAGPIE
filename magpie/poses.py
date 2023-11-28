@@ -57,7 +57,7 @@ def pose_vec_to_mtrx(vec):
     return matrix
 
 
-def pose_mtrx_to_vec(matrix):
+def pose_mtrx_to_vec( matrix, epsilon = 1e-6 ):
     """
     Converts homogeneous transformation matrix to a [translation + rotation] vector.
 
@@ -77,7 +77,7 @@ def pose_mtrx_to_vec(matrix):
         [x, y, z, rX, rY, rZ]
     """
 
-    if not is_rotation_mtrx(matrix[0:3, 0:3]):
+    if not is_rotation_mtrx( matrix[0:3, 0:3], epsilon ):
         raise ValueError(
             "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
         )
@@ -274,26 +274,29 @@ def invert_pose(pose):
     return np.linalg.inv(pose)
 
 
-def is_pose_mtrx(pose):
-    if type(pose) is not np.ndarray:
+def is_pose_mtrx( pose, epsilon = 1e-6 ):
+    if type( pose ) is not np.ndarray:
         return False
     if pose.shape == (4, 4):
         is_4x4 = True
     else:
         is_4x4 = False
-    if is_rotation_mtrx(pose[0:3, 0:3]) and is_4x4:
+    if is_rotation_mtrx( pose[0:3, 0:3], epsilon ) and is_4x4:
         return True
     else:
         return False
 
 
-def is_rotation_mtrx(R):
+def is_rotation_mtrx( R, epsilon = 1e-6 ):
     # Checks if a matrix is a valid rotation matrix.
     Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype=R.dtype)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-6
+    shouldBeIdentity = np.dot( Rt, R )
+    I = np.identity( 3, dtype=R.dtype )
+    n = np.linalg.norm( I - shouldBeIdentity )
+    res = (n <= epsilon)
+    if not res:
+        print( "Pose matrix out of spec by", n )
+    return res
 
 
 def rotation_mtrx_to_rpy(R):
