@@ -143,17 +143,26 @@ class MagpieWorld:
             return None
 
 ########## STREAMS #################################################################################
-from magpie.homog_utils import R_krot, homog_xform
+from magpie.homog_utils import R_krot, homog_xform, R_y
 _APPROACH_ABOVE_M = 0.070
+_DOWNWARD_POSE = np.around( np.array( 
+    [[ 8.07158441e-04,  9.99998327e-01,  1.64138068e-03, -3.13368658e-01],
+     [ 9.99999674e-01, -8.07102857e-04, -3.45258112e-05, -5.94166567e-02],
+     [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
+     [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] 
+), 4)
 
 
 def get_blocks( robot, camera, detector ):
     """ Get block poses from dbScan """
-    pcd, _ = camera.get_PCD()
-    detector.remove_plane( pcd )
-    objClouds = detector.cluster_objects()
-    objClouds = detector.filter_objects( robot, 0.045 )
-    return detector.get_blocks_RYB()
+    blocks = []
+    while( len( blocks ) < 3 ): # Spam detector until all three blocks appear
+        pcd, _ = camera.get_PCD()
+        detector.remove_plane( pcd )
+        objClouds = detector.cluster_objects()
+        objClouds = detector.filter_objects( robot, 0.045 )
+        blocks    = detector.get_blocks_RYB()
+    return blocks
 
 
 def get_pose_stream( robot, camera, detector, world ):
@@ -187,13 +196,8 @@ def get_pose_stream( robot, camera, detector, world ):
 def get_grasp_stream( world ):
     """ Return a function that returns grasps """
 
-    examplePose = np.around( np.array( 
-        [[ 8.07158441e-04,  9.99998327e-01,  1.64138068e-03, -3.13368658e-01],
-         [ 9.99999674e-01, -8.07102857e-04, -3.45258112e-05, -5.94166567e-02],
-         [-3.32009904e-05,  1.64140802e-03, -9.99998652e-01,  7.18983894e-02],
-         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]] 
-    ), 4)
-    exOrient = examplePose[0:3,0:3]
+    
+    exOrient = _DOWNWARD_POSE[0:3,0:3]
     
     def stream_func( *args ):
         """ A function that returns grasps """
@@ -285,11 +289,6 @@ def pddlstream_from_problem( robot, detector, world ):
         init += [('Graspable', body),]
         init += [('Stackable', body, _SUPPORT_NAME)]
 
-    # goal = ('and',
-    #         ('Holding', 'redBlock'), # Be holding the red block
-    #         ('AtConf' , conf), # Move back to the original config
-    # )
-
     goal = ('Holding', _BLOCK_NAMES[0]) # Be holding the red block
 
     stream_map = {
@@ -309,18 +308,27 @@ def pddlstream_from_problem( robot, detector, world ):
 
 
 ########## PLAN --TO--> CONTROL ################################################################
+from magpie.BT import Move_Arm, Close_Gripper, run_BT_until_done, Sequence
 
-class MoveFree:
+class MoveFree( Move_Arm ):
     def __init__( self, *args ):
+        pose = args[1].copy()
+        pose[0:3,0:3] = _DOWNWARD_POSE[0:3,0:3] # WARNING: FOR NOW DON'T TRUST ORIENTATIONS FROM BLOCK SEGMENTATION
+        super().__init__( pose, name = "MoveFree" )
+        # print( "MoveFree:", [type(arg) for arg in args] )
         self.bgn  = args[0]
         self.end  = args[1]
         self.traj = args[2]
 
-class Pick:
+class Pick( Close_Gripper ):
     def __init__( self, *args ):
-        self.target = args[0]
-        self.grasp  = args[1]
-        self.traj   = args[2]
+        super().__init__( name = "Pick" )
+        # print( "Pick:", [type(arg) for arg in args] )
+        self.name   = args[0]
+        self.target = args[1]
+        self.grasp  = args[2]
+        self.cnfg   = args[3]
+        self.traj   = args[4]
         
 
 def parse_plan( plan ):
@@ -330,14 +338,17 @@ def parse_plan( plan ):
         "pick":      Pick,
     }
     actionPlan = []
+    actionSeq = Sequence( "PDDLStream Plan", memory = 1 )
     for step in plan:
         stepKey = step.name
         if stepKey in actionDict:
             clsCon = actionDict[ stepKey ]
-            actionPlan.append( clsCon( *(step.args) ) )
+            action = clsCon( *(step.args) )
+            actionPlan.append( action )
+            actionSeq.add_child( action )
         else:
             print( "Cannot package action:", stepKey )
-    return actionPlan
+    return actionPlan, actionSeq
 
 
 
@@ -393,7 +404,9 @@ def visualize_cert( certificate, geo = None ):
             objName = fact[1]
             objPose = fact[2].pose
             block   = o3d.geometry.TriangleMesh.create_box( _BLOCK_EDGE_M, _BLOCK_EDGE_M, _BLOCK_EDGE_M )
-            block.transform( objPose )
+            offset  = np.eye(4)
+            offset[0:3,3] = [-_BLOCK_EDGE_M/2.0/2.0, -_BLOCK_EDGE_M/2.0, -_BLOCK_EDGE_M/2.0]
+            block.transform( np.dot( objPose, offset ) )
             if 'red' in objName:
                 block.paint_uniform_color( [1, 0, 0] )
             elif 'ylw' in objName:
@@ -454,8 +467,25 @@ def visualize_move_free( action ):
 
 def visualize_pick( action ):
     """ Represent grasping an object """
-    print( action.traj )
-    return list()
+    gripThick  = 0.010
+    gripLength = 0.050
+    gripSep    = 0.050
+    poseLeft   = np.eye(4)
+    poseRght   = np.eye(4)
+    poseLeft[0:3,3] = [+gripThick/2.0+gripSep/2.0, -gripThick/2.0, 0.0]
+    poseLeft[0:3,0:3] = R_y( np.pi )
+    poseRght[0:3,3] = [+gripThick/2.0-gripSep/2.0, -gripThick/2.0, 0.0]
+    poseRght[0:3,0:3] = R_y( np.pi )
+    
+    left = o3d.geometry.TriangleMesh.create_box( gripThick, gripThick, gripLength )
+    left.transform( np.dot( action.grasp.grasp_pose, poseLeft ) )
+    left.paint_uniform_color( [0.5, 0.5, 0.5] )
+    
+    rght = o3d.geometry.TriangleMesh.create_box( gripThick, gripThick, gripLength )
+    rght.transform( np.dot( action.grasp.grasp_pose, poseRght ) )
+    rght.paint_uniform_color( [0.5, 0.5, 0.5] )
+
+    return [left, rght,]
 
 def visualize_plan( plan, geo = None ):
     """ Visualize each step of a parsed PDDLStream plan """
@@ -464,6 +494,8 @@ def visualize_plan( plan, geo = None ):
     for action in plan:
         if isinstance( action, MoveFree ):
             geo.extend( visualize_move_free( action ) )
+        elif isinstance( action, Pick ):
+            geo.extend( visualize_pick( action ) )
         else:
             print( f"Action {type(action)} is does NOT have a visualization!" )
     return geo
@@ -499,8 +531,9 @@ if __name__ == "__main__":
 
         print( "\n########## PLAN ##########\n" )
 
-        aPlan = parse_plan( plan )
+        aPlan, aBT = parse_plan( plan )
         print( aPlan )
+        print( aBT   )
 
         visualize_solution( aPlan, solution.certificate )
         
