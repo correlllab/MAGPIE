@@ -80,11 +80,9 @@ def pose_mtrx_to_vec( matrix, epsilon = 1e-6 ):
         [x, y, z, rX, rY, rZ]
         position, axis-angle
     """
-
+    # FIXME: REINSTATE CORRECTNESS CHECK ON `matrix[0:3,0:3]`
     Q = UnitQuaternion( r2q( matrix[0:3,0:3] ) )
     theta, k = Q.SO3().angvec()
-    # print( R )
-    # print( type(R), '\n', dir(R) )
     x  = matrix[0,3]
     y  = matrix[1,3]
     z  = matrix[2,3]
@@ -92,45 +90,6 @@ def pose_mtrx_to_vec( matrix, epsilon = 1e-6 ):
     ry = k[1] * theta
     rz = k[2] * theta
     return np.array( [x,y,z,rx,ry,rz,] )
-
-    # if not is_rotation_mtrx( matrix[0:3, 0:3], epsilon ):
-    #     raise ValueError(
-    #         "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
-    #     )
-
-    # r11 = matrix[0, 0]
-    # r12 = matrix[0, 1]
-    # r13 = matrix[0, 2]
-    # r21 = matrix[1, 0]
-    # r22 = matrix[1, 1]
-    # r23 = matrix[1, 2]
-    # r31 = matrix[2, 0]
-    # r32 = matrix[2, 1]
-    # r33 = matrix[2, 2]
-
-    # val = (r11 + r22 + r33 - 1) / 2.0
-    # while val < -1.0:
-    #     val += 2.0
-    # while val > 1.0:
-    #     val -= 2.0
-    # theta = np.arccos(val)
-
-    # if theta == 0.0:
-    #     theta = 1e-8
-    # sth = np.sin(theta)
-    # kx = (r32 - r23) / (2 * sth)
-    # ky = (r13 - r31) / (2 * sth)
-    # kz = (r21 - r12) / (2 * sth)
-
-    # rv1 = theta * kx
-    # rv2 = theta * ky
-    # rv3 = theta * kz
-
-    # x = matrix[0, -1]
-    # y = matrix[1, -1]
-    # z = matrix[2, -1]
-
-    # return [float(x), float(y), float(z), float(rv1), float(rv2), float(rv3)]
 
 
 def origin_pose():
