@@ -4,6 +4,8 @@
 */statistics/
 */*.pt
 */*.png
+# ignore pddlstream for now in open-grasp
+pddlstream/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

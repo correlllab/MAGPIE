@@ -2,30 +2,22 @@
 @file label_owlvit.py
 @brief OWL-ViT implementation of label.py
 '''
+import sys
+sys.path.append("../../")
 import torch
 import numpy as np
-from label import Label
+from magpie.perception.label import Label
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 import matplotlib.pyplot as plt
 
 class LabelOWLViT(Label):
-    def __init__(self, camera):
+    def __init__(self, pth="google/owlvit-base-patch32"):
         '''
         @param camera camera object, expects realsense_wrapper
         '''
         super().__init__()
-        self.api_key = os.environ.get('OWL_VIT_API_KEY')
-        self.url = 'https://api.owl-vit.com/v1/label'
-        self.headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'
-        }
-        self.params = {
-            'model': 'owl-vit',
-            'confidence': 0.5
-        }
-        self.processor = OwlViTProcessor.from_pretrained("google/owlvit-base-patch32")
-        self.model = OwlViTForObjectDetection.from_pretrained("google/owlvit-base-patch32")
+        self.processor = OwlViTProcessor.from_pretrained(pth)
+        self.model = OwlViTForObjectDetection.from_pretrained(pth)
         self.dims = None
         self.H = None
         self.W = None

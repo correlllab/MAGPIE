@@ -6,8 +6,8 @@
 
 class Label:
     def __init__(self):
-        self.api_key = os.environ.get('VLM_API_KEY')
-
+        pass
+    
     def get_boxes(input_image, text_queries, scores, boxes, labels):
         pass
 

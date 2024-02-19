@@ -2,13 +2,14 @@
 @file mask_sam.py
 @brief Segment Anything Model (SAM) implementaion of mask.py
 '''
-
+import sys
+sys.path.append("../../")
 from segment_anything import build_sam, SamPredictor 
 import torch
 import copy
 import cv2
 import numpy as np
-from mask import Mask
+from magpie.perception.mask import Mask
 
 class MaskSAM(Mask):
     def __init__(self, ckpt=None):
