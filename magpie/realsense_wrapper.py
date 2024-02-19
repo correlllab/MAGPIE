@@ -134,6 +134,18 @@ class RealSense():
         else:
             res = [worldFrame].extend(pcds)
             o3d.visualization.draw_geometries(res)
+    
+    def display_world(self, world_pcd):
+        coordFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.05)
+        geometry = [coordFrame]
+        geometry.append(world_pcd)
+        o3d.visualization.draw_geometries(geometry)
+
+    def display_world_nb(self, world_pcd):
+        coordFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.05)
+        geometry = [coordFrame]
+        geometry.append(world_pcd)
+        o3d.web_visualizer.draw(geometry)
 
     def displayStream(self):
         # streams and displays the point cloud data in open3d

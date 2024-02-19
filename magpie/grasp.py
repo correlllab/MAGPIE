@@ -11,7 +11,7 @@ import math
 
 sleepRate = 0.75
 
-def projectToWorldCoords(gripperFrameCoords, ur, z_offset=0.08):
+def get_world_frame(gripperFrameCoords, ur, z_offset=0.08):
     # given a goal position in gripper coords returns the displacements from the current pose in world coords
     xB,yB,zB = gripperFrameCoords
     # TODO: stop hardcoding a Z-stop position
@@ -33,7 +33,7 @@ def projectToWorldCoords(gripperFrameCoords, ur, z_offset=0.08):
 def moveToBlock(blockPos, ur):
     # would be better if this was block object
     # :blockPos is coord in gripper frame
-    dX,dY,dZ = projectToWorldCoords(blockPos, ur) # goalPose in world coordinates
+    dX,dY,dZ = get_world_frame(blockPos, ur) # goalPose in world coordinates
     homePose = ur.getPose()
     dZ  += 7/1000 # up 7 mm to avoid hitting lower block
     goal1 = copy.deepcopy(homePose)
@@ -47,10 +47,10 @@ def moveToBlock(blockPos, ur):
     time.sleep(sleepRate)
 
 # move on the X, Y first, then Z
-def moveToObj(pos, ur):
+def move_to(pos, ur):
     # would be better if this was block object
     # :blockPos is coord in gripper frame
-    dX,dY,dZ = projectToWorldCoords(pos, ur) # goalPose in world coordinates
+    dX,dY,dZ = get_world_frame(pos, ur) # goalPose in world coordinates
     homePose = ur.getPose()
     goal1 = copy.deepcopy(homePose)
     goal1.t[0] += dX
@@ -63,7 +63,7 @@ def moveToObj(pos, ur):
     time.sleep(sleepRate)
 
 # move up on Z first, then X, Y
-def moveBackFromObj(homePose, ur):
+def move_back(homePose, ur):
     currentPose = ur.getPose()
     dX,dY,dZ = tuple(homePose.t - currentPose.t)
     # Move in Z Axis first
