@@ -31,7 +31,7 @@ class MaskSAM(Mask):
 
     def set_image_and_labels(self, image, boxes, labels):
         self.image = np.array(image)
-        self.W, self.H = image.shape[:2][::-1] # TODO: check if this is correct
+        self.W, self.H = self.image.shape[:2][::-1] # TODO: check if this is correct
         self.dims = [self.H, self.W]
         self.boxes = torch.tensor(boxes)
         self.labels = labels
