@@ -2,6 +2,7 @@ import open3d as o3d
 import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
+from PIL import Image
 
 class RealSense():
     def __init__(self, zMax=0.5, voxelSize=0.001):

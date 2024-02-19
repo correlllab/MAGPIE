@@ -93,14 +93,16 @@ class LabelOWLViT(Label):
         inputs = self.processor(input_labels, images=img_tensor, padding=True, return_tensors="pt")
         outputs = self.model(**inputs)
         self.dims = img.shape[:2][::-1] # TODO: check if this is correct
-        self.H = self.dims[0]
-        self.W = self.dims[1]
+        self.W = self.dims[0]
+        self.H = self.dims[1]
         target_sizes = torch.Tensor([self.dims])
         scores, labels, boxes, pboxes = self.get_preds(outputs, target_sizes)
         image_plt = img.astype(np.float32) / 255.0
         if plot:
             self.plot_predictions(image_plt, abbrev_labels, scores, boxes, labels)
         bboxes, uboxes = self.get_boxes(input_image, abbrev_labels, scores, boxes, labels)
+        self.boxes = bboxes
+        self.labels = np.array([i[1] for i in uboxes])
         return bboxes, uboxes
 
     def set_threshold(self, threshold):

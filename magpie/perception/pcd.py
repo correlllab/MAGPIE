@@ -7,6 +7,7 @@
 import open3d as o3d
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from open3d.web_visualizer import draw
 
 def create_depth_mask_from_mask(mask, orig_depth):
     '''
@@ -47,8 +48,7 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
     # display_inlier_outlier(saved_pcd, ind)
     # displayWorld(inlier_cloud)
 
-    mc = inlier_cloud.compute_mean_and_covariance()
-    return inlier_cloud, mc
+    return inlier_cloud
 
 def retrieve_mask_from_image_crop(box, full_o3d_image):
     '''
@@ -112,7 +112,22 @@ def display_world_nb(world_pcd):
     coordFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.05)
     geometry = [coordFrame]
     geometry.append(world_pcd)
-    o3d.web_visualizer.draw(geometry)
+    draw(geometry)
+
+def display_box_segment(segments, index, rgbd_image):
+    '''
+    @param segments list of Open3D point cloud segments
+    @param index index of segment to display
+    @param rgbd_image Open3D RGBD Image
+    '''
+    segment = segments[index]
+    # display segment
+    # o3d.visualization.draw_geometries([segment])
+    # display segment with color
+    # o3d.visualization.draw_geometries([segment], point_show_normal=False)
+    # display segment with color and rgbd image
+    o3d.visualization.draw_geometries([segment, rgbd_image])
+
 
 # quaternion helper functions
 def quat_angle(q1, q2):
