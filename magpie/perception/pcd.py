@@ -261,9 +261,9 @@ def get_pca_frame(pos, cmat, scale=500.0):
 
     # apply scaling transformation from PCA eigenvalues
     scaling_matrix = np.diag([*(scale * evals_sorted), 1])
-    print(scaling_matrix)
-    print(tmat)
-    print(tmat @ scaling_matrix)
+    # print(scaling_matrix)
+    print(f"tmat: {tmat}")
+    print(f"scaled tmat: {tmat @ scaling_matrix}")
     pcaFrame.transform(tmat @ scaling_matrix)
     # pcaFrame.transform(tmat)
     print(pcaFrame)
