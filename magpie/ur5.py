@@ -14,7 +14,7 @@ import rtde_control
 import rtde_receive
 # Gripper Interface 
 import serial.tools.list_ports
-from magpie.Motor_Code import Motors
+from magpie.motor_code import Motors
 
 # Poses is from rmlib and used for converting between 4 x 4 homogenous pose and 6 element vector representation (x,y,z,rx,ry,rz)
 from magpie import poses
