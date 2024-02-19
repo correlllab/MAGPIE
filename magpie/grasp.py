@@ -1,8 +1,10 @@
+import sys
+sys.path.append("../../")
 import rtde_control
 import rtde_receive
-from motor_code import Motors
-import ur5 as ur5
-import realsense_wrapper as real
+from magpie.motor_code import Motors
+import magpie.ur5 as ur5
+import magpie.realsense_wrapper as real
 import numpy as np
 import spatialmath as sm
 import copy
@@ -20,10 +22,12 @@ def get_world_frame(gripperFrameCoords, ur, z_offset=0.08):
     # in METERS
     # zB -= 0.155
     zB -= z_offset
-    currentPose = ur.getPose() #SE3 Object
+    currentPose = ur.get_tcp_pose() # 4x4 homogenous transform matrix
     # print(f"Current Pose:\n{currentPose*1000}")
-    R = currentPose.R 
-    pX,pY,pZ = tuple(currentPose.t)
+    print(currentPose)
+    R = currentPose[:3,:3]
+    # pX,pY,pZ = tuple(currentPose.t)
+    pX,pY,pZ = tuple(currentPose[:3, 3])
     # xB,yB,zB here is the block position in the gripper frame which is aligned with the optoforce frame
     P_goal = np.matmul(R,np.array([xB,yB,zB]).T)  # relative position of the block in world coordinates
     print(f"P_goal:\n{P_goal}")

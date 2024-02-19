@@ -23,7 +23,7 @@ class UR5_Interface():
         # T_N.plot(name="C")
         return T_N    # T_N is a homogenous transform
 
-    def   poseVectorToMatrix(self, poseVector):
+    def poseVectorToMatrix(self, poseVector):
         # Converts poseVector into an SE3 Object (4 x 4 Homegenous Transform)
         # poseVector is a 6 element list of [x, y, z, rX, rY, rZ]
         T_N = sm.SE3(poses.pose_vec_to_mtrx(poseVector))

@@ -1,4 +1,6 @@
-from ax12 import Ax12
+import sys
+sys.path.append("../../")
+from magpie.ax12 import Ax12
 import math
 class Motors:
    
