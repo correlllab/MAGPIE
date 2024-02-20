@@ -114,7 +114,7 @@ def display_world_nb(world_pcd):
     geometry.append(world_pcd)
     draw(geometry)
 
-def display_segment(segments, index, rgbd_image, rsc, type="box", depth_mask=None, viz_scale=1500.0):
+def display_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0):
     '''
     @param segments list of Open3D point cloud segments
     @param index index of segment to display
@@ -126,6 +126,8 @@ def display_segment(segments, index, rgbd_image, rsc, type="box", depth_mask=Non
     cpcd = None
     if type == "box":
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
+    elif type == "mask":
+        dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
 
     mc = cpcd.compute_mean_and_covariance()
@@ -143,8 +145,6 @@ def display_segment(segments, index, rgbd_image, rsc, type="box", depth_mask=Non
     rgbd_image.depth = depth_copy
 
     return rgbd_image, cpcd, tmat
-
-
 
 # quaternion helper functions
 def quat_angle(q1, q2):
