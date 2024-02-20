@@ -17,7 +17,7 @@ def get_world_frame(gripperFrameCoords, ur, z_offset=0.08):
     # given a goal position in gripper coords returns the displacements from the current pose in world coords
     xB,yB,zB = gripperFrameCoords
     # TODO: stop hardcoding a Z-stop position
-    # maybe dynamically 
+    # maybe dynamically
     # subtract 0.165 from block position in gripper frame to account for gripper length
     # in METERS
     # zB -= 0.155
@@ -31,9 +31,9 @@ def get_world_frame(gripperFrameCoords, ur, z_offset=0.08):
     # xB,yB,zB here is the block position in the gripper frame which is aligned with the optoforce frame
     P_goal = np.matmul(R,np.array([xB,yB,zB]).T)  # relative position of the block in world coordinates
     print(f"P_goal:\n{P_goal}")
-    dX,dY,dZ = tuple(P_goal) # quantities and directions the the gripper frame should be incremented to be centered at the block 
+    dX,dY,dZ = tuple(P_goal) # quantities and directions the the gripper frame should be incremented to be centered at the block
     return dX,dY,dZ
-    
+
 def moveToBlock(blockPos, ur):
     # would be better if this was block object
     # :blockPos is coord in gripper frame
@@ -83,7 +83,7 @@ def move_back(homePose, ur):
     ur.moveL(goal3)
     time.sleep(sleepRate)
 
-def moveBackFromBlock(homePose, ur):    
+def moveBackFromBlock(homePose, ur):
     currentPose = ur.getPose()
     # Move up 3 mm to avoid raise block to prevent friction from toppling lower block
     goal1 = copy.deepcopy(currentPose)
@@ -107,9 +107,9 @@ def moveBackFromBlock(homePose, ur):
 # @param pos 3d cartesian coordinate
 def grab(pos):
     # orig (x, y, z): (array([ 0.13508298, -0.00355787,  0.43300185]),
-    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185] 
+    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185]
     # orig2: (array([ 0.04913553, -0.00977856,  0.36643119]),
-    grabPos = [pos[1], -pos[0], pos[2]] 
+    grabPos = pos
 
     try:
         robotIP = "192.168.0.6"
@@ -129,7 +129,7 @@ def grab(pos):
             raise(e)
         else:
             print("UR5 + Gripper Interface Established")
-                
+
         # print(f"res: {projectToWorldCoords(res)} ")
         # ur.openGripper() # Open gripper
         # ur.testRoutine()
@@ -137,9 +137,9 @@ def grab(pos):
         x_mod = 0.0
         y_mod = 0.0
         z_mod = 0.0
-        moveToBlock(grabPos, ur) 
+        moveToBlock(grabPos, ur)
         print("Done moving to block")
-        ur.closeGripper(9) 
+        ur.closeGripper(9)
         time.sleep(sleepRate)
         moveBackFromBlock(homePose, ur)
         ur.openGripper()
@@ -156,10 +156,10 @@ def grab(pos):
 
 def grabStrat2(pos):
     # orig (x, y, z): (array([ 0.13508298, -0.00355787,  0.43300185]),
-    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185] 
+    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185]
     # orig2: (array([ 0.04913553, -0.00977856,  0.36643119]),
     grabPos = pos
-    
+
     try:
         robotIP = "192.168.0.6"
         con = rtde_control.RTDEControlInterface(robotIP)
@@ -178,7 +178,7 @@ def grabStrat2(pos):
             raise(e)
         else:
             print("UR5 + Gripper Interface Established")
-                
+
         # print(f"res: {projectToWorldCoords(res)} ")
         # ur.openGripper() # Open gripper
         # ur.testRoutine()
@@ -186,9 +186,9 @@ def grabStrat2(pos):
         x_mod = 0.0
         y_mod = 0.0
         z_mod = 0.0
-        moveToBlock(grabPos, ur) 
+        moveToBlock(grabPos, ur)
         print("Done moving to block")
-        ur.closeGripper(9) 
+        ur.closeGripper(9)
         time.sleep(sleepRate)
         moveBackFromBlock(homePose, ur)
         ur.openGripper()
@@ -202,9 +202,9 @@ def grabStrat2(pos):
         ur.c.disconnect()
         ur.r.disconnect()
         raise(e)
-    
+
     # strategy 2: close both fingers until contact, then rigidify and close
-    
+
     m1 = gripperController.Motor1
     m2 = gripperController.Motor2
     # error margin of 10 pos units allowed
@@ -272,12 +272,12 @@ def grabStrat2(pos):
     dTheta = gripperController.distance2theta(width)
 
 def grabStrat1(pos):
-    
+
     # orig (x, y, z): (array([ 0.13508298, -0.00355787,  0.43300185]),
-    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185] 
+    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185]
     # orig2: (array([ 0.04913553, -0.00977856,  0.36643119]),
-    grabPos = [pos[1], -pos[0], pos[2]] 
-    
+    grabPos = pos
+
     try:
         robotIP = "192.168.0.6"
         con = rtde_control.RTDEControlInterface(robotIP)
@@ -296,7 +296,7 @@ def grabStrat1(pos):
             raise(e)
         else:
             print("UR5 + Gripper Interface Established")
-                
+
         # print(f"res: {projectToWorldCoords(res)} ")
         # ur.openGripper() # Open gripper
         # ur.testRoutine()
@@ -304,9 +304,9 @@ def grabStrat1(pos):
         x_mod = 0.0
         y_mod = 0.0
         z_mod = 0.0
-        moveToBlock(grabPos, ur) 
+        moveToBlock(grabPos, ur)
         print("Done moving to block")
-        ur.closeGripper(9) 
+        ur.closeGripper(9)
         time.sleep(sleepRate)
         moveBackFromBlock(homePose, ur)
         ur.openGripper()
@@ -320,7 +320,7 @@ def grabStrat1(pos):
         ur.c.disconnect()
         ur.r.disconnect()
         raise(e)
-    
+
     # strategy 1: close 1 finger until contact, then make rigid and close 2nd finger
     m1 = gripperController.Motor1
     m2 = gripperController.Motor2
@@ -372,5 +372,4 @@ def grabStrat1(pos):
 
     # close grasp
     m2.set_goal_position(500)
-    
-    
+
