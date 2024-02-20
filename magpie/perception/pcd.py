@@ -1,13 +1,13 @@
 '''
 @file pcd.py
-@brief Utility functions to manipulate point cloud data in open3d 
+@brief Utility functions to manipulate point cloud data in open3d
         and get PCA pose estimation given 3D point cloud
 '''
-
 import open3d as o3d
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from open3d.web_visualizer import draw
+import copy
 
 def create_depth_mask_from_mask(mask, orig_depth):
     '''
@@ -97,9 +97,9 @@ def retrieve_mask_from_image_crop(box, full_o3d_image):
     depth_m_array[~roi_mask_depth] = 0
     depth_m = o3d.geometry.Image((depth_m_array).astype(np.float32))
     rgb_m = o3d.geometry.Image((rgb_m_array).astype(np.uint8))
-    
+
     rgbd_m_image = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_m, depth_m)
-    
+
     return depth_m, rgb_m, rgbd_m_image
 
 def display_world(world_pcd):
@@ -114,19 +114,36 @@ def display_world_nb(world_pcd):
     geometry.append(world_pcd)
     draw(geometry)
 
-def display_box_segment(segments, index, rgbd_image):
+def display_segment(segments, index, rgbd_image, rsc, type="box", depth_mask=None, viz_scale=1500.0):
     '''
     @param segments list of Open3D point cloud segments
     @param index index of segment to display
     @param rgbd_image Open3D RGBD Image
     '''
-    segment = segments[index]
-    # display segment
-    # o3d.visualization.draw_geometries([segment])
-    # display segment with color
-    # o3d.visualization.draw_geometries([segment], point_show_normal=False)
-    # display segment with color and rgbd image
-    o3d.visualization.draw_geometries([segment, rgbd_image])
+    color_copy = copy.deepcopy(rgbd_image.color)
+    depth_copy = copy.deepcopy(rgbd_image.depth)
+    dm = None
+    cpcd = None
+    if type == "box":
+        dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
+    cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
+
+    mc = cpcd.compute_mean_and_covariance()
+    grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]
+    pcaFrame, tmat = get_pca_frame(mc[0], mc[1], scale=viz_scale)
+    tmat[:3, 3] = grasp_pose
+    worldFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.075, origin=[0, 0, 0])
+    geometries = [cpcd, pcaFrame, worldFrame]
+    draw(geometries)
+
+    # despite by my best efforts, I cannot use rgbd_copy.
+    # need to reassign color, depth value copies to rgbd_image
+    # in order to view other crops without having to retake an image
+    rgbd_image.color = color_copy
+    rgbd_image.depth = depth_copy
+
+    return rgbd_image, cpcd, tmat
+
 
 
 # quaternion helper functions
@@ -184,10 +201,10 @@ def contains_duplicates(arr):
 def rotation_matrix_to_align_with_axes(evals, evecs):
     """
     Construct a rotation matrix to align the given axes with the standard axes (x, y, and z).
-    
+
     Parameters:
         axes: list of numpy arrays representing the normalized principal axes
-    
+
     Returns:
         R: 3x3 numpy array representing the rotation matrix
     """
@@ -197,8 +214,6 @@ def rotation_matrix_to_align_with_axes(evals, evecs):
             [-0.35602909, -0.77640133, 0.52004256],
             [0.18614527, 0.48643151, 0.85365937]]
     R = rotation_matrix_to_align_with_axes(axes)
-    print("Rotation matrix:")
-    print(R)
     '''
     # Get rotation matrices to align each axis with the standard axes
     r = np.eye(3)
@@ -209,7 +224,7 @@ def rotation_matrix_to_align_with_axes(evals, evecs):
                         np.dot(axis, np.array([0, 1, 0])), # y-axis
                         np.dot(axis, np.array([0, 0, 1]))] # z-axis
         d.append(dot_products)
-    
+
     # iterative duplicate removal so that column argmax indices are unique
     # this is really stupid
     arr = np.vstack(np.array(d))
@@ -225,7 +240,6 @@ def rotation_matrix_to_align_with_axes(evals, evecs):
         r[:, i] = evecs[ai[i]]
         evals_sorted.append(evals[ai[i]])
 
-    # print(d)
     return r, np.array(evals_sorted)
 
 
