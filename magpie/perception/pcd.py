@@ -231,8 +231,18 @@ def get_pca_frame(pos, cmat, scale=500.0):
     # elif np.dot(cross_xz, y) < 0:
     #     print("flipping y axis")
     #     y = -y
-    rot = np.hstack([x, -y, z])
     # rot = np.hstack([y, -x, z])
+    # flip z-axis if dot product with positive z-axis is negative
+    print(f"z-axis dot product: {np.dot(z.T, np.array([0, 0, 1]))}")
+    if np.dot(z.T, np.array([0, 0, 1])) < 0:
+        print("flipping z axis")
+        z = -z
+        # adhere to right hand rule
+        print("flipping x-axis")
+        x = -x
+
+    # flip y-axis for rhr
+    rot = np.hstack([x, -y, z])
 
     # construct transformation matrix and coordinate frame mesh
     tmat[:3, :3] = rot
