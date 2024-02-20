@@ -1,6 +1,6 @@
 import numpy as np
 import spatialmath as sm
-from magpie import poses as poses
+import poses as poses
 import time
 class UR5_Interface():
     def __init__(self):
