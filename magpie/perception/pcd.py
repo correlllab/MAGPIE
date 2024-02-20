@@ -135,7 +135,7 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
 
     if type == "box-dbscan": # much cheaper than SAM
         # find largest cluster with dbscan
-        labels = np.array(cpcd.cluster_dbscan(eps=0.01, min_points=50, print_progress=True))
+        labels = np.array(cpcd.cluster_dbscan(eps=0.01, min_points=50))
         # Find the label with the maximum count
         unique_labels, label_counts = np.unique(labels, return_counts=True)
         largest_cluster_label = unique_labels[np.argmax(label_counts)]
@@ -272,11 +272,11 @@ def get_pca_frame(pos, cmat, scale=500.0):
     # apply scaling transformation from PCA eigenvalues
     scaling_matrix = np.diag([*(scale * evals_sorted), 1])
     # print(scaling_matrix)
-    print(f"tmat: {tmat}")
-    print(f"scaled tmat: {tmat @ scaling_matrix}")
+    # print(f"tmat: {tmat}")
+    # print(f"scaled tmat: {tmat @ scaling_matrix}")
     pcaFrame.transform(tmat @ scaling_matrix)
     # pcaFrame.transform(tmat)
-    print(pcaFrame)
+    # print(pcaFrame)
     return pcaFrame, tmat
 
 # quaternion helper functions
@@ -326,7 +326,7 @@ def get_pca_frame_quat(pos, cmat, scale=500.0):
     evals, evecs = np.linalg.eig(cmat)
     tmat = np.eye(4)
     rot, evals_sorted = closest_orientation(evals, evecs)
-    print(evals_sorted)
+    # print(evals_sorted)
     # check right hand rule
     x, y, z = np.split(rot, 3, axis=1)
     cross_yz = np.cross(y.T, z.T)
@@ -347,10 +347,10 @@ def get_pca_frame_quat(pos, cmat, scale=500.0):
 
     # apply scaling transformation from PCA eigenvalues
     scaling_matrix = np.diag([*(scale * evals_sorted), 1])
-    print(scaling_matrix)
-    print(tmat)
-    print(tmat @ scaling_matrix)
+    # print(scaling_matrix)
+    # print(tmat)
+    # print(tmat @ scaling_matrix)
     pcaFrame.transform(tmat @ scaling_matrix)
     # pcaFrame.transform(tmat)
-    print(pcaFrame)
+    # print(pcaFrame)
     return pcaFrame, tmat
