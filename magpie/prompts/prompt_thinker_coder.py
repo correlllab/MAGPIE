@@ -23,32 +23,26 @@ from language_to_reward_2023.platforms.barkour import barkour_execution
 from language_to_reward_2023.platforms.barkour import barkour_l2r_task_client
 
 prompt_thinker = """
-Describe the motion of a dog robot using the following form:
+Control a robot gripper with torque control and contact information. 
+This is a griper with two independently actuated fingers, each on a 4-bar linkage.
+The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
+Describe the grasp strategy using the following form:
+[optional] The width of the object and offset Z-distance of the gripper from the object will be determined.
 
 [start of description]
-* This {CHOICE: [is, is not]} a new task.
-* The torso of the robot should roll by [NUM: 0.0] degrees towards right, the torso should pitch upward at [NUM: 0.0] degrees.
-* The height of the robot's CoM or torso center should be at [NUM: 0.3] meters.
-* The robot should {CHOICE: [face certain direction, turn at certain speed]}. If facing certain direction, it should be facing {CHOICE: [east, south, north, west]}. If turning, it should turn at [NUM: 0.0] degrees/s.
-* The robot should {CHOICE: [go to a certain location, move at certain speed]}. If going to certain location, it should go to (x=[NUM: 0.0], y=[NUM: 0.0]). If moving at certain speed, it should move forward at [NUM: 0.0]m/s and sideways at [NUM: 0.0]m/s (positive means left).
-* [optional] front_left foot lifted to [NUM: 0.0] meters high.
-* [optional] back_left foot lifted to [NUM: 0.0] meters high.
+* This {CHOICE: [is, is not]} a new grasp.
+* This is a {CHOICE: [complete, incomplete]} grasp.
+* This grasp {CHOICE: [does, does not]} contain multiple grasps.
+* This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
+* This grasp is for an object with {CHOICE: [high, medium, low]} weight.
+* This grasp should halt when the force on the object is [NUM: 0.0] Newtons.
+* [optional] The left finger should move [NUM: 0.0] millimeters inward.
+* [optional] The right finger should move [NUM: 0.0] millimeters inward.
+* [optional] The left finger should move [NUM: 0.0] millimeters outward.
+* [optional] The right finger should move [NUM: 0.0] millimeters outward.
+* [optional] The gripper should approach at [NUM: 0.0] millimeters away on the Z-axis.
 * [optional] front_right foot lifted to [NUM: 0.0] meters high.
 * [optional] back_right foot lifted to [NUM: 0.0] meters high.
-* [optional] front_left foot extend forward by [NUM: 0.0] meters.
-* [optional] back_left foot extend forward by [NUM: 0.0] meters.
-* [optional] front_right foot extend forward by [NUM: 0.0] meters.
-* [optional] back_right foot extend forward by [NUM: 0.0] meters.
-* [optional] front_left foot shifts inward laterally by [NUM: 0.0] meters.
-* [optional] back_left foot shifts inward laterally by [NUM: 0.0] meters.
-* [optional] front_right foot shifts inward laterally by [NUM: 0.0] meters.
-* [optional] back_right foot shifts inward laterally by [NUM: 0.0] meters.
-* [optional] front_left foot steps on the ground at a frequency of [NUM: 0.0] Hz, during the stepping motion, the foot will move [NUM: 0.0] meters up and down, and [NUM: 0.0] meters forward and back, drawing a circle as if it's walking {CHOICE: forward, back}, spending [NUM: 0.0] portion of the time in the air vs gait cycle.
-* [optional] back_left foot steps on the ground at a frequency of [NUM: 0.0] Hz, during the stepping motion, the foot will move [NUM: 0.0] meters up and down, and [NUM: 0.0] meters forward and back, drawing a circle as if it's walking {CHOICE: forward, back}, spending [NUM: 0.0] portion of the time in the air vs gait cycle.
-* [optional] front_right foot steps on the ground at a frequency of [NUM: 0.0] Hz, during the stepping motion, the foot will move [NUM: 0.0] meters up and down, and [NUM: 0.0] meters forward and back, drawing a circle as if it's walking {CHOICE: forward, back}, spending [NUM: 0.0] portion of the time in the air vs gait cycle.
-* [optional] back_right foot steps on the ground at a frequency of [NUM: 0.0] Hz, during the stepping motion, the foot will move [NUM: 0.0] meters up and down, and [NUM: 0.0] meters forward and back, drawing a circle as if it's walking {CHOICE: forward, back}, spending [NUM: 0.0] portion of the time in the air vs gait cycle.
-* [optional] The phase offsets for the four legs should be front_left: [NUM: 0.0], back_left: [NUM: 0.0], front_right: [NUM: 0.0], back_right: [NUM: 0.0].
-
 [end of description]
 
 Rules:
