@@ -71,7 +71,7 @@ class MaskSAM(Mask):
         mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
         ax.imshow(mask_image)
     
-    def show_all_masks(self, labels, image):
+    def show_all_masks(self, image):
         plt.figure(figsize=(10, 10))
         plt.imshow(image)
         for mask in self.masks:
