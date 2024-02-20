@@ -30,10 +30,14 @@ class LabelOWLViT(Label):
             if score < self.SCORE_THRESHOLD:
                 continue
             cx, cy, w, h = box
-            x0 = (cx - w/2) * 1280
-            y0 = (cy - h/2) * 720
-            x1 = (cx + w/2) * 1280
-            y1 = (cy + h/2) * 720
+            x0 = (cx - w/2) * self.W
+            y0 = (cy - h/2) * self.H
+            x1 = (cx + w/2) * self.W
+            y1 = (cy + h/2) * self.H
+            # x0 = (cx - w/2) * 1280
+            # y0 = (cy - h/2) * 720
+            # x1 = (cx + w/2) * 1280
+            # y1 = (cy + h/2) * 720
             pbox = [x0, y0, x1, y1]
             pboxes.append((pbox, text_queries[label]))
             uboxes.append((box, text_queries[label]))
