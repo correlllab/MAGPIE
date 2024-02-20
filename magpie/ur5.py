@@ -98,8 +98,8 @@ class UR5_Interface:
         """ Shutdown robot and gripper connections """
         self.ctrl.servoStop()
         self.ctrl.stopScript()
-        self.recv.disconnect()
-        self.ctrl.disconnect()
+        # self.recv.disconnect()
+        # self.ctrl.disconnect()
         
     def get_name( self ):
         """ Get string that represents this robot """
