@@ -114,7 +114,7 @@ def display_world_nb(world_pcd):
     geometry.append(world_pcd)
     draw(geometry)
 
-def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, display=True):
+def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, method='iterative', display=True):
     '''
     @param segments list of Open3D point cloud segments
     @param index index of segment to display
@@ -124,15 +124,34 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     depth_copy = copy.deepcopy(rgbd_image.depth)
     dm = None
     cpcd = None
-    if type == "box":
+    pcaFrame, tmat = None, None
+
+    if type == "box" or type == "box-dbscan":
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
     elif type == "mask":
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
+    
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
+
+    if type == "box-dbscan": # much cheaper than SAM
+        # find largest cluster with dbscan
+        labels = np.array(cpcd.cluster_dbscan(eps=0.01, min_points=50, print_progress=True))
+        # Find the label with the maximum count
+        unique_labels, label_counts = np.unique(labels, return_counts=True)
+        largest_cluster_label = unique_labels[np.argmax(label_counts)]
+        largest_cluster_points = np.array(cpcd.points)[labels == largest_cluster_label]
+        largest_cluster_colors = np.array(cpcd.colors)[labels == largest_cluster_label]
+        dbspcd = o3d.geometry.PointCloud()
+        dbspcd.points = o3d.utility.Vector3dVector(largest_cluster_points)
+        dbspcd.colors = o3d.utility.Vector3dVector(largest_cluster_colors)
+        cpcd = dbspcd
 
     mc = cpcd.compute_mean_and_covariance()
     grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]
-    pcaFrame, tmat = get_pca_frame(mc[0], mc[1], scale=viz_scale)
+    if method == 'iterative':
+        pcaFrame, tmat = get_pca_frame(mc[0], mc[1], scale=viz_scale)
+    elif method == 'quat':
+        pcaFrame, tmat = get_pca_frame_quat(mc[0], mc[1], scale=viz_scale)
     tmat[:3, 3] = grasp_pose
     worldFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.075, origin=[0, 0, 0])
     geometries = [cpcd, pcaFrame, worldFrame]
@@ -312,13 +331,13 @@ def get_pca_frame_quat(pos, cmat, scale=500.0):
     x, y, z = np.split(rot, 3, axis=1)
     cross_yz = np.cross(y.T, z.T)
     cross_xz = np.cross(x.T, z.T)
-    if np.dot(cross_xz, y) < 0:
-        print("flipping y axis")
-        y = -y
-    elif np.dot(cross_yz, x) < 0:
-        print("flipping x axis")
-        x = -x
-    rot = np.hstack([x, y, z])
+    # if np.dot(cross_xz, y) < 0:
+    #     print("flipping y axis")
+    #     y = -y
+    # elif np.dot(cross_yz, x) < 0:
+    #     print("flipping x axis")
+    #     x = -x
+    rot = np.hstack([x, -y, z])
 
     # construct transformation matrix and coordinate frame mesh
     tmat[:3, :3] = rot
