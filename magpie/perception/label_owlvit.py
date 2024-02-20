@@ -54,7 +54,6 @@ class LabelOWLViT(Label):
             x1 = (cx + w/2) * 1280
             y1 = (cy + h/2) * 720
             pbox = [x0, y0, x1, y1]
-            print(pbox)
             ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
                     [cy-h/2, cy-h/2, cy+h/2, cy+h/2, cy-h/2], "r")
             ax.text(
