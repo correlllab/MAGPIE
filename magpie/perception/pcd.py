@@ -114,7 +114,7 @@ def display_world_nb(world_pcd):
     geometry.append(world_pcd)
     draw(geometry)
 
-def display_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0):
+def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, display=True):
     '''
     @param segments list of Open3D point cloud segments
     @param index index of segment to display
@@ -136,51 +136,17 @@ def display_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500
     tmat[:3, 3] = grasp_pose
     worldFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.075, origin=[0, 0, 0])
     geometries = [cpcd, pcaFrame, worldFrame]
-    draw(geometries)
 
-    # despite by my best efforts, I cannot use rgbd_copy.
+    if display:
+        draw(geometries)
+
+    # despite by my best efforts, I cannot easily make a deep copy of rgbd_image.
     # need to reassign color, depth value copies to rgbd_image
     # in order to view other crops without having to retake an image
     rgbd_image.color = color_copy
     rgbd_image.depth = depth_copy
 
     return rgbd_image, cpcd, tmat
-
-# quaternion helper functions
-def quat_angle(q1, q2):
-    '''
-    @return angle between q1, q1 in radians
-    '''
-    return np.arccos(2 * (np.dot(q1, q2))**2 - 1)
-
-def closest_orientation(evals, evecs):
-    '''
-    @param evals eigenvalues of covariance matrix
-    @param evecs eigenvectors of covariance matrix
-    @return rotation matrix, evals with orientation closest to origin coordinate frame
-    '''
-    # construct three different rotation matrices from three eigenvectors, each evec represents one column
-    r1 = np.column_stack(evecs)
-    r2 = np.column_stack([evecs[1], evecs[2], evecs[0]])
-    r3 = np.column_stack([evecs[2], evecs[0], evecs[1]])
-    rs = [r1, r2, r3]
-
-    es2 = [evals[1], evals[2], evals[0]]
-    es3 = [evals[2], evals[0], evals[1]] # yea i know this is stupid
-    es = [evals, es2, es3]
-
-    r1q = R.as_quat(R.from_matrix(r1))
-    r2q = R.as_quat(R.from_matrix(r2))
-    r3q = R.as_quat(R.from_matrix(r3))
-    uq = R.as_quat(R.from_matrix(np.eye(3))) # unit quaternion
-    rqs = [r1q, r2q, r3q]
-    # find the quaternion with the smallest angle
-
-    # angles between quaternion and unit quaternion
-    angles = [quat_angle(rq, uq) for rq in rqs]
-    smallest_angle = np.argmin(angles)
-
-    return rs[smallest_angle], np.array(es[smallest_angle])
 
 # pca helper functions
 def find_duplicate_values_and_indices(arr):
@@ -243,8 +209,9 @@ def rotation_matrix_to_align_with_axes(evals, evecs):
     return r, np.array(evals_sorted)
 
 
-# not satisfactory because cannot plot the magnitude of the axes from evalues
-# also not exactly a coordinate frame
+# silly method to turn the pca frame into the desired frame (highest magnitude positive z-axis)
+# rather than checking rhr fully, just flip y-axis
+# the orientation returned here does not play nice with the robot when used on bounding box pcds
 def get_pca_frame(pos, cmat, scale=500.0):
     '''
     @param pos 3d cartesian position of object
@@ -283,7 +250,45 @@ def get_pca_frame(pos, cmat, scale=500.0):
     print(pcaFrame)
     return pcaFrame, tmat
 
-# get the pca frame more intelligently
+# quaternion helper functions
+def quat_angle(q1, q2):
+    '''
+    @return angle between q1, q1 in radians
+    '''
+    return np.arccos(2 * (np.dot(q1, q2))**2 - 1)
+
+# for get_pca_frame_quat, not used
+def closest_orientation(evals, evecs):
+    '''
+    @param evals eigenvalues of covariance matrix
+    @param evecs eigenvectors of covariance matrix
+    @return rotation matrix, evals with orientation closest to origin coordinate frame
+    '''
+    # construct three different rotation matrices from three eigenvectors, each evec represents one column
+    r1 = np.column_stack(evecs)
+    r2 = np.column_stack([evecs[1], evecs[2], evecs[0]])
+    r3 = np.column_stack([evecs[2], evecs[0], evecs[1]])
+    rs = [r1, r2, r3]
+
+    es2 = [evals[1], evals[2], evals[0]]
+    es3 = [evals[2], evals[0], evals[1]] # yea i know this is stupid
+    es = [evals, es2, es3]
+
+    r1q = R.as_quat(R.from_matrix(r1))
+    r2q = R.as_quat(R.from_matrix(r2))
+    r3q = R.as_quat(R.from_matrix(r3))
+    uq = R.as_quat(R.from_matrix(np.eye(3))) # unit quaternion
+    rqs = [r1q, r2q, r3q]
+    # find the quaternion with the smallest angle
+
+    # angles between quaternion and unit quaternion
+    angles = [quat_angle(rq, uq) for rq in rqs]
+    smallest_angle = np.argmin(angles)
+
+    return rs[smallest_angle], np.array(es[smallest_angle])
+
+# get pca frame closest to world-frame via quat orientation distance
+# does not return desired frame as well as silly method (highest magnitude positive z-axis)
 def get_pca_frame_quat(pos, cmat, scale=500.0):
     '''
     @param pos 3d cartesian position of object
