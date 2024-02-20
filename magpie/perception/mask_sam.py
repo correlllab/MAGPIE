@@ -10,6 +10,7 @@ import copy
 import cv2
 import numpy as np
 from magpie.perception.mask import Mask
+import matplotlib.pyplot as plt
 
 class MaskSAM(Mask):
     def __init__(self, ckpt=None):
@@ -69,3 +70,10 @@ class MaskSAM(Mask):
         h, w = mask.shape[-2:]
         mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
         ax.imshow(mask_image)
+    
+    def show_all_masks(self, labels, image):
+        plt.figure(figsize=(10, 10))
+        plt.imshow(image)
+        for mask in self.masks:
+            self.show_mask(mask.cpu().numpy(), plt.gca(), random_color=True)
+        plt.axis('off')
