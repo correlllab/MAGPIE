@@ -112,8 +112,9 @@ stop_torque: the torque to stop closing the gripper (in Nm)
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 Remember:
 Call get_goal_position to get the goal position of the gripper.
-Stop position cannot be smaller than the goal position.
+Stop position must always be greater than the goal position (the distance between gripper).
 If a finger reaches a stop position, the goal position should be updated to the stop position.
+If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
 
 ```
 def move_finger(position, velocity, finger='both')
