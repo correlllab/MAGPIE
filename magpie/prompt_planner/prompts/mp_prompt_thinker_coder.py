@@ -38,6 +38,8 @@ Describe the grasp strategy using the following form:
 * This grasp should halt when the force on the object is [PNUM: 0.0] Newtons.
 * [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
+* [optional] The left finger have velocity [NUM: 0.0] millimeters/sec inward (positive)/outward (negative).
+* [optional] The right finger have velocity [NUM: 0.0] millimeters/sec inward (positive)/outward (negative).
 * [optional] The gripper should approach at [NUM: 0.0] millimeters away on the Z-axis.
 [end of description]
 
@@ -62,12 +64,24 @@ We have a description of a gripper's motion and we want you to turn that into th
 ```
 def open_gripper()
 ```
-This function opens the gripper to its maximum width.
+This function opens the gripper to its maximum width (85 mm).
+Remember:
+If the grasp is incomplete, the gripper should open if at any previous point, it or an individual finger has closed.
 
 ```
 def get_goal_position()
 ```
-This function returns the known goal position of the gripper.
+This function returns the known goal position of the gripper in terms of goal distance between the fingers (in mm).
+
+```
+def get_position()
+```
+This function returns the current position of the gripper in terms of distance between the fingers (in mm).
+
+```
+def set_goal_position(position)
+```
+position: the position to set the gripper goal position to (in mm)
 
 ```
 def close_gripper(goal_position)
@@ -78,10 +92,10 @@ Call get_goal_position to get the goal position of the gripper.
 This function closes the gripper to a specified width that does not need to be calculated.
 
 ```
-def set_compliance(compliance_margin, compliance_flexibility, finger='both')
+def set_compliance(margin, flexibility, finger='both')
 ```
-compliance_margin: the allowable error between the goal and present position (value from 0-255, the same units as the motor's position)
-compliance_flexibility: the slope of motor torque (value 0-7, higher is more flexible) until it reaches the compliance margin
+margin: the allowable error between the goal and present position (value from 0-255, the same units as the motor's position)
+flexibility: the slope of motor torque (value 0-7, higher is more flexible) until it reaches the compliance margin
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
@@ -96,53 +110,38 @@ def close_until_load(stop_position, stop_torque, finger='both')
 stop_position: the position to stop closing the gripper (in mm)
 stop_torque: the torque to stop closing the gripper (in Nm)
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
+Remember:
+Call get_goal_position to get the goal position of the gripper.
+Stop position cannot be smaller than the goal position.
+If a finger reaches a stop position, the goal position should be updated to the stop position.
 
 ```
-def set_foot_stepping_parameters(foot_name, stepping_frequency, air_ratio, phase_offset, swing_up_down, swing_forward_back, should_activate)
+def move_finger(position, velocity, finger='both')
 ```
-foot_name is one of ('front_left', 'rear_left', 'front_right', 'rear_right').
-air_ratio (value from 0 to 1) describes how much time the foot spends in the air versus the whole gait cycle. If it's 0 the foot will always stay on ground, and if it's 1 it'll always stay in the air.
-phase_offset (value from 0 to 1) describes how the timing of the stepping motion differs between
-different feet. For example, if the phase_offset between two legs differs by 0.5, it means
-one leg will start the stepping motion in the middle of the stepping motion cycle of the other leg.
-swing_up_down is how much the foot swings vertical during the motion cycle.
-swing_forward_back is how much the foot swings horizontally during the motion cycle.
-If swing_forward_back is positive, the foot would look like it's going forward, if it's negative, the foot will look like it's going backward.
-If should_activate is False, the leg will not follow the stepping motion.
-
-```
-def execute_plan(plan_duration=2)
-```
-This function sends the parameters to the robot and execute the plan for `plan_duration` seconds, default to be 2
+position: the amount to move the finger inward or outward (in mm)
+velocity: the velocity at which to move the finger in or at (in mm/s)
+finger: which finger to move: 'left', 'right', or 'both'
 
 Example answer code:
 ```
 import numpy as np  # import numpy because we are using it below
 
-reset_reward() # This is a new task so reset reward; otherwise we don't need it
-set_torso_targets(0.1, np.deg2rad(5), np.deg2rad(15), (2, 3), None, None, np.deg2rad(10))
-
-set_foot_pos_parameters('front_left', 0.1, 0.1, None)
-set_foot_pos_parameters('back_left', None, None, 0.15)
-set_foot_pos_parameters('front_right', None, None, None)
-set_foot_pos_parameters('back_right', 0.0, 0.0, None)
-set_foot_stepping_parameters('front_right', 2.0, 0.5, 0.2, 0.1, -0.05, True)
-set_foot_stepping_parameters('back_left', 3.0, 0.7, 0.1, 0.1, 0.05, True)
-set_foot_stepping_parameters('front_left', 0.0, 0.0, 0.0, 0.0, 0.0, False)
-set_foot_stepping_parameters('back_right', 0.0, 0.0, 0.0, 0.0, 0.0, False)
-
-execute_plan(4)
+goal_position = get_goal_position()
+set_compliance(10, 3, 'both')
+set_torque(1.0, 'both')
+close_until_load(200, 1.5, 'both')
+position = get_position()
+set_goal_position(position - 5)
+goal_position = get_goal_position()
+close_gripper()
 ```
 
 Remember:
 1. Always format the code in code blocks. In your response all four functions above: set_torso_targets, set_foot_pos_parameters, execute_plan, should be called at least once.
 2. Do not invent new functions or classes. The only allowed functions you can call are the ones listed above. Do not leave unimplemented code blocks in your response.
-3. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
-4. If you are not sure what value to use, just use your best judge. Do not use None for anything.
-5. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
-6. For set_torso_targets, only the last four arguments (target_torso_location_xy, target_torso_velocity_xy, target_torso_heading, target_turning_speed) can be None. Do not set None for any other arguments.
-7. Don't forget to call execute_plan at the end.
-
+4. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
+5. If you are not sure what value to use, just use your best judge. Do not use None for anything.
+6. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
 """
 
 
