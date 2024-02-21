@@ -18,11 +18,15 @@
 import dataclasses
 from typing import Any
 
-from language_to_reward_2023 import task_clients
-from language_to_reward_2023.platforms.barkour import barkour_l2r_task_client
-from language_to_reward_2023.platforms.barkour.prompts import prompt_coder_only as bk_prompt_coder_only
-from language_to_reward_2023.platforms.barkour.prompts import prompt_low_level as bk_prompt_low_level
-from language_to_reward_2023.platforms.barkour.prompts import prompt_thinker_coder as bk_prompt_thinker_coder
+import task_clients
+import barkour_l2r_task_client
+import magpie_task_client
+import prompts.prompt_coder_only as bk_prompt_coder_only
+import prompts.prompt_low_level as bk_prompt_low_level
+import prompts.prompt_thinker_coder as bk_prompt_thinker_coder
+import prompts.mp_prompt_coder_only    as mp_prompt_coder_only
+import prompts.mp_prompt_low_level     as mp_prompt_low_level
+import prompts.mp_prompt_thinker_coder as mp_prompt_thinker_coder
 
 
 @dataclasses.dataclass(frozen=True)
@@ -38,6 +42,14 @@ ALL_TASKS = {
             'thinker_coder': bk_prompt_thinker_coder.PromptThinkerCoder,
             'coder_only': bk_prompt_coder_only.PromptCoder,
             'low_level': bk_prompt_low_level.PromptLowLevel,
+        },
+    ),
+    'magpie': TaskConfig(
+        client=magpie_task_client.MagpieClient,
+        prompts={
+            'thinker_coder': mp_prompt_thinker_coder.PromptThinkerCoder,
+            'coder_only': mp_prompt_coder_only.PromptCoder,
+            'low_level': mp_prompt_low_level.PromptLowLevel,
         },
     ),
 }

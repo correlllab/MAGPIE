@@ -23,9 +23,9 @@ import colorama
 import openai
 import termcolor
 
-from language_to_reward_2023 import confirmation_safe_executor
-from language_to_reward_2023 import conversation
-from language_to_reward_2023 import task_configs
+import confirmation_safe_executor
+import conversation
+import task_configs
 
 
 _API_KEY_FLAG = flags.DEFINE_string("api_key", "", "OpenAI API Key")
@@ -35,7 +35,7 @@ _TASK_FLAG = flags.DEFINE_enum(
 _PROMPT_FLAG = flags.DEFINE_string(
     "prompt", "thinker_coder", "prompt to be used"
 )
-MODEL = "gpt-4"
+MODEL = "gpt-4-turbo-preview"
 # MODEL = "gpt-3.5-turbo"
 
 colorama.init()
