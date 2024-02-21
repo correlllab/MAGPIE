@@ -11,7 +11,7 @@ from PIL import Image
 from pillow_heif import register_heif_opener
 import numpy as np
 
-class LMScan:
+class Caption:
     def __init__(self):
         self.api_key = os.environ.get('LLM_API_KEY')
         self.openai = OpenAI(self.api_key)
