@@ -16,18 +16,18 @@
 """Prompt class with both Motion Descriptor and Reward Coder."""
 import re
 
-from language_to_reward_2023 import safe_executor
-from language_to_reward_2023.platforms import llm_prompt
-from language_to_reward_2023.platforms import process_code
-from language_to_reward_2023.platforms.barkour import barkour_execution
-from language_to_reward_2023.platforms.barkour import barkour_l2r_task_client
+import safe_executor
+import llm_prompt
+import process_code
+import magpie_execution
+import magpie_task_client
 
 prompt_thinker = """
 Control a robot gripper with torque control and contact information. 
 This is a griper with two independently actuated fingers, each on a 4-bar linkage.
 The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
+As well as the kind of grasp it is attempting to perform.
 Describe the grasp strategy using the following form:
-[optional] The width of the object and offset Z-distance of the gripper from the object will be determined.
 
 [start of description]
 * This {CHOICE: [is, is not]} a new grasp.
@@ -35,54 +35,67 @@ Describe the grasp strategy using the following form:
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
-* This grasp should halt when the force on the object is [NUM: 0.0] Newtons.
-* [optional] The left finger should move [NUM: 0.0] millimeters inward.
-* [optional] The right finger should move [NUM: 0.0] millimeters inward.
-* [optional] The left finger should move [NUM: 0.0] millimeters outward.
-* [optional] The right finger should move [NUM: 0.0] millimeters outward.
+* This grasp should halt when the force on the object is [PNUM: 0.0] Newtons.
+* [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
+* [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The gripper should approach at [NUM: 0.0] millimeters away on the Z-axis.
-* [optional] front_right foot lifted to [NUM: 0.0] meters high.
-* [optional] back_right foot lifted to [NUM: 0.0] meters high.
 [end of description]
 
 Rules:
 1. If you see phrases like [NUM: default_value], replace the entire phrase with a numerical value. If you see [PNUM: default_value], replace it with a positive, non-zero numerical value.
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-3. Phase offset is between [0, 1]. So if two legs' phase offset differs by 0 or 1 they are moving in synchronous. If they have phase offset difference of 0.5, they are moving opposite in the gait cycle.
-4. The portion of air vs the gait cycle is between [0, 1]. So if it's 0, it means the foot will always stay on the ground, and if it's 1 it means the foot will always be in the air.
-5. I will tell you a behavior/skill/task that I want the quadruped to perform and you will provide the full description of the quadruped motion, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
-6. We can assume that the robot has a good low-level controller that maintains balance and stability as long as it's in a reasonable pose.
-7. You can assume that the robot is capable of doing anything, even for the most challenging task.
-8. The robot is about 0.3m high in CoM or torso center when it's standing on all four feet with horizontal body. It's about 0.65m high when it stand upright on two feet with vertical body. When the robot's torso/body is flat and parallel to the ground, the pitch and roll angles are both 0.
-9. Holding a foot 0.0m in the air is the same as saying it should maintain contact with the ground.
-10. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-11. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
-12. Use as few bullet points as possible. Be concise.
+3. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
+6. We can assume that the gripper has a good low-level controller that maintains position and torque as long as it's in a reasonable pose.
+7. You can assume that the gripper is capable of doing anything, even for the most challenging task.
+8. The gripper is 80mm wide when open. It closes to 3mm open.
+9. The maximum torque of the gripper is 4.3Nm.
+10. The minimum torque of the gripper is 0.1Nm (the force required to actuate the fingers).
+11. The goal position of the gripper will be supplied externally, do not calculate it.
+12. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
+13. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
+14. Use as few bullet points as possible. Be concise.
 
 """
 
 prompt_coder = """
-We have a description of a robot's motion and we want you to turn that into the corresponding program with following functions:
+We have a description of a gripper's motion and we want you to turn that into the corresponding program with following functions:
 ```
-def set_torso_targets(target_torso_height, target_torso_pitch, target_torso_roll, target_torso_location_xy, target_torso_velocity_xy, target_torso_heading, target_turning_speed)
+def open_gripper()
 ```
-target_torso_height: how high the torso wants to reach. When the robot is standing on all four feet in a normal standing pose, the torso is about 0.3m high.
-target_torso_pitch: How much the torso should tilt up from a horizontal pose in radians. A positive number means robot is looking up, e.g. if the angle is 0.5*pi the robot will be looking upward, if the angel is 0, then robot will be looking forward.
-target_torso_velocity_xy: target torso moving velocity in local space, x is forward velocity, y is sideways velocity (positive means left).
-target_torso_heading: the desired direction that the robot should face towards. The value of target_torso_heading is in the range of 0 to 2*pi, where 0 and 2*pi both mean East, pi being West, etc.
-target_turning_speed: the desired turning speed of the torso in radians per second.
-Remember:
-one of target_torso_location_xy and target_torso_velocity_xy must be None.
-one of target_torso_heading and target_turning_speed must be None.
-No other inputs can be None.
+This function opens the gripper to its maximum width.
 
 ```
-def set_foot_pos_parameters(foot_name, lift_height, extend_forward, move_inward)
+def get_goal_position()
 ```
-foot_name is one of ('front_left', 'back_left', 'front_right', 'back_right').
-lift_height: how high should the foot be lifted in the air. If is None, disable this term. If it's set to 0, the foot will touch the ground.
-extend_forward: how much should the foot extend forward. If is None, disable this term.
-move_inward: how much should the foot move inward. If is None, disable this term.
+This function returns the known goal position of the gripper.
+
+```
+def close_gripper(goal_position)
+```
+goal_position: the position to close the gripper to (in mm)
+Remember:
+Call get_goal_position to get the goal position of the gripper.
+This function closes the gripper to a specified width that does not need to be calculated.
+
+```
+def set_compliance(compliance_margin, compliance_flexibility, finger='both')
+```
+compliance_margin: the allowable error between the goal and present position (value from 0-255, the same units as the motor's position)
+compliance_flexibility: the slope of motor torque (value 0-7, higher is more flexible) until it reaches the compliance margin
+finger: which finger to set compliance for, either 'left', 'right', or 'both'
+
+```
+def set_torque(torque, finger='both')
+```
+torque: the maximum torque the finger can apply (in Nm), ranging from (0.1 to 4.3)
+finger: which finger to set compliance for, either 'left', 'right', or 'both'
+
+```
+def close_until_load(stop_position, stop_torque, finger='both')
+```
+stop_position: the position to stop closing the gripper (in mm)
+stop_torque: the torque to stop closing the gripper (in Nm)
+finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
 def set_foot_stepping_parameters(foot_name, stepping_frequency, air_ratio, phase_offset, swing_up_down, swing_forward_back, should_activate)
