@@ -31,6 +31,7 @@ Describe the grasp strategy using the following form:
 
 [start of description]
 * This {CHOICE: [is, is not]} a new grasp.
+* This grasp should be [GRASP_DESCRIPTION: <str>].
 * This is a {CHOICE: [complete, incomplete]} grasp.
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
@@ -46,21 +47,22 @@ Describe the grasp strategy using the following form:
 Rules:
 1. If you see phrases like [NUM: default_value], replace the entire phrase with a numerical value. If you see [PNUM: default_value], replace it with a positive, non-zero numerical value.
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-3. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
-6. We can assume that the gripper has a good low-level controller that maintains position and torque as long as it's in a reasonable pose.
-7. You can assume that the gripper is capable of doing anything, even for the most challenging task.
-8. The gripper is 80mm wide when open. It closes to 3mm open.
-9. The maximum torque of the gripper is 4.3Nm.
-10. The minimum torque of the gripper is 0.1Nm (the force required to actuate the fingers).
-11. The goal position of the gripper will be supplied externally, do not calculate it.
-12. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-13. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
-14. Use as few bullet points as possible. Be concise.
+3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
+4. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
+5. We can assume that the gripper has a good low-level controller that maintains position and torque as long as it's in a reasonable pose.
+6. You can assume that the gripper is capable of doing anything, even for the most challenging task.
+7. The gripper is 80mm wide when open. It closes to 3mm open.
+8. The maximum torque of the gripper is 4.3Nm.
+9. The minimum torque of the gripper is 0.1Nm (the force required to actuate the fingers).
+10. The goal position of the gripper will be supplied externally, do not calculate it.
+11. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
+12. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
+13. Use as few bullet points as possible. Be concise.
 
 """
 
 prompt_coder = """
-We have a description of a gripper's motion and we want you to turn that into the corresponding program with following functions:
+We have a description of a gripper's motion and we want you to turn that into the corresponding program with following class functions of the gripper:
 ```
 def open_gripper()
 ```
@@ -127,7 +129,11 @@ Example answer code:
 ```
 import numpy as np  # import numpy because we are using it below
 
+# [REASONING] 
+reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
 goal_position = get_goal_position()
+
+[REASONING]
 set_compliance(10, 3, 'both')
 set_torque(1.0, 'both')
 close_until_load(200, 1.5, 'both')
@@ -143,6 +149,7 @@ Remember:
 4. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
 5. If you are not sure what value to use, just use your best judge. Do not use None for anything.
 6. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
+7. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
 """
 
 
@@ -151,13 +158,13 @@ class PromptThinkerCoder(llm_prompt.LLMPrompt):
 
   def __init__(
       self,
-      client: barkour_l2r_task_client.BarkourClient,
+      client: magpie_task_client.BarkourClient,
       executor: safe_executor.SafeExecutor,
   ):
     self._agent = client.agent()
-    self._safe_executor = barkour_execution.BarkourSafeExecutor(executor)
+    self._safe_executor = magpie_execution.BarkourSafeExecutor(executor)
 
-    self.name = "Language2StructuredLang2Reward"
+    self.name = "Language2StructuredLang2GraspParameters"
 
     self.num_llms = 2
     self.prompts = [prompt_thinker, prompt_coder]
