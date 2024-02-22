@@ -12,7 +12,7 @@ from spatialmath import SE3
 # UR Interface
 import rtde_control
 import rtde_receive
-# Gripper Interface 
+# Gripper Interface
 import serial.tools.list_ports
 from magpie.motor_code import Motors
 
@@ -23,9 +23,9 @@ from magpie import poses
 from magpie.homog_utils import homog_xform, R_krot
 
 _CAMERA_XFORM = homog_xform( # TCP --to-> Camera
-    rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ), 
-    # posnVctr = [0.0, 0.0, 0.084-0.2818] 
-    posnVctr = [0.0, 0.0, -0.084] 
+    rotnMatx = R_krot( [0.0, 0.0, 1.0], -np.pi/2.0 ),
+    # posnVctr = [0.0, 0.0, 0.084-0.2818]
+    posnVctr = [0.0, 0.0, -0.084]
 )
 
 ########## HELPER FUNCTIONS ########################################################################
@@ -63,14 +63,14 @@ class UR5_Interface:
     def set_tcp_to_camera_xform( self, xform ):
         """ Set the camera transform """
         self.camXform = np.array( xform )
-        
-    
+
+
     def __init__( self, robotIP = "192.168.0.6", cameraXform = None ):
         """ Store connection params and useful constants """
         self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
-        self.ctrl       = None # -- `RTDEControlInterface` object 
-        self.recv       = None # -- `RTDEReceiveInterface` object 
+        self.ctrl       = None # -- `RTDEControlInterface` object
+        self.recv       = None # -- `RTDEReceiveInterface` object
         self.gripper    = None # -- Gripper Controller Interface
         self.Q_safe     = [ radians( elem ) for elem in [ 12.30, -110.36, 95.90, -75.48, -89.59, 12.33 ] ]
         self.torqLim    = 600
@@ -81,7 +81,7 @@ class UR5_Interface:
         else:
             self.set_tcp_to_camera_xform( cameraXform )
 
-    
+
     def start( self ):
         """ Connect to RTDE and the gripper """
         self.ctrl = rtde_control.RTDEControlInterface( self.robotIP )
@@ -92,25 +92,25 @@ class UR5_Interface:
             self.gripper.torquelimit( self.torqLim )
         else:
             raise RuntimeError( "Could NOT connect to gripper Dynamixel board!" )
-        
-        
+
+
     def stop( self ):
         """ Shutdown robot and gripper connections """
         self.ctrl.servoStop()
         self.ctrl.stopScript()
         # self.recv.disconnect()
         # self.ctrl.disconnect()
-        
+
     def get_name( self ):
         """ Get string that represents this robot """
         return self.name
-    
-        
+
+
     def get_joint_angles( self ):
         """ Returns a 6 element numpy array of joint angles (radians) """
         return np.array( self.recv.getActualQ() )
-    
-    
+
+
     def get_tcp_pose( self ):
         """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
         # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
@@ -124,12 +124,12 @@ class UR5_Interface:
         # T_N.plot(name="C")
         return T_N    # T_N is a homogenous transform
 
-    def   poseVectorToMatrix(self, poseVector):
+    def poseVectorToMatrix(self, poseVector):
         # Converts poseVector into an SE3 Object (4 x 4 Homegenous Transform)
         # poseVector is a 6 element list of [x, y, z, rX, rY, rZ]
         T_N = sm.SE3(poses.pose_vec_to_mtrx(poseVector))
         return T_N
-    
+
     def get_cam_pose( self ):
         """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
         # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
@@ -140,7 +140,7 @@ class UR5_Interface:
             # pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
         )
 
-    
+
     def get_sensor_pose_in_robot_frame( self, sensorPose ):
         """ Get a pose obtained from segmentation in the robot frame """
         return np.dot(
@@ -149,47 +149,47 @@ class UR5_Interface:
             # sensorPose,
             # self.get_cam_pose()
         )
-    
-    
+
+
     def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ qGoal is a 6 element numpy array of joint angles (radians) """
         # speed is joint velocity (rad/s)
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
-    
-    
+
+
     def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
-    
-    
+
+
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ Moves the arm linearly in joint space to home pose """
         self.moveJ( self.Q_safe, rotSpeed, rotAccel, asynch )
-    
-    
+
+
     def p_moving( self ):
         """ Return True if the robot is in motion, Otherwise return False """
         return not self.ctrl.isSteady()
-    
-    
+
+
     def open_gripper( self ):
         """ Open gripper to the fullest extent """
         self.gripper.openGripper()
-    
-    
+
+
     def set_gripper( self, width ):
         """ Computes the servo angles needed for the jaws to be width mm apart """
         # Sends command over serial to the gripper to hold those angles
         self.gripper.position( self.gripper.distance2theta( width * 1000.0 ) )
-        
-        
+
+
     def close_gripper( self ):
         """ Set the gripper fingers to near-zero gap """
         self.set_gripper( self.gripClos_m )
-        
-        
+
+
     def align_tcp( self, lock_roll = False, lock_pitch = False, lock_yaw = False ):
         """
         Alignes the gripper with the nearest rotational axis (principle cartesian axes).
@@ -225,4 +225,3 @@ class UR5_Interface:
         pose[0:3, 0:3] = rot_matrix
         self.moveL( pose )
         return pose
-        
