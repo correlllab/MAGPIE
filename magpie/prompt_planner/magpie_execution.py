@@ -23,7 +23,7 @@ from absl import logging
 from mujoco_mpc import mjpc_parameters
 
 from language_to_reward_2023 import safe_executor
-from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
+# from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
 
 
 class BarkourSafeExecutor(metaclass=abc.ABCMeta):

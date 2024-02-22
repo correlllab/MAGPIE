@@ -15,26 +15,32 @@
 
 """Utilities for generating task parameters for the Barkour MJPC task."""
 
-from typing import Literal
+import sys
+sys.path.append("../../")
 
+from typing import Literal
+import magpie.grasp as grasp
 import magpie_default_task_parameters
 
-FootName = Literal[
-    'front_left',
-    'rear_left',
-    'front_right',
-    'rear_right',
-    'back_left',
-    'back_right',
+GripperName = Literal[
+    'left',
+    'right',
+    'both'
 ]
 
 
 def defaults() -> tuple[dict[str, float], dict[str, float]]:
-  """Default cost weights and task parameters for the Barkour MJPC task."""
-  weights, params = default_task_parameters.default_parameters_and_weights()
+  """Default gripper parameters for MAGPIE gripper."""
+  weights, params = magpie_default_task_parameters.default_parameters_and_weights()
   return weights, params
 
+def get_gripper():
+  gripper = grasp.Gripper()
+  return gripper
 
+def open_gripper():
+  gripper = grasp.Gripper()
+  
 def set_torso_targets(
     cost_weights: dict[str, float],
     task_parameters: dict[str, float],
