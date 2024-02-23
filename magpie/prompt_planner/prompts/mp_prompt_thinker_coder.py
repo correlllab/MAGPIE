@@ -83,7 +83,7 @@ Remember:
 The goal distance is a known distance that the gripper should be at. It is set by the user.
 
 ```
-def set_goal_distance(finger='both', distance=0)
+def set_goal_distance(distance=0, finger='both')
 ```
 finger: which finger to set the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', sets distance from finger to center. If 'both', sets distance between fingers.
 distance: the distance to set the finger(s) to (in mm)
@@ -114,8 +114,7 @@ stop_position: the position to stop closing the gripper (in mm)
 stop_force: the torque to stop closing the gripper (in N)
 finger: which finger to close, either 'left', 'right', or 'both'
 Remember:
-Stop position must always be greater than the goal distance (the distance between gripper).
-If a finger exerts stop_force, assign the corresponding stop_position to the goal_distance
+Stop position must be greater than the goal distance and less than the current distance.
 If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
 
 ```
@@ -131,21 +130,23 @@ This function resets all parameters to their default values and opens the grippe
 
 Example answer code:
 ```
+from magpie.gripper import Gripper # must import the gripper class
+G = Gripper() # create a gripper object
 import numpy as np  # import numpy because we are using it below
 
 # [REASONING] 
-reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
-goal_distance = get_goal_distance()
+G.reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
+goal_distance = G.get_goal_distance()
 
 # [REASONING]
-set_compliance(10, 3, 'both')
-set_force(1.0, 'both')
-close_until_load(goal_distance + 5, 1.5, 'both')
-curr_distance = get_distance()
+G.set_compliance(10, 3, 'both')
+G.set_force(1.0, 'both')
+G.close_until_contact_force(goal_distance + 5, 1.5, 'both')
+curr_distance = G.get_distance('both)
 
 # [REASONING]
-set_force(3.0, 'both')
-set_goal_distance(curr_distance - 5)
+G.set_force(3.0, 'both')
+G.set_goal_distance(curr_distance - 5, finger='both')
 ```
 
 Remember:
@@ -155,6 +156,7 @@ Remember:
 5. If you are not sure what value to use, just use your best judge. Do not use None for anything.
 6. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
 7. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
+8. Remember to import the gripper class and create a Gripper at the beginning of your code.
 """
 
 
