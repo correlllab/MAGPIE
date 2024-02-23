@@ -1,10 +1,7 @@
 import sys
 sys.path.append("../../")
-import rtde_control
-import rtde_receive
 from magpie.motor_code import Motors
 import magpie.ur5 as ur5
-import magpie.realsense_wrapper as real
 import numpy as np
 import spatialmath as sm
 import copy
@@ -272,55 +269,6 @@ def grabStrat2(pos):
     dTheta = gripperController.distance2theta(width)
 
 def grabStrat1(pos):
-
-    # orig (x, y, z): (array([ 0.13508298, -0.00355787,  0.43300185]),
-    # modified (y, -x, z): [-0.00355787, -0.13508298,  0.43300185]
-    # orig2: (array([ 0.04913553, -0.00977856,  0.36643119]),
-    grabPos = pos
-
-    try:
-        robotIP = "192.168.0.6"
-        con = rtde_control.RTDEControlInterface(robotIP)
-        rec = rtde_receive.RTDEReceiveInterface(robotIP)
-        servoPort = "/dev/ttyACM0"
-        gripperController = Motors(servoPort)
-        gripperController.torquelimit(600) # used to be 600
-        gripperController.speedlimit(100)
-        ur = ur5.UR5_Interface()
-        ur.gripperController = gripperController
-        try:
-            ur.c = con
-            ur.r = rec
-            ur.gripperController = gripperController
-        except Exception as e:
-            raise(e)
-        else:
-            print("UR5 + Gripper Interface Established")
-
-        # print(f"res: {projectToWorldCoords(res)} ")
-        # ur.openGripper() # Open gripper
-        # ur.testRoutine()
-        homePose = ur.getPose()
-        x_mod = 0.0
-        y_mod = 0.0
-        z_mod = 0.0
-        moveToBlock(grabPos, ur)
-        print("Done moving to block")
-        ur.closeGripper(9)
-        time.sleep(sleepRate)
-        moveBackFromBlock(homePose, ur)
-        ur.openGripper()
-        gripperController.openGripper()
-        gripperController.disconnect()
-        ur.c.disconnect()
-        ur.r.disconnect()
-    except Exception as e:
-        gripperController.openGripper()
-        gripperController.disconnect()
-        ur.c.disconnect()
-        ur.r.disconnect()
-        raise(e)
-
     # strategy 1: close 1 finger until contact, then make rigid and close 2nd finger
     m1 = gripperController.Motor1
     m2 = gripperController.Motor2
