@@ -6,6 +6,8 @@ import spatialmath as sm
 import copy
 import time
 import numpy as np
+from multiprocessing import Process
+import threading
 
 class Gripper:
     def __init__(self, servoport = '/dev/ttyACM0'):
@@ -23,11 +25,26 @@ class Gripper:
         self.Finger1 = Ax12(finger_id1)
         self.Finger2 = Ax12(finger_id2)
         #speed is in bits from 0-1023 for CCW; 1024 -2047 CW
-        self.speed = 100
+        self.speed = 100 # about 10% speed, or 11rpm
         self.Finger1.set_moving_speed(self.speed)
         self.Finger2.set_moving_speed(self.speed)
         # torque in bits from 0-1023
         self.torque = 200
+        self.goal_distance_both = 0 # in mm
+        self.goal_distance_f1 = 0
+        self.goal_distance_f2 = 0
+
+        '''
+        default latency (there and back) is 500 us, or 0.5 ms
+        actuating one tick at a time (0.29 deg)
+        self.speed = 100, which is in wheel mode
+        equal to ~11 rpm = 3960 deg/m
+        so one tick takes 4.4ms to actuate
+        actuation time + latency = 4.9ms, give some buffer
+        '''
+        self.delay = 0.0055
+        self.latency = 0.0006
+
         self.Finger1.set_torque_limit(self.torque)
         self.Finger2.set_torque_limit(self.torque)
         #input motor theta max and measurements by using dynamixel
@@ -61,17 +78,26 @@ class Gripper:
         self.Finger1.set_goal_position(0)
         self.Finger2.set_goal_position(1023)
 
+    def reset_parameters(self):
+        self.apply_to_fingers('set_torque_limit', self.default_parameters['torque'], finger='both', noarg=False)
+        self.apply_to_fingers('set_moving_speed', self.default_parameters['speed'], finger='both', noarg=False)
+        self.apply_to_fingers('set_compliance_margin', self.default_parameters['compliance_margin'], finger='both', noarg=False)
+        self.apply_to_fingers('set_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
+        time.sleep(0.0025)
+
     def open_gripper(self):
         open1 = int((self.Motor1theta_min+4)*1023/300)
         open2 = int((self.Motor2theta_max-4)*1023/300)
         self.Finger1.set_goal_position(open1)
         self.Finger2.set_goal_position(open2)
+        time.sleep(0.1) # 100ms
 
     def close_gripper(self):
         close1 = int((self.Motor1theta_max-4)*1023/300)
         close2 = int((self.Motor2theta_min+4)*1023/300)
         self.Finger1.set_goal_position(close1)
         self.Finger2.set_goal_position(close2)
+        time.sleep(0.1) # 100ms
 
     def theta_limit(self, delta_theta):
         Motor1_theta = -delta_theta + self.Motor1theta_90
@@ -86,14 +112,25 @@ class Gripper:
         delta_Z = self.Crank*math.cos(math.radians(delta_theta)) - 14 + 81.32 + self.Camera2Ref
         return delta_Z
 
-    def apply_to_fingers(self, action_func_name, arg, finger='both'):
+    def apply_to_fingers(self, action_func_name, arg, finger='both', noarg=False):
+        arg = () if noarg else (arg)
         if finger == 'both':
-            return [getattr(self.Finger1, action_func_name)(arg),
-                    getattr(self.Finger2, action_func_name)(arg)]
+            if noarg:
+                return [getattr(self.Finger1, action_func_name)(),
+                        getattr(self.Finger2, action_func_name)()]
+            else:
+                return [getattr(self.Finger1, action_func_name)(arg),
+                        getattr(self.Finger2, action_func_name)(arg)]
         elif finger == 'left':
-            return getattr(self.Finger1, action_func_name)(arg)
+            if noarg:
+                return getattr(self.Finger1, action_func_name)()
+            else:
+                return getattr(self.Finger1, action_func_name)(arg)
         elif finger == 'right':
-            return getattr(self.Finger2, action_func_name)(arg)
+            if noarg:
+                return getattr(self.Finger2, action_func_name)()
+            else:
+                return getattr(self.Finger2, action_func_name)(arg)
 
     # general flow: desired mm distance
     # --> call distance_to_theta(mm)
@@ -108,6 +145,7 @@ class Gripper:
         #theta comes in degrees
         return delta_theta
 
+    # only for left or right finger, not both
     def theta_to_position(self, delta_theta, finger='left'):
         sign = (-1.0 if finger=='left' else 1.0)
         parallel_constant = (self.Finger1theta_90 if finger=='left' else self.Finger2theta_90)
@@ -117,6 +155,7 @@ class Gripper:
 
     # inverse methods
 
+    # only for left or right finger, not both
     def position_to_theta(self, position, finger='left'):
         sign = (-1.0 if finger=='left' else 1.0)
         parallel_constant = (self.Finger1theta_90 if finger=='left' else self.Finger2theta_90)
@@ -128,6 +167,7 @@ class Gripper:
         distance = movement + self.OffsetCamera2Crank - self.OffsetCrank2Finger
         return distance
 
+    # setters
     def set_goal_distance(self, distance, finger='both'):
         distance = distance if finger=='both' else (distance * 2.0)
         theta = self.theta_to_position(self.distance_to_theta(distance))
@@ -149,7 +189,7 @@ class Gripper:
         self.set_torque(load, finger=finger)
 
     def set_torque(self, torqueLimit, finger='both'):
-        self.apply_to_fingers('set_torque_limit', torqueLimit, finger=finger)
+        self.apply_to_fingers('set_torque_limit', torqueLimit, finger=finger, noarg=False)
         # if finger=='both':
         #     self.Finger1.set_torque_limit(torqueLimit)
         #     self.Finger2.set_torque_limit(torqueLimit)
@@ -159,24 +199,31 @@ class Gripper:
         #     self.Finger2.set_torque_limit(torqueLimit)
 
     def set_speed(self, speedLimit, finger='both'):
-        self.apply_to_fingers('set_moving_speed', speedLimit, finger=finger)
+        self.apply_to_fingers('set_moving_speed', speedLimit, finger=finger, noarg=False)
         # self.Finger1.set_moving_speed(speedLimit)
         # self.Finger2.set_moving_speed(speedLimit)
 
     def set_compliance(self, margin, flexibility, finger='both'):
         margin_ax12 = self.theta_to_position(self.distance_to_theta(margin), finger=finger)
         flexibility_ax12 = np.power(2, flexibility)
-        self.apply_to_fingers('set_compliance_margin', margin_ax12, finger=finger)
-        self.apply_to_fingers('set_compliance_slope', flexibility_ax12, finger=finger)
+        self.apply_to_fingers('set_compliance_margin', margin_ax12, finger=finger, noarg=False)
+        self.apply_to_fingers('set_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
         # self.Finger1.set_compliance_margin(margin)
         # self.Finger1.set_compliance_slope(flexibility)
         # self.Finger2.set_compliance_margin(margin)
         # self.Finger2.set_compliance_slope(flexibility)
 
+    # getters
     def get_position(self, finger='both'):
-        return(self.apply_to_fingers('get_present_position', None))
+        return(self.apply_to_fingers('get_present_position', None, finger=finger, noarg=True))
         # self.Finger1.get_present_position()
         # self.Finger2.get_present_position()
+
+    def get_goal_distance(self, finger='both'):
+        if finger=='both':
+            return self.goal_distance_both
+        else:
+            return self.goal_distance_f1 if finger=='left' else self.goal_distance_f2
 
     def get_distance(self, finger='both'):
         '''
@@ -193,12 +240,12 @@ class Gripper:
             return f1_dist if finger=='left' else f2_dist
 
     def get_temp(self, finger='both'):
-        self.apply_to_fingers('get_temperature', finger=finger)
+        self.apply_to_fingers('get_temperature', None, finger=finger, noarg=True)
         # self.Finger1.get_temperature()
         # self.Finger2.get_temperature()
 
     def get_load(self, finger='both'):
-        self.apply_to_fingers('get_load', finger=finger)
+        self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
         # if finger=='both':
         #     return [self.Finger1.get_load(),
         #             self.Finger2.get_load()]
@@ -207,11 +254,51 @@ class Gripper:
         # elif finger=='right':
         #     return self.Finger2.get_load()
 
-    # copilot generated, need to fix
     def close_until_contact_force(self, stop_position, stop_force, finger='both'):
+        stop_load = self.N_to_load(stop_force)
+        stop_ax12 = None
+        delta = None
+        sign = None
+        curr_pos = self.get_position(finger=finger)
         if finger=='both':
-            self.Finger1.set_goal_position(stop_position)
-            self.Finger2.set_goal_position(stop_position)
+            stop_ax12 = [
+                self.theta_to_position(self.distance_to_theta(stop_position), finger='left'),
+                self.theta_to_position(self.distance_to_theta(stop_position), finger='right')
+            ]
+            delta = np.array(curr_pos) - np.array(stop_ax12)
+        else:
+            stop_ax12 = self.theta_to_position(self.distance_to_theta(stop_position), finger=finger)
+            delta = curr_pos - stop_ax12
+        sign = np.sign(delta)
+
+        if finger=='both':
+            p1 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[0], stop_load, sign[0], 'left'))
+            p2 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[1], stop_load, sign[1], 'right'))
+            p1.start()
+            p2.start()
+            self.goal_distance_both = self.get_distance(finger='both')
+        else:
+            self.close_until_contact_force_helper(delta, stop_load, sign, finger=finger)
+    
+    # only for left or right finger, not both
+    def close_until_contact_force_helper(self, delta, stop_load, sign, finger='left'):
+        finger_ax12 = self.Finger1 if finger=='left' else self.Finger2
+        curr_pos = finger_ax12.get_present_position()
+        time.sleep(self.latency)
+        for i in range(0, delta, sign * 1):
+            finger_ax12.set_goal_position(curr_pos + i)
+            time.sleep(self.delay)
+            curr_pos = finger_ax12.get_present_position()
+            curr_load = finger_ax12.get_load()
+            time.sleep(self.latency)
+            if curr_load > stop_load:
+                force = self.load_to_N(curr_load)
+                distance = self.get_distance(finger=finger)
+                print(f'{finger} finger reached stop force: {force} at distance: {distance}')
+                print(f'{finger} finger reached stop load: {curr_load} at position: {curr_pos}')
+                # todo: set goal_distance_fx class variable, but not really necessary
+                finger_ax12.set_goal_position(curr_pos)
+                break
 
     # convert unitless load values to force normal load at gripper contact point
     def load_to_N(self, load):
