@@ -71,27 +71,22 @@ Remember:
 If the grasp is incomplete, the gripper should open if at any previous point, it or an individual finger has closed.
 
 ```
-def get_goal_position()
+def get_distance(finger='both')
 ```
-This function returns the known goal position of the gripper in terms of goal distance between the fingers (in mm).
+finger: which finger to get the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns distance from finger to center. If 'both', returns distance between fingers.
 
 ```
-def get_position()
+def set_distance(finger='both', distance=0)
 ```
-This function returns the current position of the gripper in terms of distance between the fingers (in mm).
+finger: which finger to set the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', sets distance from finger to center. If 'both', sets distance between fingers.
+distance: the distance to set the finger(s) to (in mm)
 
 ```
-def set_goal_position(position)
+def close_gripper()
 ```
-position: the position to set the gripper goal position to (in mm)
-
-```
-def close_gripper(goal_position)
-```
-goal_position: the position to close the gripper to (in mm)
+This function closes the gripper to its minimum width (3 mm).
 Remember:
 Call get_goal_position to get the goal position of the gripper.
-This function closes the gripper to a specified width that does not need to be calculated.
 
 ```
 def set_compliance(margin, flexibility, finger='both')
@@ -103,7 +98,7 @@ finger: which finger to set compliance for, either 'left', 'right', or 'both'
 ```
 def set_torque(torque, finger='both')
 ```
-torque: the maximum torque the finger can apply (in Nm), ranging from (0.1 to 4.3)
+torque: the maximum torque the finger is allowed can apply (in Nm), ranging from (0.1 to 4.3)
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
@@ -119,10 +114,9 @@ If a finger reaches a stop position, the goal position should be updated to the 
 If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
 
 ```
-def move_finger(position, velocity, finger='both')
+def set_speed(speed, finger='both')
 ```
-position: the amount to move the finger inward or outward (in mm)
-velocity: the velocity at which to move the finger in or at (in mm/s)
+speed: the speed at which to move the finger in or at (in mm/s)
 finger: which finger to move: 'left', 'right', or 'both'
 
 Example answer code:
