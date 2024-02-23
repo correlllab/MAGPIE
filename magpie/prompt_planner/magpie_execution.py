@@ -20,19 +20,18 @@ import json
 from typing import Any, Callable, Sequence
 
 from absl import logging
-from mujoco_mpc import mjpc_parameters
 
-from language_to_reward_2023 import safe_executor
+import safe_executor
 # from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
 
 
-class BarkourSafeExecutor(metaclass=abc.ABCMeta):
+class MagpieSafeExecutor(metaclass=abc.ABCMeta):
   """Runs untrusted code to get task parameters for the Barkour MJPC task."""
 
   def __init__(self, executor: safe_executor.SafeExecutor):
     self._executor = executor
 
-  def execute(self, code: str) -> mjpc_parameters.MjpcParameters:
+  def execute(self, code: str):
     """Executes untrusted code to get MJPC task parameters.
 
     See _CODE_TEMPLATE below for available functions.
@@ -50,14 +49,14 @@ class BarkourSafeExecutor(metaclass=abc.ABCMeta):
 
   def _execute_with_template(
       self, template: str, code: str
-  ) -> mjpc_parameters.MjpcParameters:
+  ):
     """Combines untrusted code with a template and executes it in a sandbox."""
     combined_code = template.replace('INSERT_CODE_HERE', code)
     output = self._executor.safe_execute(combined_code)
     return _parse_output(output)
 
 
-def _parse_output(output: str) -> mjpc_parameters.MjpcParameters:
+def _parse_output(output: str):
   """Parses the output from executing param generation code."""
   try:
     overwriting_weights, overwriting_params = json.loads(output)
