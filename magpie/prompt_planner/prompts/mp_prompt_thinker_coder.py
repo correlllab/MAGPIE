@@ -68,7 +68,7 @@ def open_gripper()
 ```
 This function opens the gripper to its maximum width (85 mm).
 Remember:
-If the grasp is incomplete, the gripper should open if at any previous point, it or an individual finger has closed.
+If the grasp is incomplete, the gripper should open if at any previous point the gripper or an individual finger has closed.
 
 ```
 def get_distance(finger='both')
@@ -76,41 +76,46 @@ def get_distance(finger='both')
 finger: which finger to get the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns distance from finger to center. If 'both', returns distance between fingers.
 
 ```
-def set_distance(finger='both', distance=0)
+def get_goal_distance(finger='both')
+```
+finger: which finger to get the goal distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns distance from finger to center. If 'both', returns distance between fingers.
+Remember:
+The goal distance is a known distance that the gripper should be at. It is set by the user.
+
+```
+def set_goal_distance(finger='both', distance=0)
 ```
 finger: which finger to set the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', sets distance from finger to center. If 'both', sets distance between fingers.
 distance: the distance to set the finger(s) to (in mm)
+This function will move the finger(s) to the specified goal distance.
 
 ```
 def close_gripper()
 ```
 This function closes the gripper to its minimum width (3 mm).
-Remember:
-Call get_goal_position to get the goal position of the gripper.
 
 ```
 def set_compliance(margin, flexibility, finger='both')
 ```
-margin: the allowable error between the goal and present position (value from 0-255, the same units as the motor's position)
-flexibility: the slope of motor torque (value 0-7, higher is more flexible) until it reaches the compliance margin
+margin: the allowable error between the goal and present position (in mm)
+flexibility: the compliance slope of motor torque (value 0-7, higher is more flexible) until it reaches the compliance margin
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
-def set_torque(torque, finger='both')
+def set_force(force, finger='both')
 ```
-torque: the maximum torque the finger is allowed can apply (in Nm), ranging from (0.1 to 4.3)
+force: the maximum force the finger is allowed to apply at contact with an object(in N), ranging from (0.1 to 16 N)
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
-def close_until_load(stop_position, stop_torque, finger='both')
+def close_until_contact_force(stop_position, stop_force, finger='both')
 ```
 stop_position: the position to stop closing the gripper (in mm)
-stop_torque: the torque to stop closing the gripper (in Nm)
-finger: which finger to set compliance for, either 'left', 'right', or 'both'
+stop_force: the torque to stop closing the gripper (in N)
+finger: which finger to close, either 'left', 'right', or 'both'
 Remember:
-Call get_goal_position to get the goal position of the gripper.
-Stop position must always be greater than the goal position (the distance between gripper).
-If a finger reaches a stop position, the goal position should be updated to the stop position.
+Stop position must always be greater than the goal distance (the distance between gripper).
+If a finger exerts stop_force, assign the corresponding stop_position to the goal_distance
 If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
 
 ```
@@ -119,22 +124,28 @@ def set_speed(speed, finger='both')
 speed: the speed at which to move the finger in or at (in mm/s)
 finger: which finger to move: 'left', 'right', or 'both'
 
+```
+def reset_parameters()
+```
+This function resets all parameters to their default values and opens the gripper.
+
 Example answer code:
 ```
 import numpy as np  # import numpy because we are using it below
 
 # [REASONING] 
 reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
-goal_position = get_goal_position()
+goal_distance = get_goal_distance()
 
-[REASONING]
+# [REASONING]
 set_compliance(10, 3, 'both')
-set_torque(1.0, 'both')
-close_until_load(200, 1.5, 'both')
-position = get_position()
-set_goal_position(position - 5)
-goal_position = get_goal_position()
-close_gripper()
+set_force(1.0, 'both')
+close_until_load(goal_distance + 5, 1.5, 'both')
+curr_distance = get_distance()
+
+# [REASONING]
+set_force(3.0, 'both')
+set_goal_distance(curr_distance - 5)
 ```
 
 Remember:
