@@ -65,13 +65,22 @@ class Gripper:
             }
 
         #dont touch
-        self.Crank = 45
-        self.Finger= 80 # don't know what this measurement is. finger length probably?
-        self.OffsetCamera2Crank = 38
-        self.OffsetCrank2Finger = 24.32
+        self.Crank = 45 # crank length
+        self.Finger= 80 # finger length
+        self.OffsetCamera2Crank = 38 # difference between camera's x position and servo motor
+        self.OffsetCrank2Finger = 24.32 # difference between crank's x position and finger base's x position
         self.servojoint = 84
         #plug in last reference frame to camera position for z axis
         self.Camera2Ref = 63
+
+        # renaming all the above variables to match Stephen Otto's thesis (for my sanity)
+        # see p11 of his thesis. all values in mm
+        self.crank_length    = 45
+        self.finger_length   = 80
+        self.offset_servo_x  = 38 # difference between camera x-pos and servo x-pos
+        self.offset_servo_y  = -21 # difference between camera y-pos and servo y-pos
+        self.offset_finger_x = -24.32 # difference between crank x-pos and finger base x-pos
+        self.offset_finger_y = 1.32 # difference between crank y-pos and finger base y-pos
 
     #this is before you attach your motors to the gripper
     def setup(self):
@@ -108,29 +117,11 @@ class Gripper:
             return 1
         return 0
 
+    # this looks like a distance from camera to finger tip, but I don't know
+    # best to ignore / not use
     def distance_from_ref(self, delta_theta):
         delta_Z = self.Crank*math.cos(math.radians(delta_theta)) - 14 + 81.32 + self.Camera2Ref
         return delta_Z
-
-    def apply_to_fingers(self, action_func_name, arg, finger='both', noarg=False):
-        arg = () if noarg else (arg)
-        if finger == 'both':
-            if noarg:
-                return [getattr(self.Finger1, action_func_name)(),
-                        getattr(self.Finger2, action_func_name)()]
-            else:
-                return [getattr(self.Finger1, action_func_name)(arg),
-                        getattr(self.Finger2, action_func_name)(arg)]
-        elif finger == 'left':
-            if noarg:
-                return getattr(self.Finger1, action_func_name)()
-            else:
-                return getattr(self.Finger1, action_func_name)(arg)
-        elif finger == 'right':
-            if noarg:
-                return getattr(self.Finger2, action_func_name)()
-            else:
-                return getattr(self.Finger2, action_func_name)(arg)
 
     # general flow: desired mm distance
     # --> call distance_to_theta(mm)
@@ -162,10 +153,72 @@ class Gripper:
         theta = (sign * (position * 300 / 1023.0)) - parallel_constant
         return theta
 
+    # return aperture
     def theta_to_distance(self, theta):
+        # according to stephen otto, this should be math.cos, not math.sin
         movement = self.Crank * math.sin(math.radians(theta))
         distance = movement + self.OffsetCamera2Crank - self.OffsetCrank2Finger
         return distance
+    
+    '''
+    re-implementation of the above methods, but following Stephen Otto's thesis strictly
+    general problem: grasping an object of known width
+                     width = aperture * 2 (if closing fingers the same)
+                     more generally: width = aperture_f1 + aperture_f2
+    goal: want to find the z-offset from the camera center to the finger tip
+          when the fingers are grasping the object, ie at the specified aperture
+    flow: either z_offset = aperture_to_z(width / 2.0)
+          or     z_offset = aperture_to_z(aperture_fx)
+    '''
+
+    # aperture to z-offset 
+    # aperture: (x-axis distance from finger to camera center)
+    # z_offset: (z-axis distance from camera center to finger tip, or y_fingertip)
+    def aperture_to_z(self, distance):
+        return self.theta_to_z(self.aperture_to_theta(distance))
+
+    # return aperture, but with math.cos
+    def theta_to_aperture(self, theta):
+        movement = np.cos(np.radians(theta)) * self.crank_length 
+        aperture = movement + self.offset_finger_x + self.offset_servo_x
+        return aperture
+    
+    # return theta, but with math.cos
+    def aperture_to_theta(self, aperture):
+        # not gonna do the aperture / 2 that distance_to_theta does, but making a note of it
+        # note that then aperture means the x-distance from the finger to the x-center of the camera
+        # TODO: make consistent across functions, after testing
+        movement = aperture - self.offset_finger_x - self.offset_servo_x
+        theta = np.degrees(np.arccos(movement/self.crank_length))
+        return theta
+    
+    # return parallel z-distance from camera center to finger tip
+    # alternatively, y_fingertip
+    def theta_to_z(self, theta):
+        l2 = np.sin(np.radians(theta)) * self.crank_length
+        l1 = self.finger_length + self.offset_finger_y
+        y_fingertip = l2 + l1 + self.offset_servo_y
+        return y_fingertip
+
+    def apply_to_fingers(self, action_func_name, arg, finger='both', noarg=False):
+        arg = () if noarg else (arg)
+        if finger == 'both':
+            if noarg:
+                return [getattr(self.Finger1, action_func_name)(),
+                        getattr(self.Finger2, action_func_name)()]
+            else:
+                return [getattr(self.Finger1, action_func_name)(arg),
+                        getattr(self.Finger2, action_func_name)(arg)]
+        elif finger == 'left':
+            if noarg:
+                return getattr(self.Finger1, action_func_name)()
+            else:
+                return getattr(self.Finger1, action_func_name)(arg)
+        elif finger == 'right':
+            if noarg:
+                return getattr(self.Finger2, action_func_name)()
+            else:
+                return getattr(self.Finger2, action_func_name)(arg)
 
     # setters
     def set_goal_distance(self, distance, finger='both'):
