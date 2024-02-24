@@ -98,18 +98,24 @@ class Gripper:
         time.sleep(0.0025)
 
     def open_gripper(self):
-        open1 = int((self.Motor1theta_min+4)*1023/300)
-        open2 = int((self.Motor2theta_max-4)*1023/300)
+        open1 = int((self.Finger1theta_min+4)*1023/300)
+        open2 = int((self.Finger2theta_max-4)*1023/300)
         self.Finger1.set_goal_position(open1)
         self.Finger2.set_goal_position(open2)
         time.sleep(0.1) # 100ms
 
     def close_gripper(self):
-        close1 = int((self.Motor1theta_max-4)*1023/300)
-        close2 = int((self.Motor2theta_min+4)*1023/300)
+        close1 = int((self.Finger1theta_max-4)*1023/300)
+        close2 = int((self.Finger2theta_min+4)*1023/300)
         self.Finger1.set_goal_position(close1)
         self.Finger2.set_goal_position(close2)
         time.sleep(0.1) # 100ms
+
+    def reset_packet_overload(self, finger='both'):
+        self.Finger1.set_torque_enable(True)
+        self.Finger2.set_torque_enable(True)
+        self.Finger1.set_torque_limit(self.default_parameters['torque'])
+        self.Finger2.set_torque_limit(self.default_parameters['torque'])
 
     def theta_limit(self, delta_theta):
         Motor1_theta = -delta_theta + self.Motor1theta_90
