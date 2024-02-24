@@ -174,8 +174,20 @@ class Gripper:
     # aperture to z-offset 
     # aperture: (x-axis distance from finger to camera center)
     # z_offset: (z-axis distance from camera center to finger tip, or y_fingertip)
-    def aperture_to_z(self, distance):
-        return self.theta_to_z(self.aperture_to_theta(distance))
+    def aperture_to_z(self, aperture, finger='both'):
+        aperture = (aperture / 2.0) if finger=='both' else aperture
+        return self.theta_to_z(self.aperture_to_theta(aperture))
+
+    def set_goal_aperture(self, aperture, finger='both'):
+        aperture = (aperture / 2.0) if finger=='both' else aperture
+        theta = self.aperture_to_theta(aperture)
+        if finger=='both':
+            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
+            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
+        elif finger=='left':
+            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
+        elif finger=='right':
+            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
 
     # return aperture, but with math.cos
     def theta_to_aperture(self, theta):
