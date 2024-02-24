@@ -90,8 +90,11 @@ class Gripper:
     def reset_parameters(self):
         self.apply_to_fingers('set_torque_limit', self.default_parameters['torque'], finger='both', noarg=False)
         self.apply_to_fingers('set_moving_speed', self.default_parameters['speed'], finger='both', noarg=False)
-        self.apply_to_fingers('set_compliance_margin', self.default_parameters['compliance_margin'], finger='both', noarg=False)
-        self.apply_to_fingers('set_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
+        self.apply_to_fingers('set_cw_compliance_margin', self.default_parameters['compliance_margin'], finger='both', noarg=False)
+        self.apply_to_fingers('set_ccw_compliance_margin', self.default_parameters['compliance_margin'], finger='both', noarg=False)
+        self.apply_to_fingers('set_cw_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
+        self.apply_to_fingers('set_ccw_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
+        self.open_gripper()
         time.sleep(0.0025)
 
     def open_gripper(self):
@@ -137,11 +140,13 @@ class Gripper:
         return delta_theta
 
     # only for left or right finger, not both
-    def theta_to_position(self, delta_theta, finger='left'):
+    def theta_to_position(self, delta_theta, finger='left', debug=False):
         sign = (-1.0 if finger=='left' else 1.0)
         parallel_constant = (self.Finger1theta_90 if finger=='left' else self.Finger2theta_90)
         theta = (delta_theta * sign) + parallel_constant
         pos = int(theta * 1023 / 300)
+        if debug:
+            print(f'position: {pos}')
         return pos
 
     # inverse methods
@@ -153,13 +158,13 @@ class Gripper:
         theta = (sign * (position * 300 / 1023.0)) - parallel_constant
         return theta
 
-    # return aperture
+    # return distance, but with math.sin (not consistent with otto's thesis)
     def theta_to_distance(self, theta):
         # according to stephen otto, this should be math.cos, not math.sin
         movement = self.Crank * math.sin(math.radians(theta))
         distance = movement + self.OffsetCamera2Crank - self.OffsetCrank2Finger
         return distance
-    
+
     '''
     re-implementation of the above methods, but following Stephen Otto's thesis strictly
     general problem: grasping an object of known width
@@ -171,30 +176,30 @@ class Gripper:
           or     z_offset = aperture_to_z(aperture_fx)
     '''
 
-    # aperture to z-offset 
+    # aperture to z-offset
     # aperture: (x-axis distance from finger to camera center)
     # z_offset: (z-axis distance from camera center to finger tip, or y_fingertip)
     def aperture_to_z(self, aperture, finger='both'):
         aperture = (aperture / 2.0) if finger=='both' else aperture
         return self.theta_to_z(self.aperture_to_theta(aperture))
 
-    def set_goal_aperture(self, aperture, finger='both'):
+    def set_goal_aperture(self, aperture, finger='both', debug=False):
         aperture = (aperture / 2.0) if finger=='both' else aperture
         theta = self.aperture_to_theta(aperture)
         if finger=='both':
-            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
-            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
+            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left', debug=debug))
+            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right', debug=debug))
         elif finger=='left':
-            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
+            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left', debug=debug))
         elif finger=='right':
-            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
+            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right', debug=debug))
 
     # return aperture, but with math.cos
     def theta_to_aperture(self, theta):
-        movement = np.cos(np.radians(theta)) * self.crank_length 
+        movement = np.cos(np.radians(theta)) * self.crank_length
         aperture = movement + self.offset_finger_x + self.offset_servo_x
         return aperture
-    
+
     # return theta, but with math.cos
     def aperture_to_theta(self, aperture):
         # not gonna do the aperture / 2 that distance_to_theta does, but making a note of it
@@ -203,7 +208,7 @@ class Gripper:
         movement = aperture - self.offset_finger_x - self.offset_servo_x
         theta = np.degrees(np.arccos(movement/self.crank_length))
         return theta
-    
+
     # return parallel z-distance from camera center to finger tip
     # alternatively, y_fingertip
     def theta_to_z(self, theta):
@@ -248,9 +253,12 @@ class Gripper:
             theta = self.distance_to_theta(distance)
             self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
 
-    def set_force(self, force, finger='both'):
+    def set_force(self, force, finger='both', debug=False):
         # convert N to unitless load value
         load = self.N_to_load(force)
+        if debug:
+            print(f'converted load: {load}')
+
         self.set_torque(load, finger=finger)
 
     def set_torque(self, torqueLimit, finger='both'):
@@ -268,11 +276,16 @@ class Gripper:
         # self.Finger1.set_moving_speed(speedLimit)
         # self.Finger2.set_moving_speed(speedLimit)
 
-    def set_compliance(self, margin, flexibility, finger='both'):
+    def set_compliance(self, margin, flexibility, finger='both', debug=False):
         margin_ax12 = self.theta_to_position(self.distance_to_theta(margin), finger=finger)
         flexibility_ax12 = np.power(2, flexibility)
-        self.apply_to_fingers('set_compliance_margin', margin_ax12, finger=finger, noarg=False)
-        self.apply_to_fingers('set_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
+        if debug:
+            print(f'margin_ax12: {margin_ax12}')
+            print(f'flexibility_ax12: {flexibility_ax12}')
+        self.apply_to_fingers('set_cw_compliance_margin', margin_ax12, finger=finger, noarg=False)
+        self.apply_to_fingers('set_ccw_compliance_margin', margin_ax12, finger=finger, noarg=False)
+        self.apply_to_fingers('set_cw_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
+        self.apply_to_fingers('set_ccw_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
         # self.Finger1.set_compliance_margin(margin)
         # self.Finger1.set_compliance_slope(flexibility)
         # self.Finger2.set_compliance_margin(margin)
@@ -304,13 +317,27 @@ class Gripper:
         else:
             return f1_dist if finger=='left' else f2_dist
 
+    def get_aperture(self, finger='both'):
+        '''
+        @return aperture in mm, either between both fingers, or from finger to x-center
+        '''
+        # perform inverse calculations of theta_to_position, distance_to_theta
+        f1_theta = self.position_to_theta(self.get_position(finger='left'))
+        f2_theta = self.position_to_theta(self.get_position(finger='right'))
+        f1_aperture  = self.theta_to_aperture(f1_theta)
+        f2_aperture  = self.theta_to_aperture(f2_theta)
+        if finger == 'both':
+            return f1_aperture + f2_aperture
+        else:
+            return f1_aperture if finger=='left' else f2_aperture
+
     def get_temp(self, finger='both'):
-        self.apply_to_fingers('get_temperature', None, finger=finger, noarg=True)
+        return self.apply_to_fingers('get_temperature', None, finger=finger, noarg=True)
         # self.Finger1.get_temperature()
         # self.Finger2.get_temperature()
 
     def get_load(self, finger='both'):
-        self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
+        return self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
         # if finger=='both':
         #     return [self.Finger1.get_load(),
         #             self.Finger2.get_load()]
@@ -319,6 +346,14 @@ class Gripper:
         # elif finger=='right':
         #     return self.Finger2.get_load()
 
+    def get_compliance(self, finger='both'):
+        return [self.apply_to_fingers('get_cw_compliance_margin', None, finger=finger, noarg=True),
+                self.apply_to_fingers('get_ccw_compliance_margin', None, finger=finger, noarg=True),
+                self.apply_to_fingers('get_cw_compliance_slope', None, finger=finger, noarg=True),
+                self.apply_to_fingers('get_ccw_compliance_slope', None, finger=finger, noarg=True)
+        ]
+
+    # gripper motion
     def close_until_contact_force(self, stop_position, stop_force, finger='both'):
         stop_load = self.N_to_load(stop_force)
         stop_ax12 = None
@@ -344,7 +379,7 @@ class Gripper:
             self.goal_distance_both = self.get_distance(finger='both')
         else:
             self.close_until_contact_force_helper(delta, stop_load, sign, finger=finger)
-    
+
     # only for left or right finger, not both
     def close_until_contact_force_helper(self, delta, stop_load, sign, finger='left'):
         finger_ax12 = self.Finger1 if finger=='left' else self.Finger2
