@@ -288,7 +288,11 @@ class Gripper:
         # self.Finger2.set_moving_speed(speedLimit)
 
     def set_compliance(self, margin, flexibility, finger='both', debug=False):
-        margin_ax12 = self.theta_to_position(self.distance_to_theta(margin), finger=finger)
+        # margin_ax12 = self.theta_to_position(self.distance_to_theta(margin), finger=finger)
+        # 1mm of margin ~ 4.5 position units (empirically determined)
+        # 0 - 10mm aperture: 44 units, 10 - 20mm aperture: 44 units
+        # 20 - 30mm aperture: 45 units, 30 - 40mm aperture: 49 units
+        margin_ax12 = int(margin * 4.5)
         flexibility_ax12 = np.power(2, flexibility)
         if debug:
             print(f'margin_ax12: {margin_ax12}')
@@ -365,34 +369,34 @@ class Gripper:
         ]
 
     # gripper motion
-    def close_until_contact_force(self, stop_position, stop_force, finger='both'):
+    def close_until_contact_force(self, stop_aperture, stop_force, finger='both', debug='False'):
         stop_load = self.N_to_load(stop_force)
         stop_ax12 = None
         delta = None
         sign = None
-        curr_pos = self.get_position(finger=finger)
+        curr_pos = self.get_aperture(finger=finger)
         if finger=='both':
             stop_ax12 = [
-                self.theta_to_position(self.distance_to_theta(stop_position), finger='left'),
-                self.theta_to_position(self.distance_to_theta(stop_position), finger='right')
+                self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='left', debug=debug ),
+                self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='right', debug=debug )
             ]
-            delta = np.array(curr_pos) - np.array(stop_ax12)
+            delta = int(np.array(curr_pos)) - np.array(stop_ax12)
         else:
-            stop_ax12 = self.theta_to_position(self.distance_to_theta(stop_position), finger=finger)
-            delta = curr_pos - stop_ax12
+            stop_ax12 = self.theta_to_position(self.aperture_to_theta(stop_aperture), finger=finger, debug=debug)
+            delta = int(curr_pos) - stop_ax12
         sign = np.sign(delta)
 
         if finger=='both':
-            p1 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[0], stop_load, sign[0], 'left'))
-            p2 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[1], stop_load, sign[1], 'right'))
+            p1 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[0], stop_load, sign[0], 'left', debug))
+            p2 = threading.Thread(target=self.close_until_contact_force_helper, args=(delta[1], stop_load, sign[1], 'right', debug))
             p1.start()
             p2.start()
             self.goal_distance_both = self.get_distance(finger='both')
         else:
-            self.close_until_contact_force_helper(delta, stop_load, sign, finger=finger)
+            self.close_until_contact_force_helper(delta, stop_load, sign, finger=finger, debug=debug)
 
     # only for left or right finger, not both
-    def close_until_contact_force_helper(self, delta, stop_load, sign, finger='left'):
+    def close_until_contact_force_helper(self, delta, stop_load, sign, finger='left', debug=False):
         finger_ax12 = self.Finger1 if finger=='left' else self.Finger2
         curr_pos = finger_ax12.get_present_position()
         time.sleep(self.latency)
@@ -404,7 +408,7 @@ class Gripper:
             time.sleep(self.latency)
             if curr_load > stop_load:
                 force = self.load_to_N(curr_load)
-                distance = self.get_distance(finger=finger)
+                distance = self.get_aperture(finger=finger)
                 print(f'{finger} finger reached stop force: {force} at distance: {distance}')
                 print(f'{finger} finger reached stop load: {curr_load} at position: {curr_pos}')
                 # todo: set goal_distance_fx class variable, but not really necessary
