@@ -266,7 +266,7 @@ class Gripper:
 
     def set_force(self, force, finger='both', debug=False):
         # convert N to unitless load value
-        load = self.N_to_load(force)
+        load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
 
@@ -319,8 +319,8 @@ class Gripper:
         @return distance in mm, either between both fingers, or from finger to x-center
         '''
         # perform inverse calculations of theta_to_position, distance_to_theta
-        f1_theta = self.position_to_theta(self.get_position(finger='left'))
-        f2_theta = self.position_to_theta(self.get_position(finger='right'))
+        f1_theta = self.position_to_theta(self.get_position(finger='left'), finger='left')
+        f2_theta = self.position_to_theta(self.get_position(finger='right'), finger='right')
         f1_dist  = self.theta_to_distance(f1_theta)
         f2_dist  = self.theta_to_distance(f2_theta)
         if finger == 'both':
@@ -423,7 +423,7 @@ class Gripper:
         N = -0.00001889 * load**2 + 0.038399 * load - 3.4073
         if load < 100:
             # made up polynomial to approximate the low load region
-            N = 0.0025 * load - 0.07 * load**2
+            N = 0.0025 * load - 0.0000007 * load**2
         return N
 
     def N_to_load(self, N):
@@ -432,11 +432,17 @@ class Gripper:
         '''
         # derived by Stephen Otto empirically
         # see eqn on p17, figure 14 on p18 of: https://www.proquest.com/docview/2868478510?%20
-        load = 0.00001889 * N**2 - 0.038399 * N + 3.4073
-        if load < 100:
-            # made up polynomial to approximate the low load region
-            load = 0.0025 * N - 0.07 * N**2
-        return load
+        # invert load_to_N
+        low_load = N < 0.25 
+        a = -0.00001889 if not low_load else -0.0000007
+        b = 0.038399 if not low_load else 0.0025
+        c = (-3.4073 - N) if not low_load else (-N)
+        discriminant = b**2 - 4*a*c
+        if discriminant < 0:
+            return None  # No real solution
+        else:
+            load = (-b + math.sqrt(discriminant)) / (2*a)
+            return load
 
     def disconnect(self):
         Ax12.disconnect()
