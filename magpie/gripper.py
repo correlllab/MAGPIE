@@ -161,7 +161,7 @@ class Gripper:
     def position_to_theta(self, position, finger='left'):
         sign = (-1.0 if finger=='left' else 1.0)
         parallel_constant = (self.Finger1theta_90 if finger=='left' else self.Finger2theta_90)
-        theta = (sign * (position * 300 / 1023.0)) - parallel_constant
+        theta = sign * ((position * 300 / 1023.0) - parallel_constant)
         return theta
 
     # return distance, but with math.sin (not consistent with otto's thesis)
@@ -185,9 +185,9 @@ class Gripper:
     # aperture to z-offset
     # aperture: (x-axis distance from finger to camera center)
     # z_offset: (z-axis distance from camera center to finger tip, or y_fingertip)
-    def aperture_to_z(self, aperture, finger='both'):
+    def aperture_to_z(self, aperture, finger='both', debug=False):
         aperture = (aperture / 2.0) if finger=='both' else aperture
-        return self.theta_to_z(self.aperture_to_theta(aperture))
+        return self.theta_to_z(self.aperture_to_theta(aperture), debug=debug)
 
     def set_goal_aperture(self, aperture, finger='both', debug=False):
         aperture = (aperture / 2.0) if finger=='both' else aperture
@@ -202,7 +202,8 @@ class Gripper:
 
     # return aperture, but with math.cos
     def theta_to_aperture(self, theta):
-        movement = np.cos(np.radians(theta)) * self.crank_length
+        # movement = np.cos(np.radians(theta)) * self.crank_length
+        movement = np.sin(np.radians(theta)) * self.crank_length
         aperture = movement + self.offset_finger_x + self.offset_servo_x
         return aperture
 
@@ -212,15 +213,19 @@ class Gripper:
         # note that then aperture means the x-distance from the finger to the x-center of the camera
         # TODO: make consistent across functions, after testing
         movement = aperture - self.offset_finger_x - self.offset_servo_x
-        theta = np.degrees(np.arccos(movement/self.crank_length))
+        # theta = np.degrees(np.arccos(movement/self.crank_length))
+        theta = np.degrees(np.arcsin(movement/self.crank_length))
         return theta
 
     # return parallel z-distance from camera center to finger tip
     # alternatively, y_fingertip
-    def theta_to_z(self, theta):
-        l2 = np.sin(np.radians(theta)) * self.crank_length
+    def theta_to_z(self, theta, debug=False):
+        # l2 = np.sin(np.radians(theta)) * self.crank_length
+        l2 = np.cos(np.radians(theta)) * self.crank_length
         l1 = self.finger_length + self.offset_finger_y
         y_fingertip = l2 + l1 + self.offset_servo_y
+        if debug:
+            print(f'theta: {theta}, l2: {l2}, l1: {l1}, y_fingertip: {y_fingertip}')
         return y_fingertip
 
     def apply_to_fingers(self, action_func_name, arg, finger='both', noarg=False):
@@ -328,8 +333,8 @@ class Gripper:
         @return aperture in mm, either between both fingers, or from finger to x-center
         '''
         # perform inverse calculations of theta_to_position, distance_to_theta
-        f1_theta = self.position_to_theta(self.get_position(finger='left'))
-        f2_theta = self.position_to_theta(self.get_position(finger='right'))
+        f1_theta = self.position_to_theta(self.get_position(finger='left'), finger='left')
+        f2_theta = self.position_to_theta(self.get_position(finger='right'), finger='right')
         f1_aperture  = self.theta_to_aperture(f1_theta)
         f2_aperture  = self.theta_to_aperture(f2_theta)
         if finger == 'both':
