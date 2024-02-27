@@ -289,6 +289,9 @@ class Gripper:
     def get_load(self, finger='both'):
         return self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
 
+    def get_torque(self, finger='both'):
+        return self.apply_to_fingers('get_torque_limit', None, finger=finger, noarg=True)
+
     def get_compliance(self, finger='both'):
         return [self.apply_to_fingers('get_cw_compliance_margin', None, finger=finger, noarg=True),
                 self.apply_to_fingers('get_ccw_compliance_margin', None, finger=finger, noarg=True),
