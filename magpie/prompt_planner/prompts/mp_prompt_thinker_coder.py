@@ -27,6 +27,7 @@ Control a robot gripper with torque control and contact information.
 This is a griper with two independently actuated fingers, each on a 4-bar linkage.
 The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
 As well as the kind of grasp it is attempting to perform.
+The gripper has a measurable max force of 16N and min force of 0.15N, a maximum aperture of 105mm and a minimum aperture of 1mm.
 Some grasps may be incomplete, intended for observing force information about a given object.
 Describe the grasp strategy using the following form:
 
@@ -37,7 +38,7 @@ Describe the grasp strategy using the following form:
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
-* This grasp should halt when the force on the object is [PNUM: 0.0] Newtons.
+* This grasp should increase the force [PNUM: 0.0] Newtons to confirm the grasp.
 * [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The left finger have velocity [NUM: 0.0] millimeters/sec inward (positive)/outward (negative).
@@ -50,21 +51,16 @@ Rules:
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
 3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
 4. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
-5. We can assume that the gripper has a good low-level controller that maintains position and torque as long as it's in a reasonable pose.
-6. You can assume that the gripper is capable of doing anything, even for the most challenging task.
-7. The gripper is 80mm wide when open. It closes to 3mm open.
-8. The maximum torque of the gripper is 4.3Nm.
-9. The minimum torque of the gripper is 0.1Nm (the force required to actuate the fingers).
-10. The goal position of the gripper will be supplied externally, do not calculate it.
+5. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
+10. The goal aperture of the gripper will be supplied externally, do not calculate it.
 11. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
 12. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
 13. Use as few bullet points as possible. Be concise.
-
 """
 
 prompt_coder = """
 We have a description of a gripper's motion and force sensing and we want you to turn that into the corresponding program with following class functions of the gripper:
-The gripper has a measurable max force of 16N and min force of 0.1N, a maximum aperture of 105mm and a minimum aperture of 1mm.
+The gripper has a measurable max force of 16N and min force of 0.15N, a maximum aperture of 105mm and a minimum aperture of 1mm.
 
 ```
 def get_aperture(finger='both')
@@ -79,10 +75,11 @@ Remember:
 The goal distance is a known distance and trust that this function will return the correct value.
 
 ```
-def set_goal_aperture(aperture, finger='both')
+def set_goal_aperture(aperture, finger='both', record_load=False)
 ```
 aperture: the aperture to set the finger(s) to (in mm)
 finger: which finger to set the aperture in mm, of, either 'left', 'right', or 'both'.
+record_load: whether to record the load at the goal aperture. If true, will return array of (pos, load) tuples
 This function will move the finger(s) to the specified goal aperture, and is used to close and open the gripper.
 
 ```
@@ -115,14 +112,14 @@ goal_aperture = G.get_goal_aperture()
 
 # [REASONING]
 G.set_compliance(10, 3, finger='both')
-G.set_force(0.2, 'both')
+G.set_force(0.15, 'both')
 G.set_goal_aperture(goal_aperture, finger='both')
-curr_aperture = G.get_aperture(finger='both')
-G.set_goal_aperture(curr_aperture, finger='both')
 
 # [REASONING]
-G.set_force(2.0, 'both')
-additional_closure = 5
+curr_aperture = G.get_aperture(finger='both')
+G.set_goal_aperture(curr_aperture, finger='both')
+G.set_force(0.35, 'both')
+additional_closure = 2
 G.set_goal_aperture(curr_aperture - additional_closure, finger='both')
 ```
 
@@ -134,6 +131,7 @@ Remember:
 6. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
 7. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
 8. Remember to import the gripper class and create a Gripper at the beginning of your code.
+9. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary. Often times the current position will not be the same as the goal position.
 """
 
 cut = '''
