@@ -126,24 +126,9 @@ class Gripper:
             return 1
         return 0
 
-    # this looks like a distance from camera to finger tip, but I don't know
-    # best to ignore / not use
-    def distance_from_ref(self, delta_theta):
-        delta_Z = self.Crank*math.cos(math.radians(delta_theta)) - 14 + 81.32 + self.Camera2Ref
-        return delta_Z
-
     # general flow: desired mm distance
     # --> call distance_to_theta(mm)
     # --> call position(theta) to move gripper
-
-    def distance_to_theta(self,width):
-        xPositionFromCenter = width/2
-        #positive movement means it goes away from center(open gripper)
-        #negative means it closes the gripper
-        Movement = xPositionFromCenter - self.OffsetCamera2Crank + self.OffsetCrank2Finger
-        delta_theta = math.degrees(math.asin(Movement/self.Crank))
-        #theta comes in degrees
-        return delta_theta
 
     # only for left or right finger, not both
     def theta_to_position(self, delta_theta, finger='left', debug=False):
@@ -163,13 +148,6 @@ class Gripper:
         parallel_constant = (self.Finger1theta_90 if finger=='left' else self.Finger2theta_90)
         theta = sign * ((position * 300 / 1023.0) - parallel_constant)
         return theta
-
-    # return distance, but with math.sin (not consistent with otto's thesis)
-    def theta_to_distance(self, theta):
-        # according to stephen otto, this should be math.cos, not math.sin
-        movement = self.Crank * math.sin(math.radians(theta))
-        distance = movement + self.OffsetCamera2Crank - self.OffsetCrank2Finger
-        return distance
 
     '''
     re-implementation of the above methods, but following Stephen Otto's thesis strictly
@@ -249,21 +227,6 @@ class Gripper:
                 return getattr(self.Finger2, action_func_name)(arg)
 
     # setters
-    def set_goal_distance(self, distance, finger='both'):
-        distance = distance if finger=='both' else (distance * 2.0)
-        theta = self.theta_to_position(self.distance_to_theta(distance))
-        if finger=='both':
-            theta = self.distance_to_theta(distance)
-            # self.theta_to_position(theta, finger=finger)
-            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
-            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
-        elif finger=='left':
-            theta = self.distance_to_theta(distance)
-            self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left'))
-        elif finger=='right':
-            theta = self.distance_to_theta(distance)
-            self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right'))
-
     def set_force(self, force, finger='both', debug=False):
         # convert N to unitless load value
         load = int(self.N_to_load(force))
@@ -302,20 +265,6 @@ class Gripper:
             return self.goal_distance_both
         else:
             return self.goal_distance_f1 if finger=='left' else self.goal_distance_f2
-
-    def get_distance(self, finger='both'):
-        '''
-        @return distance in mm, either between both fingers, or from finger to x-center
-        '''
-        # perform inverse calculations of theta_to_position, distance_to_theta
-        f1_theta = self.position_to_theta(self.get_position(finger='left'), finger='left')
-        f2_theta = self.position_to_theta(self.get_position(finger='right'), finger='right')
-        f1_dist  = self.theta_to_distance(f1_theta)
-        f2_dist  = self.theta_to_distance(f2_theta)
-        if finger == 'both':
-            return f1_dist + f2_dist
-        else:
-            return f1_dist if finger=='left' else f2_dist
 
     def get_aperture(self, finger='both'):
         '''
