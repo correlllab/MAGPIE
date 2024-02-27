@@ -167,7 +167,9 @@ class Gripper:
         aperture = (aperture / 2.0) if finger=='both' else aperture
         return self.theta_to_z(self.aperture_to_theta(aperture), debug=debug)
 
-    def set_goal_aperture(self, aperture, finger='both', debug=False):
+    def set_goal_aperture(self, aperture, finger='both', debug=False, record_load=False):
+        if record_load:
+            return self.set_goal_aperture_record_load(aperture, finger=finger, debug=debug)
         aperture = (aperture / 2.0) if finger=='both' else aperture
         theta = self.aperture_to_theta(aperture)
         if finger=='both':
@@ -299,16 +301,16 @@ class Gripper:
         stop_ax12 = None
         delta = None
         sign = None
-        curr_pos = self.get_aperture(finger=finger)
+        curr_pos = self.get_position(finger=finger)
         if finger=='both':
             stop_ax12 = [
                 self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='left', debug=debug ),
                 self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='right', debug=debug )
             ]
-            delta = int(np.array(curr_pos)) - np.array(stop_ax12)
+            delta = np.array(stop_ax12) - np.array(curr_pos)
         else:
             stop_ax12 = self.theta_to_position(self.aperture_to_theta(stop_aperture), finger=finger, debug=debug)
-            delta = int(curr_pos) - stop_ax12
+            delta = stop_ax12 - curr_pos
         sign = np.sign(delta)
 
         if finger=='both':
@@ -318,16 +320,16 @@ class Gripper:
             p2.start()
             self.goal_distance_both = self.get_distance(finger='both')
         else:
-            self.close_until_contact_force_helper(delta, stop_load, sign, finger=finger, debug=debug)
+            self.close_until_contact_force_helper(delta, stop_ax12, sign, finger=finger, debug=debug)
 
     # only for left or right finger, not both
-    def close_until_contact_force_helper(self, delta, stop_load, sign, finger='left', debug=False):
+    def close_until_contact_force_helper(self, stop_pos, stop_load, sign, finger='left', debug=False):
         finger_ax12 = self.Finger1 if finger=='left' else self.Finger2
         curr_pos = finger_ax12.get_present_position()
         time.sleep(self.latency)
-        for i in range(0, delta, sign * 1):
-            finger_ax12.set_goal_position(curr_pos + i)
-            time.sleep(self.delay)
+        for next_pos in range(curr_pos, stop_pos, sign * 1):
+            finger_ax12.set_goal_position(next_pos)
+            time.sleep(self.delay * 2)
             curr_pos = finger_ax12.get_present_position()
             curr_load = finger_ax12.get_load()
             time.sleep(self.latency)
@@ -339,6 +341,55 @@ class Gripper:
                 # todo: set goal_distance_fx class variable, but not really necessary
                 finger_ax12.set_goal_position(curr_pos)
                 break
+
+    def set_goal_aperture_record_load(self, stop_aperture, finger='both', debug='False'):
+        stop_ax12 = None
+        delta = None
+        sign = None
+        curr_pos = self.get_position(finger=finger)
+        if finger=='both':
+            stop_ax12 = [
+                self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='left', debug=debug ),
+                self.theta_to_position(self.aperture_to_theta(stop_aperture), finger='right', debug=debug )
+            ]
+            delta = np.array(stop_ax12) - np.array(curr_pos)
+        else:
+            stop_ax12 = self.theta_to_position(self.aperture_to_theta(stop_aperture), finger=finger, debug=debug)
+            delta = stop_ax12 - curr_pos
+        sign = np.sign(delta)
+
+        if finger=='both':
+            pos_load_l = np.array([[], []])
+            pos_load_r = np.array([[], []])
+            p1 = threading.Thread(target=self.record_load_helper, args=(stop_ax12[0], sign[0], pos_load_l, 'left', debug))
+            p2 = threading.Thread(target=self.record_load_helper, args=(stop_ax12[1], sign[1], pos_load_r, 'right', debug))
+            p1.start()
+            p2.start()
+            p1.join()
+            p2.join()
+            return pos_load_l, pos_load_r
+        else:
+            pos_load = np.array([[], []])
+            self.record_load_helper(stop_ax12, sign, pos_load, finger=finger, debug=debug)
+            return pos_load
+
+    # only for left or right finger, not both
+    def record_load_helper(self, stop_pos, sign, pld, finger='left', debug=False):
+        '''
+        @param stop_pos: position to stop at
+        @param sign: direction to move in
+        @param pld: position-load data array
+        '''
+        finger_ax12 = self.Finger1 if finger=='left' else self.Finger2
+        curr_pos = finger_ax12.get_present_position()
+        time.sleep(self.latency)
+        for next_pos in range(curr_pos, stop_pos, sign * 1):
+            finger_ax12.set_goal_position(next_pos)
+            time.sleep(self.delay * 2)
+            curr_pos = finger_ax12.get_present_position()
+            curr_load = finger_ax12.get_load()
+            time.sleep(self.latency)
+            pld = np.append(pld, [[curr_pos], [curr_load]], axis=1)
 
     # convert unitless load values to force normal load at gripper contact point
     def load_to_N(self, load):
