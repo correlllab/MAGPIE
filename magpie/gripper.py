@@ -8,6 +8,7 @@ import time
 import numpy as np
 from multiprocessing import Process
 import threading
+import itertools
 
 class Gripper:
     def __init__(self, servoport = '/dev/ttyACM0'):
@@ -168,9 +169,9 @@ class Gripper:
         return self.theta_to_z(self.aperture_to_theta(aperture), debug=debug)
 
     def set_goal_aperture(self, aperture, finger='both', debug=False, record_load=False):
+        aperture = (aperture / 2.0) if finger=='both' else aperture
         if record_load:
             return self.set_goal_aperture_record_load(aperture, finger=finger, debug=debug)
-        aperture = (aperture / 2.0) if finger=='both' else aperture
         theta = self.aperture_to_theta(aperture)
         if finger=='both':
             self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left', debug=debug))
@@ -359,17 +360,12 @@ class Gripper:
         sign = np.sign(delta)
 
         if finger=='both':
-            pos_load_l = np.array([[], []])
-            pos_load_r = np.array([[], []])
-            p1 = threading.Thread(target=self.record_load_helper, args=(stop_ax12[0], sign[0], pos_load_l, 'left', debug))
-            p2 = threading.Thread(target=self.record_load_helper, args=(stop_ax12[1], sign[1], pos_load_r, 'right', debug))
-            p1.start()
-            p2.start()
-            p1.join()
-            p2.join()
+            pos_load_l = [[], []]
+            pos_load_r = [[], []]
+            self.record_load_both_helper(stop_ax12, sign, [pos_load_l, pos_load_r], debug)
             return pos_load_l, pos_load_r
         else:
-            pos_load = np.array([[], []])
+            pos_load = [[], []]
             self.record_load_helper(stop_ax12, sign, pos_load, finger=finger, debug=debug)
             return pos_load
 
@@ -389,7 +385,38 @@ class Gripper:
             curr_pos = finger_ax12.get_present_position()
             curr_load = finger_ax12.get_load()
             time.sleep(self.latency)
-            pld = np.append(pld, [[curr_pos], [curr_load]], axis=1)
+            if debug:
+                print(f'position: {curr_pos}, load: {curr_load}')
+            pld[0].append(curr_pos)
+            pld[1].append(curr_load)
+
+    # only for left or right finger, not both
+    def record_load_both_helper(self, stop_pos, sign, pld, debug=False):
+        '''
+        @param stop_pos: position to stop at
+        @param sign: direction to move in
+        @param pld: position-load data array
+        '''
+        curr_pos = self.get_position(finger='both')
+        time.sleep(self.latency)
+        lrange = range(curr_pos[0], stop_pos[0], sign[0] * 1)
+        rrange = range(curr_pos[1], stop_pos[1], sign[1] * 1)
+        # get stop position of shorter range
+        stub = stop_pos[0] if len(lrange) < len(rrange) else stop_pos[1]
+        for next_pos_l, next_pos_r in itertools.zip_longest(lrange, rrange, fillvalue=stub):
+            self.Finger1.set_goal_position(next_pos_l)
+            self.Finger2.set_goal_position(next_pos_r)
+            time.sleep(self.delay * 2)
+            curr_pos = self.get_position(finger='both')
+            curr_load = self.get_load(finger='both')
+            time.sleep(self.delay)
+            if debug:
+                print(f'left position: {curr_pos[0]}, load: {curr_load[1]}')
+                print(f'right position: {curr_pos[1]}, load: {curr_load[1]}')
+            pld[0][0].append(curr_pos[0])
+            pld[1][0].append(curr_pos[1])
+            pld[0][1].append(curr_load[0])
+            pld[1][1].append(curr_load[1])
 
     # convert unitless load values to force normal load at gripper contact point
     def load_to_N(self, load):
