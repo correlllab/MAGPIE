@@ -27,6 +27,7 @@ Control a robot gripper with torque control and contact information.
 This is a griper with two independently actuated fingers, each on a 4-bar linkage.
 The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
 As well as the kind of grasp it is attempting to perform.
+Some grasps may be incomplete, intended for observing force information about a given object.
 Describe the grasp strategy using the following form:
 
 [start of description]
@@ -62,37 +63,27 @@ Rules:
 """
 
 prompt_coder = """
-We have a description of a gripper's motion and we want you to turn that into the corresponding program with following class functions of the gripper:
+We have a description of a gripper's motion and force sensing and we want you to turn that into the corresponding program with following class functions of the gripper:
+The gripper has a measurable max force of 16N and min force of 0.1N, a maximum aperture of 105mm and a minimum aperture of 1mm.
+
 ```
-def open_gripper()
+def get_aperture(finger='both')
 ```
-This function opens the gripper to its maximum width (85 mm).
+finger: which finger to get the aperture in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns aperture, or distance, from finger to center. If 'both', returns aperture between fingers.
+
+```
+def get_goal_aperture(finger='both')
+```
+finger: which finger to get the goal aprture in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns aperture from finger to center. If 'both', returns aperture between fingers.
 Remember:
-If the grasp is incomplete, the gripper should open if at any previous point the gripper or an individual finger has closed.
+The goal distance is a known distance and trust that this function will return the correct value.
 
 ```
-def get_distance(finger='both')
+def set_goal_aperture(aperture, finger='both')
 ```
-finger: which finger to get the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns distance from finger to center. If 'both', returns distance between fingers.
-
-```
-def get_goal_distance(finger='both')
-```
-finger: which finger to get the goal distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns distance from finger to center. If 'both', returns distance between fingers.
-Remember:
-The goal distance is a known distance that the gripper should be at. It is set by the user.
-
-```
-def set_goal_distance(distance=0, finger='both')
-```
-finger: which finger to set the distance in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', sets distance from finger to center. If 'both', sets distance between fingers.
-distance: the distance to set the finger(s) to (in mm)
-This function will move the finger(s) to the specified goal distance.
-
-```
-def close_gripper()
-```
-This function closes the gripper to its minimum width (3 mm).
+aperture: the aperture to set the finger(s) to (in mm)
+finger: which finger to set the aperture in mm, of, either 'left', 'right', or 'both'.
+This function will move the finger(s) to the specified goal aperture, and is used to close and open the gripper.
 
 ```
 def set_compliance(margin, flexibility, finger='both')
@@ -108,22 +99,6 @@ force: the maximum force the finger is allowed to apply at contact with an objec
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
-def close_until_contact_force(stop_position, stop_force, finger='both')
-```
-stop_position: the position to stop closing the gripper (in mm)
-stop_force: the torque to stop closing the gripper (in N)
-finger: which finger to close, either 'left', 'right', or 'both'
-Remember:
-Stop position must be greater than the goal distance and less than the current distance.
-If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
-
-```
-def set_speed(speed, finger='both')
-```
-speed: the speed at which to move the finger in or at (in mm/s)
-finger: which finger to move: 'left', 'right', or 'both'
-
-```
 def reset_parameters()
 ```
 This function resets all parameters to their default values and opens the gripper.
@@ -136,17 +111,19 @@ import numpy as np  # import numpy because we are using it below
 
 # [REASONING] 
 G.reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
-goal_distance = G.get_goal_distance()
+goal_aperture = G.get_goal_aperture()
 
 # [REASONING]
-G.set_compliance(10, 3, 'both')
-G.set_force(1.0, 'both')
-G.close_until_contact_force(goal_distance + 5, 1.5, 'both')
-curr_distance = G.get_distance('both)
+G.set_compliance(10, 3, finger='both')
+G.set_force(0.2, 'both')
+G.set_goal_aperture(goal_aperture, finger='both')
+curr_aperture = G.get_aperture(finger='both')
+G.set_goal_aperture(curr_aperture, finger='both')
 
 # [REASONING]
-G.set_force(3.0, 'both')
-G.set_goal_distance(curr_distance - 5, finger='both')
+G.set_force(2.0, 'both')
+additional_closure = 5
+G.set_goal_aperture(curr_aperture - additional_closure, finger='both')
 ```
 
 Remember:
@@ -159,6 +136,19 @@ Remember:
 8. Remember to import the gripper class and create a Gripper at the beginning of your code.
 """
 
+cut = '''
+```
+def close_until_contact_force(stop_position, stop_force, finger='both')
+```
+stop_position: the position to stop closing the gripper (in mm)
+stop_force: the torque to stop closing the gripper (in N)
+finger: which finger to close, either 'left', 'right', or 'both'
+Remember:
+Stop position must be greater than the goal distance and less than the current distance.
+If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
+
+G.close_until_contact_force(goal_distance + 5, 1.5, 'both')
+'''
 
 class PromptThinkerCoder(llm_prompt.LLMPrompt):
   """Prompt with both Motion Descriptor and Reward Coder."""
