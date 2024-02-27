@@ -274,18 +274,9 @@ class Gripper:
 
     def set_torque(self, torqueLimit, finger='both'):
         self.apply_to_fingers('set_torque_limit', torqueLimit, finger=finger, noarg=False)
-        # if finger=='both':
-        #     self.Finger1.set_torque_limit(torqueLimit)
-        #     self.Finger2.set_torque_limit(torqueLimit)
-        # elif finger=='left':
-        #     self.Finger1.set_torque_limit(torqueLimit)
-        # elif finger=='right':
-        #     self.Finger2.set_torque_limit(torqueLimit)
 
     def set_speed(self, speedLimit, finger='both'):
         self.apply_to_fingers('set_moving_speed', speedLimit, finger=finger, noarg=False)
-        # self.Finger1.set_moving_speed(speedLimit)
-        # self.Finger2.set_moving_speed(speedLimit)
 
     def set_compliance(self, margin, flexibility, finger='both', debug=False):
         # margin_ax12 = self.theta_to_position(self.distance_to_theta(margin), finger=finger)
@@ -301,16 +292,10 @@ class Gripper:
         self.apply_to_fingers('set_ccw_compliance_margin', margin_ax12, finger=finger, noarg=False)
         self.apply_to_fingers('set_cw_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
         self.apply_to_fingers('set_ccw_compliance_slope', flexibility_ax12, finger=finger, noarg=False)
-        # self.Finger1.set_compliance_margin(margin)
-        # self.Finger1.set_compliance_slope(flexibility)
-        # self.Finger2.set_compliance_margin(margin)
-        # self.Finger2.set_compliance_slope(flexibility)
 
     # getters
     def get_position(self, finger='both'):
         return(self.apply_to_fingers('get_present_position', None, finger=finger, noarg=True))
-        # self.Finger1.get_present_position()
-        # self.Finger2.get_present_position()
 
     def get_goal_distance(self, finger='both'):
         if finger=='both':
@@ -348,18 +333,9 @@ class Gripper:
 
     def get_temp(self, finger='both'):
         return self.apply_to_fingers('get_temperature', None, finger=finger, noarg=True)
-        # self.Finger1.get_temperature()
-        # self.Finger2.get_temperature()
 
     def get_load(self, finger='both'):
         return self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
-        # if finger=='both':
-        #     return [self.Finger1.get_load(),
-        #             self.Finger2.get_load()]
-        # elif finger=='left':
-        #     return self.Finger1.get_load()
-        # elif finger=='right':
-        #     return self.Finger2.get_load()
 
     def get_compliance(self, finger='both'):
         return [self.apply_to_fingers('get_cw_compliance_margin', None, finger=finger, noarg=True),
