@@ -38,7 +38,10 @@ Describe the grasp strategy using the following form:
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
-* This grasp should increase the force [PNUM: 0.0] Newtons to confirm the grasp.
+* This grasp should set the goal aperture to [PNUM: 0.0] mm.
+* Due to the compliance, this grasp should close an additional [PNUM: 0.0] mm after reaching the goal aperture to confirm the grasp.
+* This grasp should set the force to [PNUM: 0.0] Newtons.
+* This grasp should increase the force to [PNUM: 0.0] Newtons to confirm the grasp.
 * [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The left finger have velocity [NUM: 0.0] millimeters/sec inward (positive)/outward (negative).
@@ -52,10 +55,10 @@ Rules:
 3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
 4. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
 5. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
-10. The goal aperture of the gripper will be supplied externally, do not calculate it.
-11. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-12. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
-13. Use as few bullet points as possible. Be concise.
+6. The goal aperture of the gripper will be supplied externally, do not calculate it.
+7. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
+8. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
+9. Use as few bullet points as possible. Be concise.
 """
 
 prompt_coder = """
@@ -107,15 +110,19 @@ G = Gripper() # create a gripper object
 import numpy as np  # import numpy because we are using it below
 
 # [REASONING] 
+# [PREDICTION]
 G.reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
-goal_aperture = G.get_goal_aperture()
+goal_aperture = [PNUM: 0.0] # This is the goal aperture for the grasp
 
 # [REASONING]
+# [PREDICTION]
 G.set_compliance(10, 3, finger='both')
 G.set_force(0.15, 'both')
+additional_closure = 0
 G.set_goal_aperture(goal_aperture, finger='both')
 
 # [REASONING]
+# [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
 G.set_goal_aperture(curr_aperture, finger='both')
 G.set_force(0.35, 'both')
@@ -130,6 +137,8 @@ Remember:
 5. If you are not sure what value to use, just use your best judge. Do not use None for anything.
 6. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
 7. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
+8. If you see phrases like [PREDICTION], replace the entire phrase with a prediction of the gripper's state after the following gripper commands are executed.
+8. If you see phrases like [PNUM: default_value], replace the value with the corresponding value from the input grasp description.
 8. Remember to import the gripper class and create a Gripper at the beginning of your code.
 9. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary. Often times the current position will not be the same as the goal position.
 """
