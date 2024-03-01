@@ -117,20 +117,21 @@ goal_aperture = [PNUM: 0.0] # This is the goal aperture for the grasp
 # [REASONING]
 # [PREDICTION]
 G.set_compliance(10, 3, finger='both')
-G.set_force(0.15, 'both')
+stop_force = [PNUM: 0.0]
+stop_force_increase = [PNUM: 0.0]
+G.set_force(stop_force, 'both')
 additional_closure = 0
 load_data = G.set_goal_aperture(goal_aperture - additional closure, finger='both')
 
 # [REASONING]
 # [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
-if G.contact_load_met(load_data, 0.15, 'both'):
-  additional_closure = 2
-  G.set_force(0.35, 'both')
-else: # the grasp is not confirmed
-  additional_closure = 10
-  G.set_force(0.70, 'both')
-G.set_goal_aperture(curr_aperture - additional_closure, finger='both')
+G.set_goal_aperture(curr_aperture, finger='both')
+while not G.contact_force_met(load_data, stop_force, 'both'):
+  additional_closure += 2
+  stop_force += 0.05
+  G.set_torque(stop_force, 'both')
+  load_data = G.set_goal_aperture(goal_aperture - additional_closure, finger='both')
 ```
 
 Remember:
@@ -147,6 +148,14 @@ Remember:
 """
 
 cut = '''
+if G.contact_load_met(load_data, 0.15, 'both'):
+  additional_closure = 2
+  G.set_force(0.35, 'both')
+else: # the grasp is not confirmed
+  additional_closure = 10
+  G.set_force(0.70, 'both')
+G.set_goal_aperture(curr_aperture - additional_closure, finger='both')
+
 ```
 def close_until_contact_force(stop_position, stop_force, finger='both')
 ```
