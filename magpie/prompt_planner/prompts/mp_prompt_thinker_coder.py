@@ -84,6 +84,7 @@ aperture: the aperture to set the finger(s) to (in mm)
 finger: which finger to set the aperture in mm, of, either 'left', 'right', or 'both'.
 record_load: whether to record the load at the goal aperture. If true, will return array of (pos, load) tuples
 This function will move the finger(s) to the specified goal aperture, and is used to close and open the gripper.
+Returns a position-load data array of shape (2, n) --> [[positions], [loads]]
 
 ```
 def set_compliance(margin, flexibility, finger='both')
@@ -103,6 +104,15 @@ def reset_parameters()
 ```
 This function resets all parameters to their default values and opens the gripper.
 
+```
+def contact_force_met(load_data, force, finger='both')
+```
+load_data: the position-load data array from set_goal_aperture
+force: the force to check if the contact force is met (in N), which is set by set_force()
+finger: which finger to check the contact force for, either 'left', 'right', or 'both'
+Returns True if the contact force is met, False otherwise.
+
+
 Example answer code:
 ```
 from magpie.gripper import Gripper # must import the gripper class
@@ -119,14 +129,17 @@ goal_aperture = [PNUM: 0.0] # This is the goal aperture for the grasp
 G.set_compliance(10, 3, finger='both')
 G.set_force(0.15, 'both')
 additional_closure = 0
-G.set_goal_aperture(goal_aperture, finger='both')
+load_data = G.set_goal_aperture(goal_aperture - additional closure, finger='both')
 
 # [REASONING]
 # [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
-G.set_goal_aperture(curr_aperture, finger='both')
-G.set_force(0.35, 'both')
-additional_closure = 2
+if G.contact_load_met(load_data, 0.15, 'both'):
+  additional_closure = 2
+  G.set_force(0.35, 'both')
+else: # the grasp is not confirmed
+  additional_closure = 10
+  G.set_force(0.70, 'both')
 G.set_goal_aperture(curr_aperture - additional_closure, finger='both')
 ```
 
