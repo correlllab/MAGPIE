@@ -40,7 +40,7 @@ Describe the grasp strategy using the following form:
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
 * This grasp should set the goal aperture to [PNUM: 0.0] mm.
 * Due to the compliance, this grasp should close an additional [PNUM: 0.0] mm after reaching the goal aperture to confirm the grasp.
-* This grasp should set the force to [PNUM: 0.0] Newtons.
+* This grasp should initially set the force to [PNUM: 0.0] Newtons.
 * This grasp should increase the force to [PNUM: 0.0] Newtons to confirm the grasp.
 * [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
@@ -53,12 +53,14 @@ Rules:
 1. If you see phrases like [NUM: default_value], replace the entire phrase with a numerical value. If you see [PNUM: default_value], replace it with a positive, non-zero numerical value.
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
 3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
-4. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
-5. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
-6. The goal aperture of the gripper will be supplied externally, do not calculate it.
-7. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-8. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
-9. Use as few bullet points as possible. Be concise.
+4. Using knowledge of the object and the grasp description, set the initial grasp force to be the minimum force required to perform the grasp.
+5. Using knowledge of the object and the grasp description, increase the aperture closure and/or force if the grasp might need additional confirmation.
+6. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
+7. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
+8. The goal aperture of the gripper will be supplied externally, do not calculate it.
+9. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
+10. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
+11. Use as few bullet points as possible. Be concise.
 """
 
 prompt_coder = """
@@ -69,13 +71,6 @@ The gripper has a measurable max force of 16N and min force of 0.15N, a maximum 
 def get_aperture(finger='both')
 ```
 finger: which finger to get the aperture in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns aperture, or distance, from finger to center. If 'both', returns aperture between fingers.
-
-```
-def get_goal_aperture(finger='both')
-```
-finger: which finger to get the goal aprture in mm, of, either 'left', 'right', or 'both'. If 'left' or 'right', returns aperture from finger to center. If 'both', returns aperture between fingers.
-Remember:
-The goal distance is a known distance and trust that this function will return the correct value.
 
 ```
 def set_goal_aperture(aperture, finger='both', record_load=False)
@@ -98,11 +93,6 @@ def set_force(force, finger='both')
 ```
 force: the maximum force the finger is allowed to apply at contact with an object(in N), ranging from (0.1 to 16 N)
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
-
-```
-def reset_parameters()
-```
-This function resets all parameters to their default values and opens the gripper.
 
 ```
 def contact_force_met(load_data, force, finger='both')
