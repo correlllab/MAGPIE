@@ -435,7 +435,19 @@ class Gripper:
         @return: True if stop_load is met at any point in pos_load, False otherwise
         '''
         stop_load = self.N_to_load(stop_force)
-        return stop_load in pos_load[1]
+        # check if stop_load is met at any point in pos_load
+        # check if any value in pos_load is greater than stop_load
+        if finger=='both':
+            # subtract 1023 from load values greater than 1023
+            load_r, load_l = np.array(pos_load[0][1]), np.array(pos_load[1][1])
+            load_r[load_r > 1023] -= 1023
+            load_l[load_l > 1023] -= 1023
+            return any(load_r > stop_load) or any(load_l > stop_load)
+        else:
+            load = np.array(pos_load[1])
+            load[load > 1023] -= 1023
+            return any(load > stop_load)
+            
 
     # convert unitless load values to force normal load at gripper contact point
     def load_to_N(self, load):
