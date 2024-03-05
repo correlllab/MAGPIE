@@ -39,9 +39,9 @@ Describe the grasp strategy using the following form:
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
 * This grasp should set the goal aperture to [PNUM: 0.0] mm.
-* Due to the compliance, this grasp should close an additional [PNUM: 0.0] mm after reaching the goal aperture to confirm the grasp.
+* If the gripper slips, this grasp should close an additional [PNUM: 0.0] mm..
 * This grasp should initially set the force to [PNUM: 0.0] Newtons.
-* This grasp should increase the force to [PNUM: 0.0] Newtons to confirm the grasp.
+* If the gripper slips, this grasp should increase the force by [PNUM: 0.0] Newtons.
 * [optional] The left finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The right finger should move [NUM: 0.0] millimeters inward (positive)/outward (negative).
 * [optional] The left finger have velocity [NUM: 0.0] millimeters/sec inward (positive)/outward (negative).
@@ -95,12 +95,12 @@ force: the maximum force the finger is allowed to apply at contact with an objec
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
-def contact_force_met(load_data, force, finger='both')
+def check_slip(load_data, force, finger='both')
 ```
 load_data: the position-load data array from set_goal_aperture
 force: the force to check if the contact force is met (in N), which is set by set_force()
 finger: which finger to check the contact force for, either 'left', 'right', or 'both'
-Returns True if the contact force is met, False otherwise.
+Returns True if the contact force is not reached, meaning the gripper has slipped, False otherwise (the gripper has not slipped and has a good grasp).
 
 
 Example answer code:
@@ -118,20 +118,22 @@ goal_aperture = [PNUM: 0.0] # This is the goal aperture for the grasp
 # [PREDICTION]
 G.set_compliance(10, 3, finger='both')
 stop_force = [PNUM: 0.0]
-stop_force_increase = [PNUM: 0.0]
+additional_force = [PNUM: 0.0]
 G.set_force(stop_force, 'both')
-additional_closure = 0
+additional_closure = [PNUM: 0.0]
 load_data = G.set_goal_aperture(goal_aperture - additional closure, finger='both')
 
 # [REASONING]
 # [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
 G.set_goal_aperture(curr_aperture, finger='both')
-while not G.contact_force_met(load_data, stop_force, 'both'):
-  additional_closure += 2
-  stop_force += 0.05
+applied_force = stop_force
+while G.check_slip(load_data, stop_force, 'both'): # keep checking for the unchanged stop_force
+  goal_aperture -= additional_closure
+  applied_force += additional_force
   G.set_torque(stop_force, 'both')
-  load_data = G.set_goal_aperture(goal_aperture - additional_closure, finger='both')
+  print(f"Slip detected. Adjusting goal aperture to {goal_aperture} and force to {stop_force}.")
+  load_data = G.set_goal_aperture(goal_aperture, finger='both')
 ```
 
 Remember:
