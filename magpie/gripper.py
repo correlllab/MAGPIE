@@ -170,11 +170,14 @@ class Gripper:
 
     def set_goal_aperture(self, aperture, finger='both', debug=False, record_load=True):
         aperture = (aperture / 2.0) if finger=='both' else aperture
-        # delta_ticks = self.theta_to_position(
-        #               self.aperture_to_theta(
-        #               np.abs(aperture - self.get_aperture(finger=finger))))
+        # if both, just calculates delta_ticks for right finger (ugly code).
+        delta_ticks = self.theta_to_position(
+                      self.aperture_to_theta(aperture), finger=finger)
+        delta_ticks = np.abs(delta_ticks - self.get_position(finger='right' if finger=='both' else finger))
         # each tick (0.29 deg) at speed 100 (~11 rpm) takes 4.4ms to actuate + 1ms buffer
-        # wait_time = delta_ticks * self.delay * 2.0 # fat buffer for now
+        wait_time = delta_ticks * self.delay * 2.0 # fat buffer for now
+        if debug:
+            print(f"delta_ticks: {delta_ticks}, wait_time: {wait_time}")
         if record_load:
             return self.set_goal_aperture_record_load(aperture, finger=finger, debug=debug)
         theta = self.aperture_to_theta(aperture)
@@ -185,7 +188,7 @@ class Gripper:
             self.Finger1.set_goal_position(self.theta_to_position(theta, finger='left', debug=debug))
         elif finger=='right':
             self.Finger2.set_goal_position(self.theta_to_position(theta, finger='right', debug=debug))
-        # time.sleep(wait_time)
+        time.sleep(wait_time)
 
     # return aperture, but with math.cos
     def theta_to_aperture(self, theta):
@@ -241,7 +244,6 @@ class Gripper:
         load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
-
         self.set_torque(load, finger=finger)
 
     def set_torque(self, torqueLimit, finger='both'):
@@ -427,12 +429,12 @@ class Gripper:
             pld[0][1].append(curr_load[0])
             pld[1][1].append(curr_load[1])
 
-    def contact_force_met(self, pos_load, stop_force, finger='both'):
+    def check_slip(self, pos_load, stop_force, finger='both'):
         '''
         @param pos_load: position-load data array of shape (2, n) --> [[positions], [loads]]
         @param stop_load: force to stop at in N
         @param finger: left, right, or both fingers
-        @return: True if stop_load is met at any point in pos_load, False otherwise
+        @return: False if stop_load is met at any point in pos_load (gripper has a good grasp), True otherwise (gripper slipped)
         '''
         stop_load = self.N_to_load(stop_force)
         # check if stop_load is met at any point in pos_load
@@ -442,11 +444,11 @@ class Gripper:
             load_r, load_l = np.array(pos_load[0][1]), np.array(pos_load[1][1])
             load_r[load_r > 1023] -= 1023
             load_l[load_l > 1023] -= 1023
-            return any(load_r > stop_load) or any(load_l > stop_load)
+            return not any(load_r > stop_load) or not any(load_l > stop_load)
         else:
             load = np.array(pos_load[1])
             load[load > 1023] -= 1023
-            return any(load > stop_load)
+            return not any(load > stop_load)
             
 
     # convert unitless load values to force normal load at gripper contact point
