@@ -240,6 +240,7 @@ class Gripper:
 
     # setters
     def set_force(self, force, finger='both', debug=False):
+        force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         load = int(self.N_to_load(force))
         if debug:
