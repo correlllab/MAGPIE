@@ -437,6 +437,8 @@ class Gripper:
         @param finger: left, right, or both fingers
         @return: False if stop_load is met at any point in pos_load (gripper has a good grasp), True otherwise (gripper slipped)
         '''
+        stop_force = stop_force / 2.0 if finger=='both' else stop_force
+        stop_force = (0.10, stop_force) # the gripper sensing floor is ~0.1 N
         stop_load = self.N_to_load(stop_force)
         # check if stop_load is met at any point in pos_load
         # check if any value in pos_load is greater than stop_load
