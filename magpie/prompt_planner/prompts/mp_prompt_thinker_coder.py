@@ -131,9 +131,14 @@ applied_force = stop_force
 while G.check_slip(load_data, stop_force, 'both'): # keep checking for the unchanged stop_force
   goal_aperture -= additional_closure
   applied_force += additional_force
-  G.set_torque(stop_force, 'both')
-  print(f"Slip detected. Adjusting goal aperture to {goal_aperture} and force to {stop_force}.")
+  G.set_torque(applied_force, 'both')
+  print(f"Slip detected. Adjusting goal aperture to {goal_aperture} and force to {applied_force}.")
   load_data = G.set_goal_aperture(goal_aperture, finger='both')
+
+curr_aperture = G.get_aperture(finger='both')
+print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+G.set_goal_aperture(curr_aperture - 2, finger='both', record_load=False)
+
 ```
 
 Remember:
@@ -147,6 +152,9 @@ Remember:
 8. If you see phrases like [PNUM: default_value], replace the value with the corresponding value from the input grasp description.
 8. Remember to import the gripper class and create a Gripper at the beginning of your code.
 9. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary. Often times the current position will not be the same as the goal position.
+10. Remember to assign a new variable, applied_force, to the initial stop_force. check_slip continues checking the stop_force, but the applied_force increases
+11. Remember to reassign the goal aperture to the current aperture after completing the slip check.
+12. If the grasp is incomplete, the gripper should open after re-adjusting the goal position.
 """
 
 cut = '''

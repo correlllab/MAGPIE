@@ -63,6 +63,20 @@ def move_to(pos, ur, z_offset=0.08):
     ur.moveL(goal2)
     time.sleep(sleepRate)
 
+def move_to_L(pos, ur, z_offset=0.08):
+    # would be better if this was block object
+    # :blockPos is coord in gripper frame
+    dX,dY,dZ = get_world_frame(pos, ur, z_offset=z_offset) # goalPose in world coordinates
+    homePose = ur.getPose()
+    goal1 = copy.deepcopy(homePose)
+    goal1.t[0] += dX
+    goal1.t[1] += dY
+    time.sleep(sleepRate)
+    goal2 = goal1
+    goal2.t[2] += dZ
+    ur.moveL(goal2)
+    time.sleep(sleepRate)
+
 # move up on Z first, then X, Y
 def move_back(homePose, ur):
     currentPose = ur.getPose()

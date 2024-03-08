@@ -1,0 +1,387 @@
+Position of dxl ID: 1 set to 389 
+Position of dxl ID: 2 set to 650 
+Position of dxl ID: 1 set to 386 
+Position of dxl ID: 2 set to 648 
+Position of dxl ID: 1 set to 387 
+Position of dxl ID: 2 set to 647 
+Position of dxl ID: 1 set to 388 
+Position of dxl ID: 2 set to 646 
+Position of dxl ID: 1 set to 389 
+Position of dxl ID: 2 set to 645 
+Position of dxl ID: 1 set to 390 
+Position of dxl ID: 2 set to 644 
+Position of dxl ID: 1 set to 391 
+Position of dxl ID: 2 set to 643 
+Position of dxl ID: 1 set to 392 
+Position of dxl ID: 2 set to 642 
+Position of dxl ID: 1 set to 393 
+Position of dxl ID: 2 set to 641 
+Position of dxl ID: 1 set to 394 
+Position of dxl ID: 2 set to 640 
+Position of dxl ID: 1 set to 395 
+Position of dxl ID: 2 set to 639 
+Position of dxl ID: 1 set to 396 
+Position of dxl ID: 2 set to 638 
+Position of dxl ID: 1 set to 397 
+Position of dxl ID: 2 set to 637 
+Position of dxl ID: 1 set to 398 
+Position of dxl ID: 2 set to 636 
+Position of dxl ID: 1 set to 399 
+Position of dxl ID: 2 set to 635 
+Position of dxl ID: 1 set to 400 
+Position of dxl ID: 2 set to 634 
+Position of dxl ID: 1 set to 401 
+Position of dxl ID: 2 set to 633 
+Position of dxl ID: 1 set to 402 
+Position of dxl ID: 2 set to 632 
+Position of dxl ID: 1 set to 403 
+Position of dxl ID: 2 set to 631 
+Position of dxl ID: 1 set to 404 
+Position of dxl ID: 2 set to 630 
+Position of dxl ID: 1 set to 405 
+Position of dxl ID: 2 set to 629 
+Position of dxl ID: 1 set to 406 
+Position of dxl ID: 2 set to 628 
+Position of dxl ID: 1 set to 407 
+Position of dxl ID: 2 set to 627 
+Position of dxl ID: 1 set to 408 
+Position of dxl ID: 2 set to 626 
+Position of dxl ID: 1 set to 409 
+Position of dxl ID: 2 set to 625 
+Position of dxl ID: 1 set to 410 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 411 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 412 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 413 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 414 
+Position of dxl ID: 2 set to 624 
+Initial aperture: 71.22310172760781 mm
+force_r: 1.2318225099999998 N, force_l: 0.1183872 N
+avg_r: 0.13730374934601666 N, avg_l: 0.04596776789536266 N
+Position of dxl ID: 1 set to 409 
+Position of dxl ID: 2 set to 625 
+Position of dxl ID: 1 set to 410 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 411 
+Position of dxl ID: 2 set to 623 
+Position of dxl ID: 1 set to 412 
+Position of dxl ID: 2 set to 623 
+Position of dxl ID: 1 set to 413 
+Position of dxl ID: 2 set to 623 
+Position of dxl ID: 1 set to 414 
+Position of dxl ID: 2 set to 623 
+Position of dxl ID: 1 set to 415 
+Position of dxl ID: 2 set to 623 
+prev_aperture: 71.22310172760781 mm, Current aperture: 71.02000035999349 mm, distance: 0.20310136761432318 mm
+Current aperture: 71.02000035999349 mm, Goal Aperture: 69.22310172760781 mm, Applied Force: 2.5 N.
+force_r: 0.6905805899999997 N, force_l: 0.0224433 N
+avg_r: 0.14955034285714286 N, avg_l: 0.02208794285714286 N
+Position of dxl ID: 1 set to 411 
+Position of dxl ID: 2 set to 624 
+Position of dxl ID: 1 set to 412 
+Position of dxl ID: 2 set to 623 
+Position of dxl ID: 1 set to 413 
+Position of dxl ID: 2 set to 622 
+Position of dxl ID: 1 set to 414 
+Position of dxl ID: 2 set to 621 
+Position of dxl ID: 1 set to 415 
+Position of dxl ID: 2 set to 620 
+Position of dxl ID: 1 set to 416 
+Position of dxl ID: 2 set to 619 
+Position of dxl ID: 1 set to 417 
+Position of dxl ID: 2 set to 618 
+Position of dxl ID: 1 set to 418 
+Position of dxl ID: 2 set to 618 
+Position of dxl ID: 1 set to 419 
+Position of dxl ID: 2 set to 618 
+Position of dxl ID: 1 set to 420 
+Position of dxl ID: 2 set to 618 
+prev_aperture: 71.02000035999349 mm, Current aperture: 68.5834404687301 mm, distance: 2.4365598912633857 mm
+Current aperture: 68.5834404687301 mm, Goal Aperture: 67.22310172760781 mm, Applied Force: 3.0 N.
+force_r: 0.0 N, force_l: 0.2145792 N
+avg_r: 0.0 N, avg_l: 0.1086448 N
+Position of dxl ID: 1 set to 415 
+Position of dxl ID: 2 set to 618 
+Position of dxl ID: 1 set to 416 
+Position of dxl ID: 2 set to 617 
+Position of dxl ID: 1 set to 417 
+Position of dxl ID: 2 set to 616 
+Position of dxl ID: 1 set to 418 
+Position of dxl ID: 2 set to 615 
+Position of dxl ID: 1 set to 419 
+Position of dxl ID: 2 set to 614 
+Position of dxl ID: 1 set to 420 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 421 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 422 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 423 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 424 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 425 
+Position of dxl ID: 2 set to 613 
+prev_aperture: 68.5834404687301 mm, Current aperture: 66.52317989307721 mm, distance: 2.0602605756528902 mm
+Current aperture: 66.52317989307721 mm, Goal Aperture: 65.22310172760781 mm, Applied Force: 3.5 N.
+force_r: 0.0 N, force_l: 0.09888000000000001 N
+avg_r: 0.0 N, avg_l: 0.04522314049586778 N
+Position of dxl ID: 1 set to 421 
+Position of dxl ID: 2 set to 613 
+Position of dxl ID: 1 set to 422 
+Position of dxl ID: 2 set to 612 
+Position of dxl ID: 1 set to 423 
+Position of dxl ID: 2 set to 611 
+Position of dxl ID: 1 set to 424 
+Position of dxl ID: 2 set to 610 
+Position of dxl ID: 1 set to 425 
+Position of dxl ID: 2 set to 609 
+Position of dxl ID: 1 set to 426 
+Position of dxl ID: 2 set to 608 
+Position of dxl ID: 1 set to 427 
+Position of dxl ID: 2 set to 608 
+Position of dxl ID: 1 set to 428 
+Position of dxl ID: 2 set to 608 
+Position of dxl ID: 1 set to 429 
+Position of dxl ID: 2 set to 608 
+Position of dxl ID: 1 set to 430 
+Position of dxl ID: 2 set to 608 
+prev_aperture: 66.52317989307721 mm, Current aperture: 64.8594118662153 mm, distance: 1.6637680268619164 mm
+Current aperture: 64.8594118662153 mm, Goal Aperture: 63.22310172760781 mm, Applied Force: 4.0 N.
+force_r: 2.5426137100000004 N, force_l: 0.0620625 N
+avg_r: 0.124950657 N, avg_l: 0.02493 N
+Position of dxl ID: 1 set to 425 
+Position of dxl ID: 2 set to 611 
+Position of dxl ID: 1 set to 426 
+Position of dxl ID: 2 set to 610 
+Position of dxl ID: 1 set to 427 
+Position of dxl ID: 2 set to 609 
+Position of dxl ID: 1 set to 428 
+Position of dxl ID: 2 set to 608 
+Position of dxl ID: 1 set to 429 
+Position of dxl ID: 2 set to 607 
+Position of dxl ID: 1 set to 430 
+Position of dxl ID: 2 set to 606 
+Position of dxl ID: 1 set to 431 
+Position of dxl ID: 2 set to 605 
+Position of dxl ID: 1 set to 432 
+Position of dxl ID: 2 set to 604 
+Position of dxl ID: 1 set to 433 
+Position of dxl ID: 2 set to 603 
+Position of dxl ID: 1 set to 434 
+Position of dxl ID: 2 set to 603 
+Position of dxl ID: 1 set to 435 
+Position of dxl ID: 2 set to 603 
+prev_aperture: 64.8594118662153 mm, Current aperture: 62.537415752682094 mm, distance: 2.321996113533203 mm
+Current aperture: 62.537415752682094 mm, Goal Aperture: 61.22310172760781 mm, Applied Force: 4.5 N.
+force_r: 0.09888000000000001 N, force_l: 0.1183872 N
+avg_r: 0.016333646280991737 N, avg_l: 0.04342310082644628 N
+Position of dxl ID: 1 set to 429 
+Position of dxl ID: 2 set to 603 
+Position of dxl ID: 1 set to 430 
+Position of dxl ID: 2 set to 602 
+Position of dxl ID: 1 set to 431 
+Position of dxl ID: 2 set to 601 
+Position of dxl ID: 1 set to 432 
+Position of dxl ID: 2 set to 600 
+Position of dxl ID: 1 set to 433 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 434 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 435 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 436 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 437 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 438 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 439 
+Position of dxl ID: 2 set to 599 
+prev_aperture: 62.537415752682094 mm, Current aperture: 60.83767911802127 mm, distance: 1.6997366346608231 mm
+Current aperture: 60.83767911802127 mm, Goal Aperture: 59.22310172760781 mm, Applied Force: 5.0 N.
+force_r: 0.0792832 N, force_l: 0.08173770000000001 N
+avg_r: 0.01452175867768595 N, avg_l: 0.029899199999999997 N
+Position of dxl ID: 1 set to 436 
+Position of dxl ID: 2 set to 600 
+Position of dxl ID: 1 set to 437 
+Position of dxl ID: 2 set to 599 
+Position of dxl ID: 1 set to 438 
+Position of dxl ID: 2 set to 598 
+Position of dxl ID: 1 set to 439 
+Position of dxl ID: 2 set to 597 
+Position of dxl ID: 1 set to 440 
+Position of dxl ID: 2 set to 596 
+Position of dxl ID: 1 set to 441 
+Position of dxl ID: 2 set to 595 
+Position of dxl ID: 1 set to 442 
+Position of dxl ID: 2 set to 594 
+Position of dxl ID: 1 set to 443 
+Position of dxl ID: 2 set to 594 
+Position of dxl ID: 1 set to 444 
+Position of dxl ID: 2 set to 594 
+prev_aperture: 60.83767911802127 mm, Current aperture: 58.6892995127245 mm, distance: 2.1483796052967676 mm
+Current aperture: 58.6892995127245 mm, Goal Aperture: 57.22310172760781 mm, Applied Force: 5.5 N.
+force_r: 5.526876640000002 N, force_l: 0.19552 N
+avg_r: 0.15498966913580248 N, avg_l: 0.04422320987654321 N
+Position of dxl ID: 1 set to 439 
+Position of dxl ID: 2 set to 595 
+Position of dxl ID: 1 set to 440 
+Position of dxl ID: 2 set to 594 
+Position of dxl ID: 1 set to 441 
+Position of dxl ID: 2 set to 593 
+Position of dxl ID: 1 set to 442 
+Position of dxl ID: 2 set to 592 
+Position of dxl ID: 1 set to 443 
+Position of dxl ID: 2 set to 591 
+Position of dxl ID: 1 set to 444 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 445 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 446 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 447 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 448 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 449 
+Position of dxl ID: 2 set to 590 
+prev_aperture: 58.6892995127245 mm, Current aperture: 56.739243415411444 mm, distance: 1.950056097313059 mm
+Current aperture: 56.739243415411444 mm, Goal Aperture: 55.22310172760781 mm, Applied Force: 6.0 N.
+force_r: 1.7633927500000004 N, force_l: 0.08173770000000001 N
+avg_r: 0.0815146214876033 N, avg_l: 0.02266942148760331 N
+Position of dxl ID: 1 set to 444 
+Position of dxl ID: 2 set to 591 
+Position of dxl ID: 1 set to 445 
+Position of dxl ID: 2 set to 590 
+Position of dxl ID: 1 set to 446 
+Position of dxl ID: 2 set to 589 
+Position of dxl ID: 1 set to 447 
+Position of dxl ID: 2 set to 588 
+Position of dxl ID: 1 set to 448 
+Position of dxl ID: 2 set to 587 
+Position of dxl ID: 1 set to 449 
+Position of dxl ID: 2 set to 586 
+Position of dxl ID: 1 set to 450 
+Position of dxl ID: 2 set to 585 
+Position of dxl ID: 1 set to 451 
+Position of dxl ID: 2 set to 585 
+Position of dxl ID: 1 set to 452 
+Position of dxl ID: 2 set to 585 
+Position of dxl ID: 1 set to 453 
+Position of dxl ID: 2 set to 585 
+prev_aperture: 56.739243415411444 mm, Current aperture: 55.209807214009416 mm, distance: 1.529436201402028 mm
+Current aperture: 55.209807214009416 mm, Goal Aperture: 53.22310172760781 mm, Applied Force: 6.5 N.
+force_r: 0.0595968 N, force_l: 0.0792832 N
+avg_r: 0.017963712000000003 N, avg_l: 0.007992832 N
+Position of dxl ID: 1 set to 448 
+Position of dxl ID: 2 set to 587 
+Position of dxl ID: 1 set to 449 
+Position of dxl ID: 2 set to 586 
+Position of dxl ID: 1 set to 450 
+Position of dxl ID: 2 set to 585 
+Position of dxl ID: 1 set to 451 
+Position of dxl ID: 2 set to 584 
+Position of dxl ID: 1 set to 452 
+Position of dxl ID: 2 set to 583 
+Position of dxl ID: 1 set to 453 
+Position of dxl ID: 2 set to 582 
+Position of dxl ID: 1 set to 454 
+Position of dxl ID: 2 set to 581 
+Position of dxl ID: 1 set to 455 
+Position of dxl ID: 2 set to 580 
+Position of dxl ID: 1 set to 456 
+Position of dxl ID: 2 set to 580 
+Position of dxl ID: 1 set to 457 
+Position of dxl ID: 2 set to 580 
+Position of dxl ID: 1 set to 458 
+Position of dxl ID: 2 set to 580 
+prev_aperture: 55.209807214009416 mm, Current aperture: 53.23058941047894 mm, distance: 1.9792178035304744 mm
+Current aperture: 53.23058941047894 mm, Goal Aperture: 51.22310172760781 mm, Applied Force: 7.0 N.
+force_r: 0.0595968 N, force_l: 0.15713280000000002 N
+avg_r: 0.012709130578512397 N, avg_l: 0.15713280000000002 N
+Position of dxl ID: 1 set to 451 
+Position of dxl ID: 2 set to 584 
+Position of dxl ID: 1 set to 452 
+Position of dxl ID: 2 set to 583 
+Position of dxl ID: 1 set to 453 
+Position of dxl ID: 2 set to 582 
+Position of dxl ID: 1 set to 454 
+Position of dxl ID: 2 set to 581 
+Position of dxl ID: 1 set to 455 
+Position of dxl ID: 2 set to 580 
+Position of dxl ID: 1 set to 456 
+Position of dxl ID: 2 set to 579 
+Position of dxl ID: 1 set to 457 
+Position of dxl ID: 2 set to 578 
+Position of dxl ID: 1 set to 458 
+Position of dxl ID: 2 set to 577 
+Position of dxl ID: 1 set to 459 
+Position of dxl ID: 2 set to 576 
+Position of dxl ID: 1 set to 460 
+Position of dxl ID: 2 set to 576 
+Position of dxl ID: 1 set to 461 
+Position of dxl ID: 2 set to 576 
+Position of dxl ID: 1 set to 462 
+Position of dxl ID: 2 set to 576 
+prev_aperture: 53.23058941047894 mm, Current aperture: 51.90616350034625 mm, distance: 1.324425910132689 mm
+Current aperture: 51.90616350034625 mm, Goal Aperture: 49.22310172760781 mm, Applied Force: 7.5 N.
+force_r: 6.11229931 N, force_l: 1.9929134399999997 N
+avg_r: 0.12365498055555557 N, avg_l: 0.10213742222222223 N
+Position of dxl ID: 1 set to 457 
+Position of dxl ID: 2 set to 579 
+Position of dxl ID: 1 set to 458 
+Position of dxl ID: 2 set to 578 
+Position of dxl ID: 1 set to 459 
+Position of dxl ID: 2 set to 577 
+Position of dxl ID: 1 set to 460 
+Position of dxl ID: 2 set to 576 
+Position of dxl ID: 1 set to 461 
+Position of dxl ID: 2 set to 575 
+Position of dxl ID: 1 set to 462 
+Position of dxl ID: 2 set to 574 
+Position of dxl ID: 1 set to 463 
+Position of dxl ID: 2 set to 573 
+Position of dxl ID: 1 set to 464 
+Position of dxl ID: 2 set to 572 
+Position of dxl ID: 1 set to 465 
+Position of dxl ID: 2 set to 572 
+Position of dxl ID: 1 set to 466 
+Position of dxl ID: 2 set to 572 
+Position of dxl ID: 1 set to 467 
+Position of dxl ID: 2 set to 572 
+prev_aperture: 51.90616350034625 mm, Current aperture: 49.9072689573684 mm, distance: 1.998894542977851 mm
+Current aperture: 49.9072689573684 mm, Goal Aperture: 47.22310172760781 mm, Applied Force: 8.0 N.
+force_r: 0.0792832 N, force_l: 3.0185761600000003 N
+avg_r: 0.02538197685950413 N, avg_l: 0.8298866102479341 N
+Position of dxl ID: 1 set to 461 
+Position of dxl ID: 2 set to 577 
+Position of dxl ID: 1 set to 462 
+Position of dxl ID: 2 set to 576 
+Position of dxl ID: 1 set to 463 
+Position of dxl ID: 2 set to 575 
+Position of dxl ID: 1 set to 464 
+Position of dxl ID: 2 set to 574 
+Position of dxl ID: 1 set to 465 
+Position of dxl ID: 2 set to 573 
+Position of dxl ID: 1 set to 466 
+Position of dxl ID: 2 set to 572 
+Position of dxl ID: 1 set to 467 
+Position of dxl ID: 2 set to 571 
+Position of dxl ID: 1 set to 468 
+Position of dxl ID: 2 set to 570 
+Position of dxl ID: 1 set to 469 
+Position of dxl ID: 2 set to 569 
+Position of dxl ID: 1 set to 470 
+Position of dxl ID: 2 set to 568 
+Position of dxl ID: 1 set to 471 
+Position of dxl ID: 2 set to 567 
+prev_aperture: 49.9072689573684 mm, Current aperture: 49.237911676314525 mm, distance: 0.6693572810538768 mm
+Current aperture: 49.237911676314525 mm, Goal Aperture: 45.22310172760781 mm, Applied Force: 8.5 N.
+force_r: 2.02555099 N, force_l: 4.24625136 N
+avg_r: 0.07615726611570248 N, avg_l: 0.2279534710743802 N
+Position of dxl ID: 1 set to 303 
+Position of dxl ID: 2 set to 729 
