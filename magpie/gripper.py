@@ -241,6 +241,7 @@ class Gripper:
     # setters
     def set_force(self, force, finger='both', debug=False):
         # convert N to unitless load value
+        force = min(force, 16.1)
         load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
@@ -444,10 +445,25 @@ class Gripper:
             load_r, load_l = np.array(pos_load[0][1]), np.array(pos_load[1][1])
             load_r[load_r > 1023] -= 1023
             load_l[load_l > 1023] -= 1023
+            # get average load
+            avg_r = self.load_to_N(np.mean(load_r))
+            avg_l = self.load_to_N(np.mean(load_l))
+            max_r = self.load_to_N(np.max(load_r))
+            max_l = self.load_to_N(np.max(load_l))
+            print(f"force_r: {max_r} N, force_l: {max_l} N")
+            print(f"avg_r: {avg_r} N, avg_l: {avg_l} N")
+            # returns True if either finger slips
             return not any(load_r > stop_load) or not any(load_l > stop_load)
+            # returns True if just one finger doesn't slip, needs to False AND False, should speed up grasps
+            # return not any(load_r > stop_load) and not any(load_l > stop_load)
+            # return not np.mean([avg_r, avg_l]) > stop_force # also bad
+            # return not np.mean([max_r, max_l]) > stop_force 
         else:
             load = np.array(pos_load[1])
             load[load > 1023] -= 1023
+            avg = self.load_to_N(np.mean(load))
+            print(f"load: {self.load_to_N(np.max(load))} N")
+            print(f"avg: {avg} N")
             return not any(load > stop_load)
             
 
