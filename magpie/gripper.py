@@ -240,7 +240,7 @@ class Gripper:
 
     # setters
     def set_force(self, force, finger='both', debug=False):
-        force = force / 2.0 if finger=='both' else force
+        # force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         force = min(force, 16.1)
         load = int(self.N_to_load(force))
@@ -438,7 +438,7 @@ class Gripper:
         @param finger: left, right, or both fingers
         @return: False if stop_load is met at any point in pos_load (gripper has a good grasp), True otherwise (gripper slipped)
         '''
-        stop_force = stop_force / 2.0 if finger=='both' else stop_force
+        # stop_force = stop_force / 2.0 if finger=='both' else stop_force
         stop_force = (0.10, stop_force) # the gripper sensing floor is ~0.1 N
         stop_load = self.N_to_load(stop_force)
         # check if stop_load is met at any point in pos_load
