@@ -131,7 +131,7 @@ applied_force = stop_force
 while G.check_slip(load_data, stop_force, 'both'): # keep checking for the unchanged stop_force
   goal_aperture -= additional_closure
   applied_force += additional_force
-  G.set_torque(applied_force, 'both')
+  G.set_force(applied_force, 'both')
   print(f"Slip detected. Adjusting goal aperture to {goal_aperture} and force to {applied_force}.")
   load_data = G.set_goal_aperture(goal_aperture, finger='both')
 
