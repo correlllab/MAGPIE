@@ -35,5 +35,6 @@ while G.check_slip(load_data, applied_force, 'both'):
     # Attempting the grasp again with the adjusted settings
     load_data = G.set_goal_aperture(goal_aperture, finger='both', record_load=True)
 
+G.open_gripper()
 # The conditions above - decreasing the aperture on slip and increasing the force - ensure that
 # adjustments are made to secure the avocado more firmly without causing damage.
