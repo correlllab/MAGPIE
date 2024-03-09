@@ -9,7 +9,7 @@ goal_aperture = 95  # Setting the initial aperture to 105mm, the maximum, to acc
 
 # Adjusting compliance to ensure that even though the object has low compliance, the grip does not damage it.
 # A lower margin and higher flexibility are chosen to accommodate the non-deformable nature of the plastic bag.
-G.set_compliance(2, 5, finger='both')  # The parameters allow for a gentle grip adjustment to avoid bag damage.
+G.set_compliance(5, 4, finger='both')  # The parameters allow for a gentle grip adjustment to avoid bag damage.
 
 initial_force = 8.0 # Starting with a force of 1.5 Newtons, ensuring the grip is firm enough to lift the medium-weight rice bag without slipping.
 G.set_force(initial_force, 'both')  # This initial force is applied to both fingers and should not puncture the plastic.
