@@ -1,6 +1,6 @@
 prompt_thinker = """
 Control a robot gripper with torque control and contact information. 
-This is a griper with two independently actuated fingers, each on a 4-bar linkage.
+This is a griper with two independently actuated fingers.
 The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
 As well as the kind of grasp it is attempting to perform.
 The gripper has a measurable max force of 16N and min force of 0.15N, a maximum aperture of 105mm and a minimum aperture of 1mm.
@@ -34,12 +34,11 @@ Rules:
 6. If you deviate from the default value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
 7. Using knowledge of the object and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
 8. Using knowledge of the object and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
-9. The increase in gripper output force is the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*1000*0.1). We multiply by 1000 to go from mm to m.
+9. The increase in gripper output force the maximum value of (0.05 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
 10. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
 11. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
 12. The goal aperture of the gripper will be supplied externally, do not calculate it.
 13. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-14. If a bullet point is marked [optional], do NOT add it unless it's absolutely needed.
 15. Use as few bullet points as possible. Be concise.
 """
 
@@ -81,6 +80,7 @@ load_data: the position-load data array from set_goal_aperture
 force: the force to check if the contact force is met (in N), which is set by set_force()
 finger: which finger to check the contact force for, either 'left', 'right', or 'both'
 Returns True if the contact force is not reached, meaning the gripper has slipped, False otherwise (the gripper has not slipped and has a good grasp).
+Also returns the average and max force experienced by the gripper in the load data.
 
 
 Example answer code:
@@ -102,7 +102,7 @@ initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / {PNUM: mu}, {PNUM: diff
 # [REASONING for initial force choice]
 additional_closure = {PNUM: additional_closure} 
 # Additional force increase. The default value is the product of the object spring constant and the additional_closure, with a dampening constant 0.1.
-additional_force_increase = (additional_closure * 1000.0 * {PNUM: spring_constant}) * 0.1
+additional_force = max(0.05, additional_closure * {PNUM: spring_constant} * 0.0001)
 
 # Move quickly (without recording load) to a safe aperture that is wider than the goal aperture
 G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)
@@ -117,24 +117,35 @@ load_data = G.set_goal_aperture(goal_aperture - additional_closure, finger='both
 # [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
 applied_force = inital_force
-slippage = G.check_slip(load_data, initial_force, 'both')
+slip_threshold = initial_force
+slippage, avg_force, max_force = G.check_slip(load_data, slip_threshold, 'both')
+
+# record spring constants over slip detection
+prev_aperture = curr_aperture
+k_avg = []
 
 while slippage:
   goal_aperture = curr_aperture - additional_closure
-  applied_force += additional_force
+  if np.mean(avg_force) > 0.10: # low-pass filter force readings so we don't increase force when there is no contact
+    applied_force += additional_force
   G.set_force(applied_force, 'both')
   print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
   load_data = G.set_goal_aperture(goal_aperture, finger='both')
   
   # Report data after each adjustment
   curr_aperture = G.get_aperture(finger='both')
-  print(f"Current aperture: {curr_aperture} mm")
-  slippage = G.check_slip(load_data, initial_force, 'both')
+  slippage, avg_force, max_force = G.check_slip(load_data, slip_threshold, 'both')
+
+  # record spring constants over slip detection
+  distance = abs(curr_aperture - prev_aperture)
+  k_avg.append(np.mean(avg_force) * distance * 1000.0)
+  prev_aperture = curr_aperture
+
 
 if complete_grasp:
     curr_aperture = G.get_aperture(finger='both')
+    G.set_goal_aperture(curr_aperture - additional_closure, finger='both', record_load=False)
     print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
-    G.set_goal_aperture(curr_aperture - 2, finger='both', record_load=False)
 else:
     G.open_gripper()
 ```
@@ -151,6 +162,6 @@ Remember:
 9. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
 10. Remember to import the gripper class and create a Gripper at the beginning of your code.
 11. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary. Often times the current position will not be the same as the goal position.
-12. Before checking for slip, remember to create a new variable, applied_force, set equal to the initial initial_force. Slip detection continues checking the unchanged initial_force, but the applied_force increases.
+12. Before checking for slip, remember to create two new variables, applied_force and slip_threshold, set equal to the initial initial_force. Slip detection continues checking the unchanged slip_threshold, but the applied_force increases.
 13. Remember to reassign the goal aperture to the current aperture after completing the slip check.
 """

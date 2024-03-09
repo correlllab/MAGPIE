@@ -417,6 +417,7 @@ class Gripper:
         '''
         curr_pos = self.get_position(finger='both')
         time.sleep(self.latency)
+        # sign[sign == 0] = 1 # if 0, set to 1
         lrange = range(curr_pos[0], stop_pos[0], sign[0] * 1)
         rrange = range(curr_pos[1], stop_pos[1], sign[1] * 1)
         # get stop position of shorter range
@@ -463,10 +464,13 @@ class Gripper:
             avg_l = self.load_to_N(np.mean(load_l))
             max_r = self.load_to_N(np.max(load_r))
             max_l = self.load_to_N(np.max(load_l))
+            print(f"stop_load: {stop_load}, stop_force: {stop_force} N")
             print(f"force_r: {max_r} N, force_l: {max_l} N")
             print(f"avg_r: {avg_r} N, avg_l: {avg_l} N")
             # returns True if either finger slips
-            return not any(load_r > stop_load) or not any(load_l > stop_load)
+            return [not any(load_r > stop_load) or not any(load_l > stop_load),
+                    [avg_r, avg_l],
+                    [max_r, max_l]]
             # returns True if just one finger doesn't slip, needs to False AND False, should speed up grasps
             # return not any(load_r > stop_load) and not any(load_l > stop_load)
             # return not np.mean([avg_r, avg_l]) > stop_force # also bad
@@ -474,10 +478,11 @@ class Gripper:
         else:
             load = np.array(pos_load[1])
             load[load > 1023] -= 1023
-            avg = self.load_to_N(np.mean(load))
-            print(f"load: {self.load_to_N(np.max(load))} N")
-            print(f"avg: {avg} N")
-            return not any(load > stop_load)
+            avg_f = self.load_to_N(np.mean(load))
+            max_f = self.load_to_N(np.max(load))
+            print(f"max: {max_f} N")
+            print(f"avg: {avg_f} N")
+            return [not any(load > stop_load), avg_f, max_f]
             
 
     # convert unitless load values to force normal load at gripper contact point
