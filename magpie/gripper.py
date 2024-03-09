@@ -240,10 +240,14 @@ class Gripper:
 
     # setters
     def set_force(self, force, finger='both', debug=False):
-        # # force = force / 2.0 if finger=='both' else force
-        # according to mechanical engineers, 4 N at either finger is still 4 N at the object
+        # see comments in check_slip as to why we need to halve the force
+        # tbh, we might not actually need to halve the force here
+        # so long as check_slip halves the force.
+        # TODO: figure this out
+        force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         force = min(force, 16.1)
+        force = max(force, 0.15)
         load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
@@ -439,8 +443,13 @@ class Gripper:
         @param finger: left, right, or both fingers
         @return: False if stop_load is met at any point in pos_load (gripper has a good grasp), True otherwise (gripper slipped)
         '''
+        # according to my brain and some other mechanical engineers
+        # for an independently actuated finger, I do need to halve the force
+        # at static equilibrium, the upward frictional force is equal to the object weight / mu (friction coefficient)
+        # the frictional force applied by either finger, if equal, is thus (weight / 2*mu)
+        # thus the stop force (ie the contact force on the motor), for an independently actuated finger, is (weight / 2*mu)
         stop_force = stop_force / 2.0 if finger=='both' else stop_force
-        stop_force = (0.10, stop_force) # the gripper sensing floor is ~0.1 N
+        stop_force = max(0.15, stop_force) # the gripper sensing floor is ~0.15 N
         stop_load = self.N_to_load(stop_force)
         # check if stop_load is met at any point in pos_load
         # check if any value in pos_load is greater than stop_load
