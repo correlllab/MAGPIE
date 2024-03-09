@@ -156,7 +156,7 @@ else:
 ```
 
 Remember:
-1. Always format the code in code blocks. In your response all four functions above: set_torso_targets, set_foot_pos_parameters, execute_plan, should be called at least once.
+1. Always format the code in code blocks. In your response all five functions above: get_aperture, set_goal_aperture, set_compliance, set_force, check_slip should be used.
 2. Do not invent new functions or classes. The only allowed functions you can call are the ones listed above. Do not leave unimplemented code blocks in your response.
 4. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
 5. If you are not sure what value to use, just use your best judge. Do not use None for anything.
