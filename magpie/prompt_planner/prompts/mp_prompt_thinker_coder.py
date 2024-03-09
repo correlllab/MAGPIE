@@ -109,36 +109,50 @@ from magpie.gripper import Gripper # must import the gripper class
 G = Gripper() # create a gripper object
 import numpy as np  # import numpy because we are using it below
 
-# [REASONING] 
-# [PREDICTION]
-G.reset_parameters() # This is a new task so reset parameters to default; otherwise we don't need it
-goal_aperture = [PNUM: 0.0] # This is the goal aperture for the grasp
+new_task = {CHOICE: [True, False]} # Whether or not the task is new
+# Reset parameters to default since this is a new, delicate grasp to avoid crushing the raspberry.
+if new_task:
+    G.reset_parameters()
+
+goal_aperture = {PNUM: aperture} 
+complete_grasp = {CHOICE: [True, False]} 
+initial_force = {PNUM: initial_force}  
+additional_closure = {PNUM: delta_closure} 
+additional_force_increase = {PNUM: delta_force}  
+
+# Move quickly (without recording load) to a safe goal aperture
+G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)
 
 # [REASONING]
 # [PREDICTION]
-G.set_compliance(10, 3, finger='both')
-stop_force = [PNUM: 0.0]
-additional_force = [PNUM: 0.0]
-G.set_force(stop_force, 'both')
-additional_closure = [PNUM: 0.0]
-load_data = G.set_goal_aperture(goal_aperture - additional closure, finger='both')
+G.set_compliance(1, 3, finger='both')
+G.set_force(initial_force, 'both')
+load_data = G.set_goal_aperture(goal_aperture - additional_closure, finger='both')
 
 # [REASONING]
 # [PREDICTION]
 curr_aperture = G.get_aperture(finger='both')
-G.set_goal_aperture(curr_aperture, finger='both')
-applied_force = stop_force
-while G.check_slip(load_data, stop_force, 'both'): # keep checking for the unchanged stop_force
-  goal_aperture -= additional_closure
+applied_force = initial_force
+slippage = G.check_slip(load_data, initial_force, 'both')
+
+while slippage: # keep checking for the unchanged stop_force
+  goal_aperture = curr_aperture - additional_closure
   applied_force += additional_force
   G.set_force(applied_force, 'both')
-  print(f"Slip detected. Adjusting goal aperture to {goal_aperture} and force to {applied_force}.")
+  print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
   load_data = G.set_goal_aperture(goal_aperture, finger='both')
+  
+  # Report data after each adjustment
+  curr_aperture = G.get_aperture(finger='both')
+  print(f"Current aperture: {curr_aperture} mm")
+  slippage = G.check_slip(load_data, initial_force, 'both')
 
-curr_aperture = G.get_aperture(finger='both')
-print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
-G.set_goal_aperture(curr_aperture - 2, finger='both', record_load=False)
-
+if complete_grasp:
+    curr_aperture = G.get_aperture(finger='both')
+    print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+    G.set_goal_aperture(curr_aperture - 2, finger='both', record_load=False)
+else:
+    G.open_gripper()
 ```
 
 Remember:
