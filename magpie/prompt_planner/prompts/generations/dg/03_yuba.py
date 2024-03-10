@@ -8,15 +8,15 @@ G.reset_parameters()
 
 # Initial settings for the gentle grasp
 goal_aperture = 50  # Set the goal aperture to 50 mm
-initial_force = 0.3  # Initially set the force to 0.3 Newtons
+initial_force = 0.5  # Initially set the force to 0.3 Newtons
 
 # Set the initial force and aperture.
 G.set_force(initial_force, 'both')
 load_data = G.set_goal_aperture(goal_aperture, finger='both', record_load=True)  # Record load to monitor for slip
 
 # Slip handling
-additional_closure = 1  # Close an additional 1 mm if the gripper slips
-force_increment = 0.1  # Increase the force by 0.1 Newtons if the gripper slips
+additional_closure = 2  # Close an additional 1 mm if the gripper slips
+force_increment = 0.3  # Increase the force by 0.1 Newtons if the gripper slips
 curr_force = initial_force  # Track the current force
 
 while G.check_slip(load_data, curr_force, 'both'):

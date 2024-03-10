@@ -12,7 +12,7 @@
     The gripper and object have an approximate friction coefficient of 0.5.
     This grasp should set the goal aperture to 60 mm.
     If the gripper slips, this grasp should close an additional 2 mm.
-    Based on object mass and friction coefficient, grasp should initially set the force to 2.45 Newtons.
+    Based on object mass and friction coefficient, grasp should initially set the force to 3.924 Newtons.
     If the gripper slips, this grasp should increase the output force by 0.1 Newtons. [end of description]
 """
 

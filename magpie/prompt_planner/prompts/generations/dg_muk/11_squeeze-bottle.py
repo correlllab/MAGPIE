@@ -13,7 +13,7 @@
     This grasp should set the goal aperture to 48.0 mm.
     If the gripper slips, this grasp should close an additional 2.0 mm.
     Based on object mass and friction coefficient, grasp should initially set the force to 8.2 Newtons.
-    If the gripper slips, this grasp should increase the output force by 0.075 Newtons. [end of description]
+    If the gripper slips, this grasp should increase the output force by 0.03 Newtons. [end of description]
     """
 
 from magpie.gripper import Gripper  # Must import the gripper class
@@ -29,7 +29,7 @@ G = Gripper()  # Create a gripper object
 goal_aperture = 48.0  # Set goal aperture to 48.0 mm based on the object's narrow opening.
 initial_force = 12.2  # Initial force setting of 8.2 Newtons based on object mass and friction coefficient.
 additional_closure = 2.0  # Additional closure of 5.0 mm if the gripper slips.
-additional_force = 0.075  # Increase in force by 0.075 Newtons if the gripper slips.
+additional_force = 0.03  # Increase in force by 0.075 Newtons if the gripper slips.
 
 # Move quickly to a safe aperture that is slightly wider than the goal aperture without recording load, to accommodate the bottle.
 G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)

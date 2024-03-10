@@ -28,7 +28,7 @@ G.reset_parameters()
 new_task = True
 complete_grasp = True
 goal_aperture = 25  # set the goal aperture to 25 mm
-mass = 0.02  # object's approximate mass is 10 grams
+mass = 0.02  # object's approximate mass is 20 grams
 spring_constant = 200  # object's approximate spring constant is 100 N/m
 mu = 0.5  # the gripper and object's approximate friction coefficient is 0.5
 additional_closure = 2  # if the gripper slips, it should close an additional 2 mm

@@ -10,7 +10,7 @@ goal_aperture = 30  # The initial goal aperture is set to 30mm to softly enclose
 # Set the gripper to have a soft touch by setting the initial gripping force very low.
 # Additionally, enable compliance to make the gripper adaptable to minor size variations of the raspberry.
 G.set_compliance(1, 3, finger='both')  # A small margin with a middle-ground flexibility is chosen for compliance.
-initial_force = 0.15  # Initial force is set to be 0.15 Newtons to avoid damaging the delicate object.
+initial_force = 0.20  # Initial force is set to be 0.15 Newtons to avoid damaging the delicate object.
 G.set_force(initial_force, 'both')  # Apply the initial gentle force to both fingers.
 
 # The anticipated action below will attempt to grasp the raspberry at the set aperture and force.
@@ -23,7 +23,7 @@ curr_aperture = G.get_aperture(finger='both')
 # If the gripper slips, indicated by check_slip, the aperture and force are adjusted incrementally.
 # The strategy aims to enhance the grip securely without compromising the raspberry's integrity.
 additional_closure = 1  # Amount to decrease the aperture by if slipping occurs.
-additional_force_increase = 0.05  # Amount to increase the force by if slipping occurs.
+additional_force_increase = 0.1  # Amount to increase the force by if slipping occurs.
 while G.check_slip(load_data, initial_force, 'both'):
     # If a slip is detected, the aperture decreases slightly to attempt a firmer grip.
     goal_aperture -= additional_closure

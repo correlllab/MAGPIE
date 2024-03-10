@@ -14,7 +14,7 @@ goal_aperture = 50.0  # Goal aperture is set to 50.0mm to gently embrace the man
 G.set_compliance(margin=1, flexibility=5, finger='both')  # Lower margin and higher flexibility to adjust to the orange's compliance without causing damage
 
 # Setting the initial force to gently grasp the mandarin orange without causing damage
-initial_force = 0.25  # Initial force is set to 1.2N to ensure a gentle grasp
+initial_force = 1.25  # Initial force is set to 1.2N to ensure a gentle grasp
 G.set_force(initial_force, 'both')
 
 # Attempting the initial grasp
