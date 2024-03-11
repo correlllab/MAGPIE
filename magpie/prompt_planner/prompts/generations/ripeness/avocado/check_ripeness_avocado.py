@@ -12,7 +12,7 @@ goal_aperture = 50.0  # Set the goal aperture to 60mm to gently grasp the avocad
 # and a compliance that allows for some flexibility in the grip
 initial_force = 0.5  # Initial force set to 1.0N to avoid damaging the avocado
 additional_closure = 1.0  # The gripper will close an additional 3.0mm if it slips
-additional_force = 0.5  # The force increases by 0.5N if the gripper slips
+additional_force = 0.2  # The force increases by 0.2N if the gripper slips
 
 # Setting a moderate compliance margin and flexibility to accommodate the avocado's medium compliance
 G.set_compliance(margin=1, flexibility=4, finger='both')
