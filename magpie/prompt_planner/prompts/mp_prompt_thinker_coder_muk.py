@@ -102,7 +102,7 @@ initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / {PNUM: mu}, {PNUM: diff
 # [REASONING for initial force choice]
 additional_closure = {PNUM: additional_closure} 
 # Additional force increase. The default value is the product of the object spring constant and the additional_closure, with a dampening constant 0.1.
-additional_force = max(0.05, additional_closure * {PNUM: spring_constant} * 0.0001)
+additional_force = max(0.01, additional_closure * {PNUM: spring_constant} * 0.0001)
 
 # Move quickly (without recording load) to a safe aperture that is wider than the goal aperture
 G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)
