@@ -29,7 +29,7 @@ G.reset_parameters()
 
 # This grasp is for a fragile potato chip requiring careful handling to avoid breakage.
 
-goal_aperture = 30.0
+goal_aperture = 40.0
 complete_grasp = True
 initial_force = 0.16  # Given the object's fragile nature and considering its low weight and grip requirements.
 additional_closure = 0.5  
