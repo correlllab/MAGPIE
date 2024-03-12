@@ -165,7 +165,7 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     rgbd_image.color = color_copy
     rgbd_image.depth = depth_copy
 
-    return rgbd_image, cpcd, tmat
+    return rgbd_image, cpcd, tmat, pcaFrame
 
 # pca helper functions
 def find_duplicate_values_and_indices(arr):
