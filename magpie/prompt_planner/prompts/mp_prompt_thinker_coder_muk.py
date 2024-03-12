@@ -34,7 +34,7 @@ Rules:
 6. If you deviate from the default value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
 7. Using knowledge of the object and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
 8. Using knowledge of the object and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
-9. The increase in gripper output force the maximum value of (0.05 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
+9. The increase in gripper output force the maximum value of (0.01 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
 10. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
 11. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
 12. The goal aperture of the gripper will be supplied externally, do not calculate it.
@@ -58,7 +58,7 @@ aperture: the aperture to set the finger(s) to (in mm)
 finger: which finger to set the aperture in mm, of, either 'left', 'right', or 'both'.
 record_load: whether to record the load at the goal aperture. If true, will return array of (pos, load) tuples
 This function will move the finger(s) to the specified goal aperture, and is used to close and open the gripper.
-Returns a position-load data array of shape (2, n) --> [[positions], [loads]]
+Returns a position-load data array of shape (2, n) --> [[positions], [loads]], average force, and max force after the motion.
 
 ```
 def set_compliance(margin, flexibility, finger='both')
@@ -102,16 +102,16 @@ initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / {PNUM: mu}, {PNUM: diff
 # [REASONING for initial force choice]
 additional_closure = {PNUM: additional_closure} 
 # Additional force increase. The default value is the product of the object spring constant and the additional_closure, with a dampening constant 0.1.
-additional_force = max(0.01, additional_closure * {PNUM: spring_constant} * 0.0001)
+additional_force = np.max([0.01, additional_closure * {PNUM: spring_constant} * 0.0001])
 
 # Move quickly (without recording load) to a safe aperture that is wider than the goal aperture
-G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)
+G.set_goal_aperture(goal_aperture + additional_closure * 2, finger='both', record_load=False)
 
 # [REASONING]
 # [PREDICTION]
 G.set_compliance(1, 3, finger='both')
 G.set_force(initial_force, 'both')
-load_data = G.set_goal_aperture(goal_aperture - additional_closure, finger='both')
+load_data = G.set_goal_aperture(goal_aperture, finger='both')
 
 # [REASONING]
 # [PREDICTION]
@@ -137,7 +137,7 @@ while slippage:
   slippage, avg_force, max_force = G.check_slip(load_data, slip_threshold, 'both')
 
   # record spring constants over slip detection
-  distance = abs(curr_aperture - prev_aperture)
+  distance = np.abs(curr_aperture - prev_aperture)
   k_avg.append(np.mean(avg_force) * distance * 1000.0)
   prev_aperture = curr_aperture
 
@@ -155,13 +155,12 @@ Remember:
 2. Do not invent new functions or classes. The only allowed functions you can call are the ones listed above. Do not leave unimplemented code blocks in your response.
 3. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
 4. If you are not sure what value to use, just use your best judge. Do not use None for anything.
-5. Do not calculate the position or direction of any object (except for the ones provided above). Just use a number directly based on your best guess.
-6. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
-7. If you see phrases like [PREDICTION], replace the entire phrase with a prediction of the gripper's state after the following gripper commands are executed.
-8. If you see phrases like {PNUM: default_value}, replace the value with the corresponding value from the grasp description.
-9. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-10. Remember to import the gripper class and create a Gripper at the beginning of your code.
-11. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary. Often times the current position will not be the same as the goal position.
-12. Before checking for slip, remember to create two new variables, applied_force and slip_threshold, set equal to the initial initial_force. Slip detection continues checking the unchanged slip_threshold, but the applied_force increases.
-13. Remember to reassign the goal aperture to the current aperture after completing the slip check.
+5. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
+6. If you see phrases like [PREDICTION], replace the entire phrase with a prediction of the gripper's state after the following gripper commands are executed.
+7. If you see phrases like {PNUM: default_value}, replace the value with the corresponding value from the grasp description.
+8. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
+9. Remember to import the gripper class and create a Gripper at the beginning of your code.
+10. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary.
+11. Before checking for slip, remember to create two new variables, applied_force and slip_threshold, set equal to the initial initial_force. Slip detection continues checking the unchanged slip_threshold, but the applied_force increases.
+12. Remember to reassign the goal aperture to the current aperture after completing the slip check for complete grasps.
 """
