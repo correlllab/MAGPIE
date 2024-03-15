@@ -19,10 +19,10 @@ Describe the grasp strategy using the following form:
 * The gripper and object have an approximate friction coefficient of [PNUM: 0.0]
 * This grasp should set the goal aperture to [PNUM: 0.0] mm.
 * If the gripper slips, this grasp should close an additional [PNUM: 0.0] mm.
-* Based on object mass and friction coefficient, grasp should initially set the force to [PNUM: 0.0] Newtons.
+* Based on object mass and friction coefficient, grasp should initially set the contact force to [PNUM: 0.0] Newtons.
 * If the gripper slips, this grasp should increase the output force by [PNUM: 0.0] Newtons.
 * [optional] This grasp {CHOICE: [does, does not]} use the default minimum grasp force force.
-* [optional] This grasp sets the force to  [PNUM: 0.0], which is {CHOICE: [lower, higher]} than the default initial force because of [GRASP_DESCRIPTION: <str>].
+* [optional] This grasp sets the force to  [PNUM: 0.0], which is {CHOICE: [lower, higher]} than the default initial contact force because of [GRASP_DESCRIPTION: <str>].
 [end of description]
 
 Rules:

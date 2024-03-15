@@ -38,7 +38,7 @@ initial_force = (mass * 9.81) / mu
 initial_force = max(min(initial_force, 16), 0.1)  # Ensure the force is within the gripper's capability
 
 # If the gripper slips, increase the output force by 0.2 N
-additional_force = 0.40
+additional_force = 0.04
 
 # Move quickly to a safe aperture 3 mm wider than the goal aperture
 G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)

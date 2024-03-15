@@ -32,7 +32,7 @@ initial_force = 0.098  # Calculated from (5.0 grams * 9.81 m/s^2) / 0.5 friction
 
 # Additional closure amount and force increase if the gripper slips
 additional_closure = 2.0
-additional_force_increase = 0.4
+additional_force_increase = 0.01
 
 # Ensuring there's a gentle and precise approach to hold the paper airplane without damage
 # Setting the compliance slightly more flexible due to the high compliance nature of the task

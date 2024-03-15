@@ -50,7 +50,7 @@ slippage, avg_force, max_force = G.check_slip(load_data, initial_force)
 
 while slippage:
     goal_aperture = curr_aperture - additional_closure  # Adjust goal aperture in case of slippage
-    applied_force += 0.25  # Increase the force by the specified amount if there is slippage
+    applied_force += 0.025  # Increase the force by the specified amount if there is slippage
     
     # Set the new force and attempt to grasp the object again
     G.set_force(applied_force)

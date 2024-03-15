@@ -31,7 +31,7 @@ initial_force = 0.0625
 additional_closure = 1.0  # If there is slippage detected, the grasp should close an additional 1.0 mm.
 
 # The specified increase in output force if slippage is detected is 5.0 N.
-additional_force = 0.05
+additional_force = 0.01
 
 # Move quickly without recording load to a safe aperture that is slightly wider than the goal to prevent initial contact
 G.set_goal_aperture(goal_aperture + 3, finger='both', record_load=False)

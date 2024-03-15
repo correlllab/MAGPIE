@@ -11,7 +11,7 @@ goal_aperture = 70.0  # Set the goal aperture to 60mm to gently grasp the avocad
 # We assume that the avocado has medium compliance and is of low weight, thus setting a moderate starting force
 # and a compliance that allows for some flexibility in the grip
 initial_force = 2.0  # Initial force set to 1.0N to avoid damaging the avocado
-additional_closure = 2.0  # The gripper will close an additional 3.0mm if it slips
+additional_closure = 5.0  # The gripper will close an additional 3.0mm if it slips
 additional_force = 0.5  # The force increases by 0.5N if the gripper slips
 
 # Setting a moderate compliance margin and flexibility to accommodate the avocado's medium compliance
