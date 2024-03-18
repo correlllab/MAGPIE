@@ -301,6 +301,13 @@ class Gripper:
     def get_temp(self, finger='both'):
         return self.apply_to_fingers('get_temperature', None, finger=finger, noarg=True)
 
+    def get_force(self, finger='both'):
+        load = self.get_load(finger=finger)
+        if finger=='both':
+            return [self.load_to_N(load[0]), self.load_to_N(load[1])]
+        else:
+            return self.load_to_N(load)
+
     def get_load(self, finger='both'):
         return self.apply_to_fingers('get_load', None, finger=finger, noarg=True)
 
