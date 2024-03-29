@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DeliGrasp Console</title>
+    <!-- Add Bootstrap CSS link -->
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{url_for('static', filename='codemirror.css')}}">  
+    <!-- <link rel="stylesheet" href="../static/codemirror.css"> -->
+    <!-- <script src="../static/codemirror.js"></script> -->
+    <link rel="icon" type="image/png" sizes="32x32" href="static/favicon.png">
+
+    <!-- Add Bootstrap JS and jQuery scripts -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <style>
+        /* Custom CSS for Python code style */
+        .code {
+            font-family: "Courier New", monospace;
+            white-space: pre;
+        }
+
+        /* Custom CSS for code box */
+        .code-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-top: 20px;
+        }
+
+        .row{ display: flex; align-items: center;}
+        .CodeMirror { border: 2px solid lightgrey }
+        .CodeMirror.CodeMirror-focused { border: 2px solid blue }
+
+
+
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">DeliGrasp Console 🔧</h1>
+            <form id="generate-form">
+                <div class="form-group">
+                    <div class="row">
+                        <div class="col-3 d-flex flex-column">
+                            <input type="file" accept=".py, .txt" class="form-control-file mb-2" id="fileInput" style="display: none;" onchange="handleFileUpload(this)">
+                            <button type="button" class="btn btn-secondary mt-2" onclick="document.getElementById('fileInput').click();">Upload Code</button>
+                            <label for="prompt">Or enter a prompt:</label>
+                        </div>
+                    </div>
+                    <script type="text/javascript" src="{{ url_for('static', filename = 'codemirror.js') }}"></script>
+                    <script type="text/javascript" src="{{ url_for('static', filename = 'mode/python.js') }}"></script>
+                    <textarea class="form-control" name="prompt" rows="24" id="promptTextarea">{{ prompt }}</textarea>
+                </div>
+            <button type="submit" class="btn btn-primary" id="generate-button" name="generate">Generate</button>
+            </form>
+        <div class="mt-4">
+            <h3>Generated Completion:</h2>
+        </div>
+        <div class="code-box">
+            <pre id="generatedCode">
+{% if completion %} {{ completion }} {% else %} {{"# Your generated code here."}} {% endif %}
+</pre>
+            <a href="#" class="btn btn-success mt-2" download="generated_code.py" id="downloadButton">Download Policies</a>
+        </div>
+
+    </div>
+    </body>
+
+    <script>
+        // Download button logic
+        const downloadButton = document.getElementById('downloadButton');
+        const generatedCode = `{{ completion|e }}`; // Escaping completion text
+        var promptTextarea = document.getElementById('promptTextarea');
+        var promptEditor = CodeMirror.fromTextArea(promptTextarea, {
+            mode: 'python',
+            theme: 'default',
+            lineNumbers: true
+        });
+
+        downloadButton.addEventListener('click', () => {
+            text = promptEditor.getValue() + document.getElementById('generatedCode').innerText
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            downloadButton.href = url;
+        });
+
+        function handleFileUpload(input) {
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // document.getElementById('promptTextarea').value = e.target.result;
+                promptEditor.setValue(e.target.result);
+            };
+            reader.readAsText(file);
+            }
+        }
+
+        $(document).ready(function() {
+            $("#generate-button").click(function() {
+                event.preventDefault();
+                $.ajax({
+                    type: "POST",
+                    url: "/generate",
+                    dataType: "json",
+                    contentType: "application/json; charset=utf-8",    
+                    data: JSON.stringify(promptEditor.getValue()),
+                    success: function(data) {
+                        // console.log(data.completion)
+                        $("#generatedCode").text(data.completion);
+                        var codeElement = document.getElementById('generatedCode');
+                        // Add code mirror class for coloring (default is the theme)
+                        codeElement.classList.add( 'cm-s-default' );
+                        var code = codeElement.innerText;
+
+                        codeElement.innerHTML = "";
+
+                        CodeMirror.runMode(
+                        code,
+                        'python',
+                        codeElement
+                        );
+
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.61.0/addon/runmode/runmode-standalone.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.61.0/mode/python/python.min.js"></script>
+    <script>
+        window.onload = function(){
+            var codeElement = document.getElementById('generatedCode');
+            // Add code mirror class for coloring (default is the theme)
+            codeElement.classList.add( 'cm-s-default' );
+            var code = codeElement.innerText;
+
+            codeElement.innerHTML = "";
+
+            CodeMirror.runMode(
+              code,
+              'python',
+              codeElement
+            );
+        };
+    </script>
+
+</html>

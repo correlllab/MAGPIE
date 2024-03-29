@@ -1,0 +1,13 @@
+<!-- Create a simple CodeMirror instance -->
+<script src="../static/codemirror.js"></script>
+<link rel="stylesheet" href="../static/codemirror.css">
+
+<body>
+    <textarea id="textarea">asdfasdf</textarea>
+</body>
+<script>
+var myTextarea = document.getElementById('textarea');
+  var editor = CodeMirror.fromTextArea(myTextarea, {
+    lineNumbers: true
+  });
+</script>

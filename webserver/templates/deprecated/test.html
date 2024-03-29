@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenAI API Integration</title>
+    <!-- Add Bootstrap CSS link -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Add CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.61.0/lib/codemirror.min.css">
+    <!-- Add CodeMirror Python mode -->
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.61.0/addon/runmode/runmode-standalone.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.61.0/mode/python/python.min.js"></script>
+    <style>
+        /* Custom CSS for code box */
+        .code-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Generate Text Completions with OpenAI</h1>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="prompt">Enter a prompt:</label>
+                <input type="file" accept=".py, .txt" class="form-control-file mb-2" id="fileInput" style="display: none;">
+                <button type="button" class="btn btn-secondary mt-2" onclick="document.getElementById('fileInput').click();">Upload Code</button>
+                <textarea class="form-control code" name="prompt" rows="4">{{ prompt }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate</button>
+        </form>
+
+        {% if completion %}
+        <div class="mt-4">
+            <h2>Generated Completion:</h2>
+        </div>
+        <div class="code-box">
+            <pre id="generatedCode" class="python-code">{{ completion }}</pre>
+            <a href="#" class="btn btn-success mt-2" download="generated_code.py" id="downloadButton">Download Python File</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Bootstrap JS and jQuery scripts -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- Initialize CodeMirror instances -->
+    <script>
+        {codeMirror: window.CodeMirror}
+
+        // Initialize CodeMirror for prompt text area
+        var promptTextarea = document.getElementById('promptTextarea');
+        var promptEditor = CodeMirror.fromTextArea(promptTextarea, {
+            mode: 'python',
+            theme: 'default',
+            lineNumbers: true
+        });
+
+        // Initialize CodeMirror for generated code
+        var generatedCodeElement = document.getElementById('generatedCode');
+        var generatedCodeEditor = CodeMirror.fromTextArea(generatedCodeElement, {
+            mode: 'python',
+            theme: 'default',
+            readOnly: true
+        });
+
+        // Download button logic
+        const downloadButton = document.getElementById('downloadButton');
+        const generatedCode = '{{ completion|e }}'; // Escaping completion text
+        
+        downloadButton.addEventListener('click', () => {
+            const blob = new Blob([generatedCode], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            downloadButton.href = url;
+        });
+    </script>
+</body>
+</html>
