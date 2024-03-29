@@ -12,7 +12,9 @@ from time import time as now
 from math import floor
 import numpy as np
 from numpy import sin, cos
-from psutil import sensors_temperatures
+import platform
+if platform.system() == 'Linux':
+    from psutil import sensors_temperatures
 # from tcp_latency import measure_latency
 
 ##### Aliases #####
