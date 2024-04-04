@@ -7,15 +7,18 @@ from PIL import Image
 import numpy as np
 import io
 import logging
+import platform
 
-sys.path.append("../")
-# import magpie.gripper
-# import magpie.ur5
-# import magpie.realsense_wrapper
-# from magpie.perception import pcd
-# from magpie.perception import label_owlvit
-# from magpie.perception import mask_sam
-# from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
+on_robot = platform.system() == "Linux"
+if on_robot:
+    sys.path.append("../")
+    from magpie.gripper import Gripper
+    import magpie.ur5
+    import magpie.realsense_wrapper
+    from magpie.perception import pcd
+    # from magpie.perception import label_owlvit
+    # from magpie.perception import mask_sam
+    from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 
 import simulated_romi_prompt as srp
 app = Flask(__name__)
@@ -28,6 +31,8 @@ completion = ""
 config = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview"}
 interactions = 0
 message_log = {}
+servo_port = "/dev/ttyACM0"
+gripper = None
 
 def encode_image(pil_img):
     img_io = io.BytesIO()
@@ -60,13 +65,16 @@ def generate():
 @app.route("/connect", methods=["POST"])
 def connect():
     global config
+    global gripper
+    global servo_port
     new_conf = request.get_json()
     config["move"] = new_conf["moveconf"]
     config["grasp"] = new_conf["graspconf"]
     config["llm"] = new_conf["llmconf"]
     print(config)
     try:
-        pass
+        if on_robot:
+            gripper = Gripper(servo_port)
         return jsonify({"config": config, "connected": True})
     except Exception as e:
         print(e)
@@ -129,11 +137,28 @@ def move():
 
 @app.route("/release", methods=["POST"])
 def release():
-    pass
+    global gripper
+    try:
+        if on_robot:
+            # gripper.release()
+            # gripper.open_gripper()
+            gripper.reset_parameters()
+        return jsonify({"success": True})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False})
 
 @app.route("/grasp", methods=["POST"])
 def grasp():
-    pass
+    global gripper
+    try:
+        if on_robot:
+            # gripper.grasp()
+            gripper.close_gripper()
+        return jsonify({"success": True})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False})
 
 if __name__ == "__main__":
     app.run(debug=True)
