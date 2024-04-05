@@ -16,16 +16,7 @@
 .CodeMirror { border: 2px solid lightgrey }
 .CodeMirror.CodeMirror-focused { border: 2px solid blue }
 
-.you-label {
-    background-color: #c7ecee;
-    color: #000;
-    border-radius: 5px;
-    padding: 3px 8px;
-    margin-bottom: 5px;
-    display: inline-block;
-}
-
-.llm-label {
+.label {
     background-color: #f8c291;
     color: #000;
     border-radius: 5px;
@@ -33,6 +24,18 @@
     margin-top: 5px;
     margin-bottom: 5px;
     display: inline-block;
+}
+
+.label.user {
+    background-color: #c7ecee;
+}
+
+.label.llm {
+    background-color: #f8c291;
+}
+
+.label.vlm {
+    background-color: #f8f391;
 }
 
 .outer {

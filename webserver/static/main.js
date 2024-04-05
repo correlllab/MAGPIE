@@ -62,7 +62,8 @@ $(document).ready(function() {
         var formData = {
             moveconf: $("input[name='moveconf']:checked").val(),
             graspconf: $("input[name='graspconf']:checked").val(),
-            llmconf: $("input[name='llmconf']:checked").val()
+            llmconf: $("input[name='llmconf']:checked").val(),
+            vlmconf: $("input[name='vlmconf']:checked").val()
         };
         $("#connect-status").text("Configuring & Connecting");
         $("#connect-status").css("color", "gray");
@@ -107,7 +108,7 @@ $(document).ready(function() {
         if (message === "") {
             return;
         }
-        $("#chat-window").append("<div> <span class='you-label'>You: </span> " + message + "</div> <hr>");
+        $("#chat-window").append("<div> <span class='label user'>You: </span> " + message + "</div> <hr>");
         $("#user-input").val(""); // Clear input field after sending
         $.ajax({
             type: "POST",
@@ -119,12 +120,15 @@ $(document).ready(function() {
                 console.log("Response:", data);
                 for (var i = 0; i < data.messages.length; i++) {
                     // $("#chat-window").append("<div><span class='llm-label'> LLM:</span> " + data.messages[i] + "</div>");
+                    var id = data.messages[i].id
+                    var content = data.messages[i].content
+                    console.log("ID:", id);
                     if (data.messages[i].type === "text") {
-                        $("#chat-window").append("<div class='llm-label'> LLM:</div> <div>" + data.messages[i].content + "</div>");
+                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
                     } else if (data.messages[i].type === "image") {
-                        $("#chat-window").append("<div class='llm-label'> LLM:</div> <div> <img src='data:image/jpg;base64," + data.messages[i].content + "'></div>");
+                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <img src='data:image/jpg;base64,${content}'></div>`);
                     } else if (data.messages[i].type === "code") {
-                        $("#chat-window").append("<div class='llm-label'> LLM:</div> <div> <pre><code class='python'>" + data.messages[i].content + "</code></pre></div>");
+                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <pre><code class='python'> ${content} </code></pre></div>`);
                         hljs.highlightAll();
                     }
                 }
