@@ -25,7 +25,7 @@ openai.api_key_path = "api_key.txt"
 generate_clicked = False
 prompt = "# Enter a prompt or upload a file"
 completion = ""
-config = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview"}
+config = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview", "vlm": "owl-vit"}
 interactions = 0
 message_log = {}
 
@@ -64,6 +64,7 @@ def connect():
     config["move"] = new_conf["moveconf"]
     config["grasp"] = new_conf["graspconf"]
     config["llm"] = new_conf["llmconf"]
+    config["vlm"] = new_conf["vlmconf"]
     print(config)
     try:
         pass
@@ -105,13 +106,13 @@ additional_force_increase = 0.01
 k = G.grasp(goal_aperture, slip_threshold, additional_closure, additional_force_increase)
 """
     messages = [
-        {"type": "text", "content": "This is a text message."},
-        {"type": "image", "content": enc_img},
-        {"type": "code", "content": code}
+        {"type": "text",  "id": "llm", "content": "This is a text message."},
+        {"type": "image", "id": "vlm", "content": enc_img},
+        {"type": "code",  "id": "llm", "content": code}
         # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
     # add user input to front of messages
-    message_log[interactions] = [{"type": "text", "content": input_text}, *messages]
+    message_log[interactions] = [{"type": "text", "id": "user", "content": input_text}, *messages]
     print(message_log)
     return jsonify(messages=messages)
 
