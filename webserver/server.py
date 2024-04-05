@@ -7,15 +7,19 @@ from PIL import Image
 import numpy as np
 import io
 import logging
+import platform
+import time
 
-sys.path.append("../")
-# import magpie.gripper
-# import magpie.ur5
-# import magpie.realsense_wrapper
-# from magpie.perception import pcd
-# from magpie.perception import label_owlvit
-# from magpie.perception import mask_sam
-# from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
+on_robot = platform.system() == "Linux"
+if on_robot:
+    sys.path.append("../")
+    from magpie.gripper import Gripper
+    from magpie import ur5 as ur5
+    import magpie.realsense_wrapper
+    from magpie.perception import pcd
+    # from magpie.perception import label_owlvit
+    # from magpie.perception import mask_sam
+    from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 
 import simulated_romi_prompt as srp
 app = Flask(__name__)
@@ -25,9 +29,21 @@ openai.api_key_path = "api_key.txt"
 generate_clicked = False
 prompt = "# Enter a prompt or upload a file"
 completion = ""
+
+# metadata / logging
 config = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview", "vlm": "owl-vit"}
 interactions = 0
 message_log = {}
+
+# hardware
+servo_port = "/dev/ttyACM0"
+gripper = None
+
+robot_ip = "192.168.0.6"
+# robot = None
+# robot = ur5.UR5_Interface(robot_ip)
+home_pose = None
+sleep_rate = 0.5
 
 def encode_image(pil_img):
     img_io = io.BytesIO()
@@ -60,6 +76,12 @@ def generate():
 @app.route("/connect", methods=["POST"])
 def connect():
     global config
+    global gripper
+    global servo_port
+    # global robot
+    global home_pose
+    global sleep_rate
+
     new_conf = request.get_json()
     config["move"] = new_conf["moveconf"]
     config["grasp"] = new_conf["graspconf"]
@@ -67,7 +89,15 @@ def connect():
     config["vlm"] = new_conf["vlmconf"]
     print(config)
     try:
-        pass
+        if on_robot:
+            robot = ur5.UR5_Interface(robot_ip)
+            gripper = Gripper(servo_port)
+            # gripper.reset_parameters()
+            robot.start()
+            home_pose = robot.getPose()
+            time.sleep(sleep_rate)
+            robot.stop()
+            # TODO: log home pose
         return jsonify({"config": config, "connected": True})
     except Exception as e:
         print(e)
@@ -122,7 +152,20 @@ def execute():
 
 @app.route("/home", methods=["POST"])
 def home():
-    pass
+    global robot
+    global home_pose
+    msg = {"operation": "home", "success": False}
+    try:
+        if on_robot:
+            robot = ur5.UR5_Interface(robot_ip)
+            robot.start()
+            robot.moveL(home_pose)
+            time.sleep(sleep_rate * 2)
+            robot.stop()
+            msg["success"] = True
+    except Exception as e:
+        print(e)
+    return jsonify(msg)
 
 @app.route("/move", methods=["POST"])
 def move():
@@ -130,11 +173,32 @@ def move():
 
 @app.route("/release", methods=["POST"])
 def release():
-    pass
+    global gripper
+    msg = {"operation": "release", "success": False}
+    try:
+        if on_robot:
+            # gripper.release()
+            # gripper.open_gripper()
+            gripper.reset_parameters()
+            msg["success"] = True
+    except Exception as e:
+        print(e)
+    return jsonify(msg)
 
 @app.route("/grasp", methods=["POST"])
 def grasp():
-    pass
+    global gripper
+
+    msg = {"operation": "grasp", "success": False}
+    try:
+        if on_robot:
+            # gripper.grasp()
+            gripper.close_gripper()
+            msg["success"] = True
+    except Exception as e:
+        print(e)
+    
+    return jsonify(msg)
 
 if __name__ == "__main__":
     app.run(debug=True)
