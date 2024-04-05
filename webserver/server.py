@@ -14,7 +14,7 @@ on_robot = platform.system() == "Linux"
 if on_robot:
     sys.path.append("../")
     from magpie.gripper import Gripper
-    from magpie import ur5 as ur5
+    # from magpie import ur5 as ur5
     import magpie.realsense_wrapper
     from magpie.perception import pcd
     # from magpie.perception import label_owlvit
