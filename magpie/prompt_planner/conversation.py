@@ -21,10 +21,11 @@ from typing import Any
 from openai import OpenAI
 
 client = OpenAI()
-import termcolor
+# import termcolor
 
-from language_to_reward_2023.platforms import llm_prompt
-
+# from language_to_reward_2023.platforms import llm_prompt
+# import llm_prompt
+from magpie.prompt_planner import llm_prompt
 
 def _open_ai_call_with_retry(
     model: str, messages: list[Any]
@@ -89,7 +90,8 @@ class Conversation:
       print(f"LLM{llm_id} queried")
       response = completion.choices[0].message.content
       if self._print_responses:
-        print(termcolor.colored(response + "\n", "cyan", attrs=["bold"]))
+        # print(termcolor.colored(response + "\n", "cyan", attrs=["bold"]))
+        print(response + "\n")
       try:
         upstream_message = self._prompt_model.response_processors[llm_id](
             response

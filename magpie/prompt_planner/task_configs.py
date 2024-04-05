@@ -27,6 +27,7 @@ import prompts.prompt_thinker_coder as bk_prompt_thinker_coder
 import prompts.mp_prompt_coder_only    as mp_prompt_coder_only
 import prompts.mp_prompt_low_level     as mp_prompt_low_level
 import prompts.mp_prompt_thinker_coder as mp_prompt_thinker_coder
+import prompts.mp_prompt_thinker_coder_muk as mptc
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,9 +46,9 @@ ALL_TASKS = {
         },
     ),
     'magpie': TaskConfig(
-        client=magpie_task_client.MagpieClient,
+        client=None,
         prompts={
-            'thinker_coder': mp_prompt_thinker_coder.PromptThinkerCoder,
+            'thinker_coder': mptc.PromptThinkerCoder,
             'coder_only': mp_prompt_coder_only.PromptCoder,
             'low_level': mp_prompt_low_level.PromptLowLevel,
         },
