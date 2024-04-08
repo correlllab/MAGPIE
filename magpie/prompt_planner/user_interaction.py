@@ -58,18 +58,20 @@ def main(argv: List[str]) -> None:
     )
   prompt = task_config.prompts[_PROMPT_FLAG.value]
   print(
-      "Starting MJPC UI"
+      # "Starting MJPC UI"
+      "Running conversation for DeliGrasp"
   )
-  client_class: Any = task_config.client
-  client = client_class(ui=True)
+  # client_class: Any = task_config.client
+  # client = client_class(ui=True)
 
   try:
     # send the grpc channel to the prompt model to create stub
     prompt_model = prompt(
-        client, executor=safe_executor
+        # client, executor=safe_executor
+        None, executor=safe_executor
     )
     conv = conversation.Conversation(prompt_model, MODEL)
-    client.reset()
+    # client.reset()
 
     while True:
       user_command = input(termcolor.colored("User: ", "red", attrs=["bold"]))
@@ -85,7 +87,8 @@ def main(argv: List[str]) -> None:
       except Exception as e:  # pylint: disable=broad-exception-caught
         print("Execution failed, try something else... " + str(e) + "\n")
   finally:
-    client.close()
+    # client.close()
+    pass
 
 
 if __name__ == "__main__":

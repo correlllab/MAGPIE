@@ -20,8 +20,9 @@ import json
 from typing import Any, Callable, Sequence
 
 from absl import logging
-
-import safe_executor
+import sys
+sys.path.append('../../')
+import magpie.prompt_planner.safe_executor as safe_executor
 # from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
 
 
@@ -63,12 +64,12 @@ def _parse_output(output: str):
   except ValueError as e:
     raise ValueError(f'Invalid JSON output: {output}') from e
 
-  weights, params = barkour_l2r_tasks.defaults()
-  _overwrite_entries(weights, overwriting_weights, 'weight')
-  _overwrite_entries(params, overwriting_params, 'param')
-  return mjpc_parameters.MjpcParameters(
-      cost_weights=weights, task_parameters=params
-  )
+  # weights, params = barkour_l2r_tasks.defaults()
+  # _overwrite_entries(weights, overwriting_weights, 'weight')
+  # _overwrite_entries(params, overwriting_params, 'param')
+  # return mjpc_parameters.MjpcParameters(
+  #     cost_weights=weights, task_parameters=params
+  # )
 
 
 def _overwrite_entries(base, overwrites, name_for_log) -> None:
@@ -106,12 +107,12 @@ def {dummy_function_name}(*args, **kwargs):
 
 
 _SUPPORTED_FUNCTIONS = (
-    barkour_l2r_tasks.set_torso_targets,
-    barkour_l2r_tasks.set_foot_pos_parameters,
-    barkour_l2r_tasks.set_foot_stepping_parameters,
-    barkour_l2r_tasks.set_target_joint_angles,
-    barkour_l2r_tasks.head_towards,
-    barkour_l2r_tasks.walk,
+    # barkour_l2r_tasks.set_torso_targets,
+    # barkour_l2r_tasks.set_foot_pos_parameters,
+    # barkour_l2r_tasks.set_foot_stepping_parameters,
+    # barkour_l2r_tasks.set_target_joint_angles,
+    # barkour_l2r_tasks.head_towards,
+    # barkour_l2r_tasks.walk,
 )
 
 _DUMMY_FUNCTIONS = (
@@ -121,16 +122,16 @@ _DUMMY_FUNCTIONS = (
 
 
 _CODE_TEMPLATE = r"""
-from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
+# from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
 
-weights, params = barkour_l2r_tasks.defaults()
+# weights, params = barkour_l2r_tasks.defaults()
 
 FUNCTION_DEFINITIONS
 
 INSERT_CODE_HERE
 
-import json
-print(json.JSONEncoder().encode((weights, params)))
+# import json
+# print(json.JSONEncoder().encode((weights, params)))
 """.replace(
     'FUNCTION_DEFINITIONS', _generate_function_definitions(_SUPPORTED_FUNCTIONS)
 )

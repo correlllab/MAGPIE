@@ -23,12 +23,17 @@ import os
 import subprocess
 import tempfile
 import termcolor
+import sys
+import platform
+sys.path.append('../../')
 
-from language_to_reward_2023 import safe_executor
+import magpie.prompt_planner.safe_executor as safe_executor
 # import safe_executor
 
 
 def default_interpreter() -> str:  
+  if platform.system() == "Windows":
+    return os.path.dirname(sys.executable) + "/python.exe"
   return os.getenv("HOME") + "/miniconda3/envs/l2r-go1/bin/python3.11"
 
 
@@ -70,10 +75,16 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
     return self._execute(code)
 
   def _execute(self, code: str) -> str:
+    print("now im really ABOUT TO EXECUTE")
     f = tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False)
 
     f.write(code)
     f.close()
+    # also write f to local filepath, generations/<filename>
+    local_py = None
+    with open(f'generations/{os.path.basename(f.name)}', 'w') as gen_file:
+      gen_file.write(code)
+      local_py = gen_file.name
     filepath = f.name
 
     # Start by compiling the code to pyc (to get compilation errors)
@@ -100,11 +111,17 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
     # pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-310.pyc")
     pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-311.pyc")
     # pyc_filepath = os.path.join(pycache_dir, filename + "c")
-
+    # also write pyc to local filepath, generations/<pycname>
+    local_pyc = None
+    with open(f'generations/{os.path.basename(pyc_filepath)}', 'w') as gen_file:
+      gen_file.write(code)
+      local_pyc = gen_file.name
+    
     # Now execute the pyc file
     try:
       completed_process = subprocess.run(
-          [self._interpreter_path, pyc_filepath],
+          # [self._interpreter_path, pyc_filepath],
+          [self._interpreter_path, local_pyc],
           capture_output=True,
           check=True,
       )

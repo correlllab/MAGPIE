@@ -166,12 +166,14 @@ Remember:
 """
 
 import re
+import sys
+sys.path.append('../../')
 
-import safe_executor
-import llm_prompt
-import process_code
-import magpie_execution
-import magpie_task_client
+import magpie.prompt_planner.safe_executor as safe_executor
+import magpie.prompt_planner.llm_prompt as llm_prompt
+import magpie.prompt_planner.process_code as process_code
+import magpie.prompt_planner.magpie_execution as magpie_execution
+# import magpie_task_client
 
 
 class PromptThinkerCoder(llm_prompt.LLMPrompt):
@@ -225,6 +227,7 @@ class PromptThinkerCoder(llm_prompt.LLMPrompt):
 
   def execute_code(self, code: str) -> None:
     print("ABOUT TO EXECUTE\n", code)
-    # mjpc_parameters = self._safe_executor.execute(code)
+    grasp_log = self._safe_executor.execute(code)
+    print(grasp_log)
     # self._agent.set_task_parameters(mjpc_parameters.task_parameters)
     # self._agent.set_cost_weights(mjpc_parameters.cost_weights)
