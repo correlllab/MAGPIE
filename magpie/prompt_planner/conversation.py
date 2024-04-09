@@ -63,7 +63,7 @@ class Conversation:
     self._print_responses = print_responses
     number_of_llms = prompt_model.num_llms
     self._message_queues = [[] for _ in range(number_of_llms)]
-
+    self._llm_responses = [None for _ in range(number_of_llms)]
     # Add general prompt to the message queue.
     for llm_id in range(number_of_llms):
       message = [{"role": "user", "content": prompt_model.prompts[llm_id]}]
@@ -89,6 +89,7 @@ class Conversation:
         self._message_queues[llm_id].append(completion.choices[0].message)
       print(f"LLM{llm_id} queried")
       response = completion.choices[0].message.content
+      self._llm_responses[llm_id] = response
       if self._print_responses:
         # print(termcolor.colored(response + "\n", "cyan", attrs=["bold"]))
         print(response + "\n")

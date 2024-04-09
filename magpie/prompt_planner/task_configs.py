@@ -18,39 +18,50 @@
 import dataclasses
 from typing import Any
 
-import task_clients
-import barkour_l2r_task_client
-import magpie_task_client
-import prompts.prompt_coder_only as bk_prompt_coder_only
-import prompts.prompt_low_level as bk_prompt_low_level
-import prompts.prompt_thinker_coder as bk_prompt_thinker_coder
-import prompts.mp_prompt_coder_only    as mp_prompt_coder_only
-import prompts.mp_prompt_low_level     as mp_prompt_low_level
-import prompts.mp_prompt_thinker_coder as mp_prompt_thinker_coder
-import prompts.mp_prompt_thinker_coder_muk as mptc
+# import task_clients
+# import magpie_task_client
+# import prompts.mp_prompt_coder_only    as mp_prompt_coder_only
+# import prompts.mp_prompt_low_level     as mp_prompt_low_level
+# import prompts.mp_prompt_thinker_coder as mp_prompt_thinker_coder
 
+import sys
+sys.path.append('../../')
+import magpie.prompt_planner.prompts.mp_prompt_thinker_coder_muk as mptc
 
 @dataclasses.dataclass(frozen=True)
 class TaskConfig:
-  client: type[task_clients.TaskClient]
+  client: None
   prompts: dict[str, type[Any]]
 
+# @dataclasses.dataclass(frozen=True)
+# class TaskConfig:
+#   client: type[task_clients.TaskClient]
+#   prompts: dict[str, type[Any]]
 
 ALL_TASKS = {
-    'barkour': TaskConfig(
-        client=barkour_l2r_task_client.BarkourClient,
-        prompts={
-            'thinker_coder': bk_prompt_thinker_coder.PromptThinkerCoder,
-            'coder_only': bk_prompt_coder_only.PromptCoder,
-            'low_level': bk_prompt_low_level.PromptLowLevel,
-        },
-    ),
     'magpie': TaskConfig(
         client=None,
         prompts={
             'thinker_coder': mptc.PromptThinkerCoder,
-            'coder_only': mp_prompt_coder_only.PromptCoder,
-            'low_level': mp_prompt_low_level.PromptLowLevel,
         },
     ),
 }
+
+# ALL_TASKS = {
+#     'barkour': TaskConfig(
+#         client=barkour_l2r_task_client.BarkourClient,
+#         prompts={
+#             'thinker_coder': bk_prompt_thinker_coder.PromptThinkerCoder,
+#             'coder_only': bk_prompt_coder_only.PromptCoder,
+#             'low_level': bk_prompt_low_level.PromptLowLevel,
+#         },
+#     ),
+#     'magpie': TaskConfig(
+#         client=None,
+#         prompts={
+#             'thinker_coder': mptc.PromptThinkerCoder,
+#             'coder_only': mp_prompt_coder_only.PromptCoder,
+#             'low_level': mp_prompt_low_level.PromptLowLevel,
+#         },
+#     ),
+# }

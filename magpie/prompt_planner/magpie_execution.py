@@ -122,16 +122,14 @@ _DUMMY_FUNCTIONS = (
 
 
 _CODE_TEMPLATE = r"""
-# from language_to_reward_2023.platforms.barkour import barkour_l2r_tasks
-
-# weights, params = barkour_l2r_tasks.defaults()
+import sys
+sys.path.append('../../')
+sys.path.append('../')
 
 FUNCTION_DEFINITIONS
 
 INSERT_CODE_HERE
 
-# import json
-# print(json.JSONEncoder().encode((weights, params)))
 """.replace(
     'FUNCTION_DEFINITIONS', _generate_function_definitions(_SUPPORTED_FUNCTIONS)
 )

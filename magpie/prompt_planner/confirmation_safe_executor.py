@@ -50,11 +50,12 @@ _REPEATED_WARNING = '\nAbout to execute the code above. Type "y" to continue.\n'
 class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
   """An executor that asks for user confirmation before executing the code."""
 
-  def __init__(self, interpreter_path=None, skip_confirmation=False):
+  def __init__(self, interpreter_path=None, skip_confirmation=False, local_execute=False):
     super().__init__()
     self._confirmed_once = False
     self._interpreter_path = interpreter_path or default_interpreter()
     self._skip_confirmation = skip_confirmation
+    self._local_execute = local_execute
 
   def safe_execute(self, code: str) -> str:
     if not self._confirmed_once:
@@ -121,7 +122,8 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
     try:
       completed_process = subprocess.run(
           # [self._interpreter_path, pyc_filepath],
-          [self._interpreter_path, local_pyc],
+          # [self._interpreter_path, local_pyc],
+          [self._interpreter_path, local_py if self._local_execute else pyc_filepath],
           capture_output=True,
           check=True,
       )
