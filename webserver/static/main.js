@@ -110,6 +110,8 @@ $(document).ready(function() {
         }
         $("#chat-window").append("<div> <span class='label user'>You: </span> " + message + "</div> <hr>");
         $("#user-input").val(""); // Clear input field after sending
+        $("#chat-status").text("Awaiting");
+        $("#chat-status").css("color", "gray");
         $.ajax({
             type: "POST",
             url: "/chat",
@@ -117,10 +119,12 @@ $(document).ready(function() {
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function(data) {
+                $("#chat-status").text("Received");
+                $("#chat-status").css("color", "green");
                 console.log("Response:", data);
                 for (var i = 0; i < data.messages.length; i++) {
                     // $("#chat-window").append("<div><span class='llm-label'> LLM:</span> " + data.messages[i] + "</div>");
-                    var id = data.messages[i].id
+                    var id = data.messages[i].role
                     var content = data.messages[i].content
                     console.log("ID:", id);
                     if (data.messages[i].type === "text") {
@@ -141,11 +145,15 @@ $(document).ready(function() {
     }
 
     $("#robot-execute").click(function() {
+        $("#robot-status").text("Awaiting Execution");
+        $("#robot-status").css("color", "gray");
         $.ajax({
             type: "POST",
             url: "/execute",
             success: function(data) {
                 console.log("Execute:", data);
+                $("#robot-status").text("Executed");
+                $("#robot-status").css("color", "green");
             }
         });
     });
