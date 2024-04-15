@@ -34,7 +34,8 @@ import magpie.prompt_planner.safe_executor as safe_executor
 def default_interpreter() -> str:  
   if platform.system() == "Windows":
     return os.path.dirname(sys.executable) + "/python.exe"
-  return os.getenv("HOME") + "/miniconda3/envs/l2r-go1/bin/python3.11"
+  # return os.getenv("HOME") + "/miniconda3/envs/l2r-go1/bin/python3.11"
+  return sys.executable
 
 
 _SERIOUS_WARNING = (
@@ -110,7 +111,7 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
     directory = os.path.dirname(filepath)
     pycache_dir = os.path.join(directory, "__pycache__")
     # pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-310.pyc")
-    pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-311.pyc")
+    pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-310.pyc")
     # pyc_filepath = os.path.join(pycache_dir, filename + "c")
     # also write pyc to local filepath, generations/<pycname>
     local_pyc = None
