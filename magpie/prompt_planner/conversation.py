@@ -57,6 +57,7 @@ class Conversation:
       prompt_model: llm_prompt.LLMPrompt,
       model: str,
       print_responses: bool = True,
+      vision_model: bool = False,
   ):
     self._prompt_model = prompt_model
     self._model = model
@@ -64,18 +65,31 @@ class Conversation:
     number_of_llms = prompt_model.num_llms
     self._message_queues = [[] for _ in range(number_of_llms)]
     self._llm_responses = [None for _ in range(number_of_llms)]
+    self._vision_model = vision_model
     # Add general prompt to the message queue.
     for llm_id in range(number_of_llms):
       message = [{"role": "user", "content": prompt_model.prompts[llm_id]}]
       self._message_queues[llm_id].append(message[0])
 
-  def send_command(self, user_command: str) -> str:
+  def send_command(self, user_command: str, encoded_image=None) -> str:
     """Sends a user command to the LLMs, returns final processed response."""
     if user_command == "reset":
       self.reset()
       print("Resetting the conversation history.")
       return "reset"
     upstream_message = user_command + " Make sure to ignore irrelevant options."
+    if self._vision_model:
+      upstream_message = [
+          {
+            "type": "text",
+            "text": f"{user_command} Make sure to ignore irrelevant options."
+          },
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": f"data:image/jpeg;base64,{encoded_image}"
+            }
+          }]
     for llm_id in range(self._prompt_model.num_llms):
       completion = _open_ai_call_with_retry(
           self._model,
