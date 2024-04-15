@@ -79,7 +79,7 @@ def encode_image(pil_img):
     return img
 
 def parse_object_description(user_input):
-    return user_input
+    return user_input, user_input
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -163,7 +163,7 @@ def connect():
     # Perception Configuration
     try:
         if on_robot:
-            rsc = real.RealSenseCamera()
+            rsc = real.RealSense()
             rsc.initConnection()
             CAMERA = rsc
         # LABEL = Label(label_models[CONFIG['vlm']])
@@ -194,13 +194,14 @@ def chat():
     user_command = request.get_json()['message']
     # Run perception on user input
     # TODO: segment object description from user input
+    enc_img = None
     try:
-        p, rgbd_image = CAMERA.get_point_cloud()
-        image = pcd.get_image(rgbd_image)
+        p, rgbd_image = CAMERA.getPCD()
+        image = np.array(rgbd_image.color)
         queries, abbrevq = parse_object_description(user_command)
         bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
         preds_plot = LABEL.preds_plot
-        enc_image = encode_image(Image.fromarray(preds_plot))
+        enc_img = encode_image(Image.fromarray(preds_plot))
     except Exception as e:
         print(e)
         msg = "Perception failed. Is the camera connected? " + str(e) + "\n"
@@ -222,7 +223,7 @@ def chat():
 
     print(conv._message_queues)
     img_path = "static/favicon.jpg"
-    enc_img = encode_image(Image.open(f'{img_path}'))
+    # enc_img = encode_image(Image.open(f'{img_path}'))
 #     code = """from magpie.GRIPPER import Gripper
 # G = Gripper()
 # G.reset_parameters()
