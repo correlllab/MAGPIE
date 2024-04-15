@@ -12,20 +12,25 @@ import time
 import dataclasses
 from typing import Any
 sys.path.append("../")
+
+# LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 from magpie.prompt_planner import conversation
 from magpie.prompt_planner import confirmation_safe_executor
 from magpie.prompt_planner import task_configs
+
+# Perception
+from magpie.perception.label import Label
+from magpie.perception.label_owlvit import LabelOWLViT
+# from magpie.perception.mask_sam import MaskSAM
 
 on_robot = platform.system() == "Linux"
 if on_robot:
     sys.path.append("../")
     from magpie.gripper import Gripper
     from magpie import ur5 as ur5
-    import magpie.realsense_wrapper
+    import magpie.realsense_wrapper as real
     from magpie.perception import pcd
-    # from magpie.perception import label_owlvit
-    # from magpie.perception import mask_sam
     from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 
 import simulated_romi_prompt as srp
@@ -36,6 +41,11 @@ CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview", "vlm": 
 INTERACTIONS = 0
 MESSAGE_LOG = {}
 CONNECTED = False
+
+# Perception Configuration
+CAMERA = None
+label_models = {'owl-vit': "google/owlvit-base-patch32"}
+LABEL = None
 
 # LLM Configuration
 API_KEY = os.environ['CORRELL_API_KEY']
@@ -68,6 +78,9 @@ def encode_image(pil_img):
     # return img_tag
     return img
 
+def parse_object_description(user_input):
+    return user_input
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     global prompt
@@ -92,11 +105,15 @@ def generate():
 def connect():
     global CONFIG
     global CONNECTED
+    # Robot
     global GRIPPER
     global SERVO_PORT
-    # global robot
     global HOME_POSE
     global SLEEP_RATE
+    # Perception
+    global CAMERA
+    global LABEL
+    # LLM
     global MODEL
     global PROMPT_MODEL
     global CONVERSATION
@@ -124,8 +141,6 @@ def connect():
         print(e)
         connect_msg += f"Failed to create conversation agent: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
-        PROMPT_MODEL = None
-        CONVERSATION = None
 
     # Hardware Configuration
     try:
@@ -138,27 +153,62 @@ def connect():
             time.sleep(SLEEP_RATE)
             robot.stop()
             # TODO: log home pose
-            connect_msg += "Connected to robot and gripper.\n"
-        return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
+            connect_msg += "Connected to robot arm and gripper.\n"
     except Exception as e:
         CONNECTED = False
         print(e)
         connect_msg += f"Failed to connect to robot and gripper: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
 
+    # Perception Configuration
+    try:
+        if on_robot:
+            rsc = real.RealSenseCamera()
+            rsc.initConnection()
+            CAMERA = rsc
+        # LABEL = Label(label_models[CONFIG['vlm']])
+        LABEL = LabelOWLViT(label_models['owl-vit'])
+        connect_msg += "Connected to camera and perception models.\n"
+    except Exception as e:
+        CONNECTED = False
+        print(e)
+        connect_msg += f"Failed to connect to camera or perception models: {e}.\n"
+        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+    
+    return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
+
 
 @app.route("/chat", methods=["POST"])
 def chat():
     global INTERACTIONS
     global MESSAGE_LOG
+    global CONFIG
+    # Perception
+    global CAMERA
+    global LABEL
+    # LLM
     global PROMPT_MODEL
     global CONVERSATION
-    global CONFIG
     global RESPONSE
 
-    # MODEL = CONFIG["llm"]
-
     user_command = request.get_json()['message']
+    # Run perception on user input
+    # TODO: segment object description from user input
+    try:
+        p, rgbd_image = CAMERA.get_point_cloud()
+        image = pcd.get_image(rgbd_image)
+        queries, abbrevq = parse_object_description(user_command)
+        bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
+        preds_plot = LABEL.preds_plot
+        enc_image = encode_image(Image.fromarray(preds_plot))
+    except Exception as e:
+        print(e)
+        msg = "Perception failed. Is the camera connected? " + str(e) + "\n"
+        err_msg = {"type": "text", "role": "system", "content": msg}
+        return(jsonify(messages=[err_msg]))
+    
+    # Generate grasp policy
+    # MODEL = CONFIG["llm"]
     conv = CONVERSATION
     pm = PROMPT_MODEL
     try:
