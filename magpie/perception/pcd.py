@@ -50,6 +50,13 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
 
     return inlier_cloud
 
+def get_minimum_width(pcd):
+    mobb = pcd.get_minimal_oriented_bounding_box()
+    obb  = pcd.get_oriented_bounding_box()
+    mobb.extent, obb.extent
+    width = np.min([*mobb.extent[:3], *obb.extent[:3]])
+    return width
+
 def retrieve_mask_from_image_crop(box, full_o3d_image):
     '''
     @param box 2d bounding box in form [x0, y0, x1, y1]

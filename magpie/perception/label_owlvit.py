@@ -11,7 +11,7 @@ from transformers import OwlViTProcessor, OwlViTForObjectDetection
 import matplotlib.pyplot as plt
 
 class LabelOWLViT(Label):
-    def __init__(self, pth="google/owlvit-base-patch32"):
+    def __init__(self, topk=3, score_threshold=0.01, pth="google/owlvit-base-patch32"):
         '''
         @param camera camera object, expects realsense_wrapper
         '''
@@ -21,9 +21,29 @@ class LabelOWLViT(Label):
         self.dims = None
         self.H = None
         self.W = None
-        self.SCORE_THRESHOLD = 0.01
-        self.TOP_K = 3
+        self.SCORE_THRESHOLD = score_threshold
+        self.TOP_K = topk
         self.preds_plot = None
+        self.queries = None
+        self.sorted_indices = None
+        self.sorted_labels = None
+        self.sorted_scores = None
+        self.sorted_boxes = None
+        self.sorted = None
+        self.boxes = None
+
+    def box_coordinates(self, box):
+        '''
+        @param box params [x_center, y_center, width, height]
+        @return list of box corners [x_min, y_min, x_max, y_max]
+        '''
+        cx, cy, w, h = box
+        x0 = (cx - w/2) * self.W
+        y0 = (cy - h/2) * self.H
+        x1 = (cx + w/2) * self.W
+        y1 = (cy + h/2) * self.H
+        coordinates = [x0, y0, x1, y1]
+        return coordinates
 
     def get_boxes(self, input_image, text_queries, scores, boxes, labels):
         pboxes = []
@@ -31,19 +51,20 @@ class LabelOWLViT(Label):
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD:
                 continue
-            cx, cy, w, h = box
-            x0 = (cx - w/2) * self.W
-            y0 = (cy - h/2) * self.H
-            x1 = (cx + w/2) * self.W
-            y1 = (cy + h/2) * self.H
-            # x0 = (cx - w/2) * 1280
-            # y0 = (cy - h/2) * 720
-            # x1 = (cx + w/2) * 1280
-            # y1 = (cy + h/2) * 720
-            pbox = [x0, y0, x1, y1]
+            pbox = self.box_coordinates(box)
             pboxes.append((pbox, text_queries[label]))
             uboxes.append((box, text_queries[label]))
         return pboxes, uboxes
+    
+    def get_top_boxes(self, topk=None):
+        if topk is None:
+            topk = self.TOP_K
+        return self.sorted[:topk]
+    
+    def get_index(self, index):
+        if index < len(self.sorted):
+            return self.sorted[index]
+        return None
     
     def plot_predictions(self, input_image, text_queries, scores, boxes, labels, show_plot=True):
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
@@ -55,11 +76,6 @@ class LabelOWLViT(Label):
             if score < self.SCORE_THRESHOLD:
                 continue
             cx, cy, w, h = box
-            x0 = (cx - w/2) * 1280
-            y0 = (cy - h/2) * 720
-            x1 = (cx + w/2) * 1280
-            y1 = (cy + h/2) * 720
-            pbox = [x0, y0, x1, y1]
             ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
                     [cy-h/2, cy-h/2, cy+h/2, cy+h/2, cy-h/2], "r")
             ax.text(
@@ -91,6 +107,19 @@ class LabelOWLViT(Label):
         # boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
         boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
         pboxes = self.processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=self.SCORE_THRESHOLD)[0]['boxes']
+        # sort labels by score, high to low
+        sorted_indices = np.argsort(scores)[::-1]
+
+        # store member variables
+        # cut off score indices below threshold
+        self.sorted_indices = sorted_indices[scores[sorted_indices] > self.SCORE_THRESHOLD]
+        self.sorted_scores = scores[self.sorted_indices]
+        self.sorted_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
+        # self.sorted_labels = labels[self.sorted_indices]
+        self.sorted_boxes = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
+        self.sorted_labeled_boxes = list(zip(self.sorted_boxes, self.sorted_labels))
+        self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_boxes))
+        
         return scores, labels, boxes, pboxes
 
     def label(self, input_image, input_labels, abbrev_labels, plot=False):
@@ -108,6 +137,7 @@ class LabelOWLViT(Label):
         self.W = self.dims[0]
         self.H = self.dims[1]
         target_sizes = torch.Tensor([self.dims])
+        self.queries = abbrev_labels
         scores, labels, boxes, pboxes = self.get_preds(outputs, target_sizes)
         image_plt = img.astype(np.float32) / 255.0
         self.plot_predictions(image_plt, abbrev_labels, scores, boxes, labels, show_plot=plot)

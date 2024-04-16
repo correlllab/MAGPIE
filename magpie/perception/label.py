@@ -11,6 +11,12 @@ class Label:
     def get_boxes(input_image, text_queries, scores, boxes, labels):
         pass
 
+    def get_top_boxes(self, topk):
+        pass
+
+    def get_index(self, index):
+        pass
+
     def label(self, image, labels):
         pass
 
