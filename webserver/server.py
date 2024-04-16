@@ -28,6 +28,7 @@ on_robot = platform.system() == "Linux"
 if on_robot:
     sys.path.append("../")
     from magpie.gripper import Gripper
+    from magpie import grasp as gt # funky gripper-ur5 utilities, need to stop using/refactor
     from magpie import ur5 as ur5
     import magpie.realsense_wrapper as real
     from magpie.perception import pcd
@@ -46,6 +47,7 @@ CONNECTED = False
 CAMERA = None
 label_models = {'owl-vit': "google/owlvit-base-patch32"}
 LABEL = None
+APERTURE = None
 
 # LLM Configuration
 API_KEY = os.environ['CORRELL_API_KEY']
@@ -67,7 +69,8 @@ GRIPPER = None
 ROBOT_IP = "192.168.0.4"
 HOME_POSE = None
 SLEEP_RATE = 0.5
-
+GOAL_POSE = None
+AT_GOAL = False
 
 def encode_image(pil_img):
     img_io = io.BytesIO()
@@ -177,7 +180,6 @@ def connect():
     
     return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
 
-
 @app.route("/chat", methods=["POST"])
 def chat():
     global INTERACTIONS
@@ -186,13 +188,18 @@ def chat():
     # Perception
     global CAMERA
     global LABEL
+    global GOAL_POSE
+    global APERTURE
     # LLM
     global PROMPT_MODEL
     global CONVERSATION
     global RESPONSE
 
     user_command = request.get_json()['message']
-    # Run perception on user input
+    # INPUT PARSING
+
+
+    # PERCEPTION
     # TODO: segment object description from user input
     enc_img = None
     try:
@@ -202,26 +209,37 @@ def chat():
         bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
         preds_plot = LABEL.preds_plot
         enc_img = encode_image(Image.fromarray(preds_plot))
+        index = 0 # TODO: make this user selection, for now take highest confidence
+        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes, 
+                                         index, 
+                                         rgbd_image, 
+                                         CAMERA, 
+                                         type="box-dbscan", 
+                                        #  type="box", 
+                                        #  method="quat", 
+                                         method="iterative", 
+                                         display=False)
+        APERTURE = pcd.get_minimum_width(ptcld)/1000.0 # convert to meters
     except Exception as e:
         print(e)
         msg = "Perception failed. Is the camera connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
         return(jsonify(messages=[err_msg]))
     
-    # Generate grasp policy
-    # MODEL = CONFIG["llm"]
+    # GRASP GENERATION
     conv = CONVERSATION
     pm = PROMPT_MODEL
-    try:
-        RESPONSE = conv.send_command(user_command)
-        desc = conv._llm_responses[0]
-        code = RESPONSE
-    except Exception as e:
-        msg = "Planning failed. Is the system connected? " + str(e) + "\n"
-        err_msg = {"type": "text", "role": "system", "content": msg}
-        return(jsonify(messages=[err_msg]))
+    desc, code = None, None
+    # try:
+    #     RESPONSE = conv.send_command(user_command)
+    #     desc = conv._llm_responses[0]
+    #     code = RESPONSE
+    # except Exception as e:
+    #     msg = "Planning failed. Is the system connected? " + str(e) + "\n"
+    #     err_msg = {"type": "text", "role": "system", "content": msg}
+    #     return(jsonify(messages=[err_msg]))
 
-    print(conv._message_queues)
+    # print(conv._message_queues)
     img_path = "static/favicon.jpg"
     # enc_img = encode_image(Image.open(f'{img_path}'))
 #     code = """from magpie.GRIPPER import Gripper
@@ -264,15 +282,16 @@ def execute():
 
 @app.route("/home", methods=["POST"])
 def home():
-    global robot
     global HOME_POSE
-    msg = {"operation": "home", "success": False}
+    global AT_GOAL
+    msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
             robot = ur5.UR5_Interface(ROBOT_IP)
             robot.start()
             robot.moveL(HOME_POSE)
-            time.sleep(SLEEP_RATE * 2)
+            time.sleep(SLEEP_RATE * 4)
+            AT_GOAL = False
             robot.stop()
             msg["success"] = True
     except Exception as e:
@@ -281,7 +300,35 @@ def home():
 
 @app.route("/move", methods=["POST"])
 def move():
-    pass
+    global HOME_POSE
+    global GOAL_POSE
+    global APERTURE
+    global CONFIG
+    global AT_GOAL
+    msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
+    if GOAL_POSE is None:
+        msg["message"] = "No goal pose set."
+        return jsonify(msg)
+    if AT_GOAL:
+        msg["message"] = "Already at goal pose."
+        return jsonify(msg)
+    try:
+        if on_robot:
+            robot = ur5.UR5_Interface(ROBOT_IP)
+            robot.start()
+            # current_pose = robot.getPose()
+            # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
+            # robot.moveL(GOAL_POSE)
+            gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=0.08)
+            time.sleep(SLEEP_RATE * 4)
+            AT_GOAL = True
+            robot.stop()
+            msg["success"] = True
+        return jsonify(msg)
+    except Exception as e:
+        print(e)
+        msg["message"] = f"Failed to move to goal pose: {e}"
+        return jsonify(msg)
 
 @app.route("/release", methods=["POST"])
 def release():
