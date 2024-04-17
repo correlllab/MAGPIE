@@ -27,6 +27,24 @@
 //     }
 // }
 
+function propagateChat(data) {
+    for (var i = 0; i < data.messages.length; i++) {
+        // $("#chat-window").append("<div><span class='llm-label'> LLM:</span> " + data.messages[i] + "</div>");
+        var id = data.messages[i].role
+        var content = data.messages[i].content
+        console.log("ID:", id);
+        if (data.messages[i].type === "text") {
+            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
+        } else if (data.messages[i].type === "image") {
+            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <img src='data:image/jpg;base64,${content}'></div>`);
+        } else if (data.messages[i].type === "code") {
+            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <pre><code class='python'> ${content} </code></pre></div>`);
+            hljs.highlightAll();
+        }
+    }
+    $("#chat-window").append("<hr>");
+}
+
 $(document).ready(function() {
     $("#generate-button").click(function() {
         event.preventDefault();
@@ -122,21 +140,26 @@ $(document).ready(function() {
                 $("#chat-status").text("Received");
                 $("#chat-status").css("color", "green");
                 console.log("Response:", data);
-                for (var i = 0; i < data.messages.length; i++) {
-                    // $("#chat-window").append("<div><span class='llm-label'> LLM:</span> " + data.messages[i] + "</div>");
-                    var id = data.messages[i].role
-                    var content = data.messages[i].content
-                    console.log("ID:", id);
-                    if (data.messages[i].type === "text") {
-                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
-                    } else if (data.messages[i].type === "image") {
-                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <img src='data:image/jpg;base64,${content}'></div>`);
-                    } else if (data.messages[i].type === "code") {
-                        $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <pre><code class='python'> ${content} </code></pre></div>`);
-                        hljs.highlightAll();
-                    }
-                }
+                propagateChat(data);
                 $("#chat-window").append("<hr>");
+
+                // nested post
+                $.ajax({
+                    type: "POST",
+                    url: "/grasp_policy",
+                    data: JSON.stringify({ message: message }),
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",        
+                    success: function(data) {
+                        $("#chat-status").text("Grasp Policy");
+                        $("#chat-status").css("color", "blue");
+                        console.log("Response:", data);
+                        propagateChat(data);
+                        $("#chat-window").append("<hr>");
+        
+                    }
+                });
+                // end nested post
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 console.log("Error:", textStatus, errorThrown);
