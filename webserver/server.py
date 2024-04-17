@@ -230,14 +230,15 @@ def chat():
     conv = CONVERSATION
     pm = PROMPT_MODEL
     desc, code = None, None
-    # try:
-    #     RESPONSE = conv.send_command(user_command)
-    #     desc = conv._llm_responses[0]
-    #     code = RESPONSE
-    # except Exception as e:
-    #     msg = "Planning failed. Is the system connected? " + str(e) + "\n"
-    #     err_msg = {"type": "text", "role": "system", "content": msg}
-    #     return(jsonify(messages=[err_msg]))
+    if CONFIG["grasp"] == "dg":
+        try:
+            RESPONSE = conv.send_command(user_command)
+            desc = conv._llm_responses[0]
+            code = RESPONSE
+        except Exception as e:
+            msg = "Planning failed. Is the system connected? " + str(e) + "\n"
+            err_msg = {"type": "text", "role": "system", "content": msg}
+            return(jsonify(messages=[err_msg]))
 
     # print(conv._message_queues)
     img_path = "static/favicon.jpg"
@@ -319,7 +320,8 @@ def move():
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
             # robot.moveL(GOAL_POSE)
-            gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=0.08)
+            z = 0.10
+            gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
             time.sleep(SLEEP_RATE * 4)
             AT_GOAL = True
             robot.stop()
