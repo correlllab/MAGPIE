@@ -225,8 +225,29 @@ def chat():
         msg = "Perception failed. Is the camera connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
         return(jsonify(messages=[err_msg]))
-    
-    # GRASP GENERATION
+
+    # print(conv._message_queues)
+    img_path = "static/favicon.jpg"
+    # enc_img = encode_image(Image.open(f'{img_path}'))
+
+    messages = [
+        {"type": "text",  "role": "llm", "content": "This is a text message."},
+        {"type": "image", "role": "vlm", "content": enc_img},
+        # {"type": "code",  "role": "llm", "content": desc},
+        # {"type": "code",  "role": "llm", "content": code}
+        # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
+    ]
+    # add user input to front of messages
+    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}, *messages]
+    # print(MESSAGE_LOG)
+    return jsonify(messages=messages)
+
+@app.route("/grasp_policy", methods=["POST"])
+def grasp_policy():
+    global PROMPT_MODEL
+    global CONVERSATION
+    global RESPONSE
+    user_command = request.get_json()['message']
     conv = CONVERSATION
     pm = PROMPT_MODEL
     desc, code = None, None
@@ -239,30 +260,13 @@ def chat():
             msg = "Planning failed. Is the system connected? " + str(e) + "\n"
             err_msg = {"type": "text", "role": "system", "content": msg}
             return(jsonify(messages=[err_msg]))
-
-    # print(conv._message_queues)
-    img_path = "static/favicon.jpg"
-    # enc_img = encode_image(Image.open(f'{img_path}'))
-#     code = """from magpie.GRIPPER import Gripper
-# G = Gripper()
-# G.reset_parameters()
-
-# goal_aperture = 18.0
-# initial_force = slip_threshold = 0.0625
-# additional_closure = 1.0
-# additional_force_increase = 0.01
-# k = G.grasp(goal_aperture, slip_threshold, additional_closure, additional_force_increase)
-# """
     messages = [
         {"type": "text",  "role": "llm", "content": "This is a text message."},
-        {"type": "image", "role": "vlm", "content": enc_img},
         {"type": "code",  "role": "llm", "content": desc},
         {"type": "code",  "role": "llm", "content": code}
         # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
-    # add user input to front of messages
-    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}, *messages]
-    # print(MESSAGE_LOG)
+
     return jsonify(messages=messages)
 
 @app.route("/execute", methods=["POST"])
