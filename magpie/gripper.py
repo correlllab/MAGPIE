@@ -26,6 +26,7 @@ class Gripper:
         self.Finger1 = Ax12(finger_id1)
         self.Finger2 = Ax12(finger_id2)
         #speed is in bits from 0-1023 for CCW; 1024 -2047 CW
+        # ax-12 manual says no-load moving speed is 59 RPM @ 12V
         self.speed = 100 # about 10% speed, or 11rpm
         self.Finger1.set_moving_speed(self.speed)
         self.Finger2.set_moving_speed(self.speed)
@@ -320,6 +321,64 @@ class Gripper:
                 self.apply_to_fingers('get_cw_compliance_slope', None, finger=finger, noarg=True),
                 self.apply_to_fingers('get_ccw_compliance_slope', None, finger=finger, noarg=True)
         ]
+    
+    def poke(self, direction: str, speed, aperture, debug=False):
+        '''
+        @param direction: 'left' or 'right' to poke the left or right finger
+        '''
+        self.set_goal_aperture(100, record_load=False)
+        self.set_torque(1023) # max torque
+        self.set_speed(speed)
+        if direction == 'left':
+            self.set_goal_aperture(aperture, finger='right', record_load=False)
+        elif direction == 'right':
+            self.set_goal_aperture(aperture, finger='left', record_load=False)
+        time.sleep(self.delay* 3)
+
+    def deligrasp(self, x, fc, dx, df, debug=False): 
+        '''
+        @param x: initial goal aperture (mm)
+        @param fc: initial force (N) and requisite contact force to stop grasping
+        @param dx: change in aperture (mm) to apply to controller
+        @param df: change in foce (N) to apply to controller
+        @return xf: final goal aperture (mm)
+        @return ff: final force (N) applied when fc is met
+        @return k: spring constant (N/mm) of the object grasped
+        '''
+        self.set_force(fc, 'both')
+
+        # Move to the initial goal aperture to attempt the grasp
+        load_data = self.set_goal_aperture(x, finger='both', record_load=True)
+        curr_aperture = self.get_aperture(finger='both')
+        # initialize force to contact force
+        applied_force = fc
+        prev_aperture = curr_aperture
+        k_avg = []
+        # Checking for slip at the initial attempt, indicating whether the grip is firm or needs adjustment
+        slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
+        while slippage:
+            goal_aperture -= dx
+            if np.mean(avg_force) > 0.10: # low-pass filter force readings so we don't increase force when there is no contact
+                applied_force += df
+            self.set_force(applied_force, 'both')
+            load_data = self.set_goal_aperture(goal_aperture, finger='both', record_load=True)
+            curr_aperture = self.get_aperture(finger='both')
+            if debug:
+                print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+                print(f"Current aperture: {curr_aperture} mm")
+            slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
+            distance = abs(curr_aperture - prev_aperture)
+            k_avg.append(np.mean(avg_force) * distance * 1000.0)
+            prev_aperture = curr_aperture
+            
+        time.sleep(self.delay * 5)
+        # final adjustment
+        curr_aperture = self.get_aperture(finger='both')
+        self.set_goal_aperture(curr_aperture - dx, finger='both', record_load=False)
+        if debug:
+            print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+            print(f"Spring Constants: {k_avg} N/m")
+        return curr_aperture, applied_force, k_avg
 
     # gripper motion
     def close_until_contact_force(self, stop_aperture, stop_force, finger='both', debug='False'):
