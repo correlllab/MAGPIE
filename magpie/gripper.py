@@ -325,17 +325,22 @@ class Gripper:
     def poke(self, direction: str, speed, aperture, debug=False):
         '''
         @param direction: 'left' or 'right' to poke the left or right finger
+        @param speed of finger in m/s
+        @param aperture: distance to poke in mm (of one finger, not both)
         '''
-        self.set_goal_aperture(100, record_load=False)
+        max_poke_speed = 0.20 # m/s
+        speed = min(max_poke_speed, speed) # max speed is 0.20 m/s
+        bit_speed = int((speed / max_poke_speed) * 500)
+        self.set_goal_aperture(104, record_load=False)
         self.set_torque(1023) # max torque
-        self.set_speed(speed)
-        if direction == 'left':
+        self.set_speed(bit_speed)
+        if direction == 'left' or direction == 'l':
             self.set_goal_aperture(aperture, finger='right', record_load=False)
-        elif direction == 'right':
+        elif direction == 'right' or direction == 'r':
             self.set_goal_aperture(aperture, finger='left', record_load=False)
-        time.sleep(self.delay* 3)
+        time.sleep(self.delay * 3)
 
-    def deligrasp(self, x, fc, dx, df, debug=False): 
+    def deligrasp(self, x, fc, dx, df, complete=True, debug=False): 
         '''
         @param x: initial goal aperture (mm)
         @param fc: initial force (N) and requisite contact force to stop grasping
@@ -346,9 +351,10 @@ class Gripper:
         @return k: spring constant (N/mm) of the object grasped
         '''
         self.set_force(fc, 'both')
-
+        goal_aperture = x
+        self.set_goal_aperture(goal_aperture + dx, finger='both', record_load=False)
         # Move to the initial goal aperture to attempt the grasp
-        load_data = self.set_goal_aperture(x, finger='both', record_load=True)
+        load_data = self.set_goal_aperture(goal_aperture, finger='both', record_load=True)
         curr_aperture = self.get_aperture(finger='both')
         # initialize force to contact force
         applied_force = fc
@@ -373,8 +379,11 @@ class Gripper:
             
         time.sleep(self.delay * 5)
         # final adjustment
-        curr_aperture = self.get_aperture(finger='both')
-        self.set_goal_aperture(curr_aperture - dx, finger='both', record_load=False)
+        if complete:
+            curr_aperture = self.get_aperture(finger='both')
+            self.set_goal_aperture(curr_aperture - dx, finger='both', record_load=False)
+        else:
+            self.open_gripper()
         if debug:
             print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
             print(f"Spring Constants: {k_avg} N/m")
