@@ -74,14 +74,14 @@ force: the maximum force the finger is allowed to apply at contact with an objec
 finger: which finger to set compliance for, either 'left', 'right', or 'both'
 
 ```
-def check_slip(load_data, force, finger='both')
+def deligrasp(goal_aperture, initial_force, additional_closure, additional_force, complete_grasp)
 ```
-load_data: the position-load data array from set_goal_aperture
-force: the force to check if the contact force is met (in N), which is set by set_force()
-finger: which finger to check the contact force for, either 'left', 'right', or 'both'
-Returns True if the contact force is not reached, meaning the gripper has slipped, False otherwise (the gripper has not slipped and has a good grasp).
-Also returns the average and max force experienced by the gripper in the load data.
-
+goal_aperture: the goal aperture to grasp the object (in mm)
+initial_force: the initial force to apply to the object (in N)
+additional_closure: the additional aperture to close if the gripper slips (in mm)
+additional_force: the additional force to apply if the gripper slips (in N)
+complete_grasp: whether the grasp is complete or incomplete (True or False)
+This function will close the gripper to the goal aperture, apply the initial force, and adjust the force if the gripper slips. If the grasp is incomplete, the gripper will open after the slip check.
 
 Example answer code:
 ```
@@ -98,7 +98,7 @@ if new_task:
 goal_aperture = {PNUM: goal_aperture}
 complete_grasp = {CHOICE: [True, False]} 
 # Initial force. The default value of object weight / friction coefficient.
-initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / {PNUM: mu}, {PNUM: different_inital_force}] }}}
+initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / ({PNUM: mu} * 1000), {PNUM: different_inital_force}] }}}
 # [REASONING for initial force choice]
 additional_closure = {PNUM: additional_closure} 
 # Additional force increase. The default value is the product of the object spring constant and the additional_closure, with a dampening constant 0.1.
@@ -111,6 +111,33 @@ G.set_goal_aperture(goal_aperture + additional_closure * 2, finger='both', recor
 # [PREDICTION]
 G.set_compliance(1, 3, finger='both')
 G.set_force(initial_force, 'both')
+
+G.deligrasp(goal_aperture, initial_force, additional_closure, additional_force, complete_grasp)
+```
+
+Remember:
+1. Always format the code in code blocks. In your response all five functions above: get_aperture, set_goal_aperture, set_compliance, set_force, check_slip should be used.
+2. Do not invent new functions or classes. The only allowed functions you can call are the ones listed above. Do not leave unimplemented code blocks in your response.
+3. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
+4. If you are not sure what value to use, just use your best judge. Do not use None for anything.
+5. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
+6. If you see phrases like [PREDICTION], replace the entire phrase with a prediction of the gripper's state after the following gripper commands are executed.
+7. If you see phrases like {PNUM: default_value}, replace the value with the corresponding value from the grasp description.
+8. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
+9. Remember to import the gripper class and create a Gripper at the beginning of your code.
+"""
+
+cuts = """
+```
+def check_slip(load_data, force, finger='both')
+```
+load_data: the position-load data array from set_goal_aperture
+force: the force to check if the contact force is met (in N), which is set by set_force()
+finger: which finger to check the contact force for, either 'left', 'right', or 'both'
+Returns True if the contact force is not reached, meaning the gripper has slipped, False otherwise (the gripper has not slipped and has a good grasp).
+Also returns the average and max force experienced by the gripper in the load data.
+
+
 load_data = G.set_goal_aperture(goal_aperture, finger='both')
 
 # [REASONING]
@@ -148,23 +175,11 @@ if complete_grasp:
     print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
 else:
     G.open_gripper()
-```
 
-Remember:
-1. Always format the code in code blocks. In your response all five functions above: get_aperture, set_goal_aperture, set_compliance, set_force, check_slip should be used.
-2. Do not invent new functions or classes. The only allowed functions you can call are the ones listed above. Do not leave unimplemented code blocks in your response.
-3. The only allowed library is numpy. Do not import or use any other library. If you use np, be sure to import numpy.
-4. If you are not sure what value to use, just use your best judge. Do not use None for anything.
-5. If you see phrases like [REASONING], replace the entire phrase with a code comment explaining the grasp strategy and its relation to the following gripper commands.
-6. If you see phrases like [PREDICTION], replace the entire phrase with a prediction of the gripper's state after the following gripper commands are executed.
-7. If you see phrases like {PNUM: default_value}, replace the value with the corresponding value from the grasp description.
-8. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-9. Remember to import the gripper class and create a Gripper at the beginning of your code.
 10. Remember to check the current aperture after setting the goal aperture and adjust the goal aperture if necessary.
 11. Before checking for slip, remember to create two new variables, applied_force and slip_threshold, set equal to the initial initial_force. Slip detection continues checking the unchanged slip_threshold, but the applied_force increases.
 12. Remember to reassign the goal aperture to the current aperture after completing the slip check for complete grasps.
 """
-
 import re
 import sys
 sys.path.append('../../')
