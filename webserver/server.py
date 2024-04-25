@@ -38,7 +38,7 @@ import simulated_romi_prompt as srp
 app = Flask(__name__)
 
 # metadata / logging
-CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo-preview", "vlm": "owl-vit"}
+CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo", "vlm": "owl-vit"}
 INTERACTIONS = 0
 MESSAGE_LOG = {}
 CONNECTED = False
@@ -128,8 +128,8 @@ def connect():
     CONFIG["llm"] = new_conf["llmconf"]
     CONFIG["vlm"] = new_conf["vlmconf"]
     print(CONFIG)
-    # MODEL = CONFIG["llm"]
-    MODEL = "gpt-3.5-turbo"
+    MODEL = CONFIG["llm"]
+    # MODEL = "gpt-3.5-turbo"
 
     connect_msg = ""
     # LLM Configuration
@@ -163,8 +163,13 @@ def connect():
         connect_msg += f"Failed to connect to robot and gripper: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
 
-    # Perception Configuration
+    # Camera Configuration
     try:
+        try:
+            CAMERA.disconnect()
+        except Exception as e:
+            print("Could not force disconnect camera, continuing...")
+            pass
         if on_robot:
             rsc = real.RealSense()
             rsc.initConnection()
