@@ -493,6 +493,8 @@ class Gripper:
         curr_pos = self.get_position(finger='both')
         time.sleep(self.latency)
         # sign[sign == 0] = 1 # if 0, set to 1
+        sign[0] = 1 if sign[0] == 0 else sign[0]    
+        sign[1] = 1 if sign[1] == 0 else sign[1]
         lrange = range(curr_pos[0], stop_pos[0], sign[0] * 1)
         rrange = range(curr_pos[1], stop_pos[1], sign[1] * 1)
         # get stop position of shorter range
@@ -588,7 +590,8 @@ class Gripper:
         c = (-3.4073 - N) if not low_load else (-N)
         discriminant = b**2 - 4*a*c
         if discriminant < 0:
-            return None  # No real solution
+            # return None  # No real solution
+            return 0 # No real solution
         else:
             load = (-b + math.sqrt(discriminant)) / (2*a)
             return load
