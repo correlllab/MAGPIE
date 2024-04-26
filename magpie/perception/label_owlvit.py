@@ -66,12 +66,16 @@ class LabelOWLViT(Label):
             return self.sorted[index]
         return None
     
-    def plot_predictions(self, input_image, text_queries, scores, boxes, labels, show_plot=True):
+    def plot_predictions(self, input_image, text_queries, scores, boxes, labels, topk=False, show_plot=True):
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         ax.imshow(input_image, extent=(0, 1, 1, 0))
         ax.set_axis_off()
         
         idx = 0
+        if topk:
+            scores = self.sorted_scores[:self.TOP_K]
+            boxes  = self.sorted_boxes[:self.TOP_K]
+            labels = self.sorted_labels[:self.TOP_K]
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD:
                 continue
@@ -122,7 +126,7 @@ class LabelOWLViT(Label):
         
         return scores, labels, boxes, pboxes
 
-    def label(self, input_image, input_labels, abbrev_labels, plot=False):
+    def label(self, input_image, input_labels, abbrev_labels, topk=False, plot=False):
         '''
         @param input_labels list of input labels
         @param input_image np.array image to label
@@ -140,7 +144,7 @@ class LabelOWLViT(Label):
         self.queries = abbrev_labels
         scores, labels, boxes, pboxes = self.get_preds(outputs, target_sizes)
         image_plt = img.astype(np.float32) / 255.0
-        self.plot_predictions(image_plt, abbrev_labels, scores, boxes, labels, show_plot=plot)
+        self.plot_predictions(image_plt, abbrev_labels, scores, boxes, labels, topk=topk, show_plot=plot)
         bboxes, uboxes = self.get_boxes(input_image, abbrev_labels, scores, boxes, labels)
         self.boxes = bboxes
         self.labels = np.array([i[1] for i in uboxes])
