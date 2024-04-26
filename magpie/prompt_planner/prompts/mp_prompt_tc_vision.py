@@ -9,7 +9,9 @@ Describe the grasp strategy using the following form:
 
 [start of description]
 * This {CHOICE: [is, is not]} a new grasp.
-* This grasp should be [GRASP_DESCRIPTION: <str>].
+* This grasp should be [DESCRIPTION: <str>].
+* The grasp and object description {CHOICE: [is, is not]} consistent with the provided image.
+* In the provided image, I observe [DESCRIPTION: <str>]
 * This is a {CHOICE: [complete, incomplete]} grasp.
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
 * This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
@@ -23,14 +25,14 @@ Describe the grasp strategy using the following form:
 * If the gripper slips, this grasp should increase the output force by [PNUM: 0.0] Newtons.
 * [optional] This grasp {CHOICE: [does, does not]} use the default minimum grasp force force.
 * [optional] This grasp sets the force to  [PNUM: 0.0], which is {CHOICE: [lower, higher]} than the default initial contact force because of [GRASP_DESCRIPTION: <str>].
-* [optional] The object and the surface it rests on have an approximate friction coefficient of [PNUM: 0.0].
+* [optional] Based on the image, the object and the surface it rests on have an approximate friction coefficient of [PNUM: 0.0].
 * [optional] This grasp is to poke the object to the {CHOICE: [left, right]} by [PNUM: 0.0] mm.
 [end of description]
 
 Rules:
 1. If you see phrases like {NUM: default_value}, replace the entire phrase with a numerical value. If you see {PNUM: default_value}, replace it with a positive, non-zero numerical value.
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
+3. If you see phrases like [DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
 4. By default the minimum grasp force can be estimated by dividing the object weight (mass * gravitational constant) by the friction coefficient: (m*g/μ).
 5. Using knowledge of the object, the grasp description, and the provided image, set the initial grasp force either to this default value or an appropriate value. 
 6. If you deviate from the default value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
@@ -85,6 +87,14 @@ additional_force: the additional force to apply if the gripper slips (in N)
 complete_grasp: whether the grasp is complete or incomplete (True or False)
 This function will close the gripper to the goal aperture, apply the initial force, and adjust the force if the gripper slips. If the grasp is incomplete, the gripper will open after the slip check.
 
+```
+def poke(direction, speed, aperture)
+```
+direction: 'left' or 'right' to poke the left or right finger
+speed of finger in m/s
+aperture: distance to poke in mm (of one finger, not both)
+
+
 Example answer code:
 ```
 from magpie.gripper import Gripper # must import the gripper class
@@ -99,7 +109,7 @@ if new_task:
 # [REASONING] 
 goal_aperture = {PNUM: goal_aperture}
 complete_grasp = {CHOICE: [True, False]} 
-# Initial force. The default value of object weight / friction coefficient.
+# Initial force. Convert mass (g) to (kg). The default value of object weight / friction coefficient.
 initial_force = {PNUM: {CHOICE: [({PNUM: mass} * 9.81) / ({PNUM: mu} * 1000), {PNUM: different_inital_force}] }}}
 # [REASONING for initial force choice]
 additional_closure = {PNUM: additional_closure} 
@@ -114,7 +124,7 @@ G.set_goal_aperture(goal_aperture + additional_closure * 2, finger='both', recor
 G.set_compliance(1, 3, finger='both')
 G.set_force(initial_force, 'both')
 
-G.deligrasp(goal_aperture, initial_force, additional_closure, additional_force, complete_grasp)
+G.deligrasp(goal_aperture, initial_force, additional_closure, additional_force, complete=complete_grasp, debug=True)
 ```
 
 Remember:
