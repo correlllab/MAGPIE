@@ -131,6 +131,7 @@ def connect():
         if CONFIG["grasp"] == "dgv" and on_robot:
             VISION = True
             PROMPT = TASK_CONFIG.prompts["thinker_coder_vision"]
+            print("configuring language model with vision")
         PROMPT_MODEL = PROMPT(
             None, executor=safe_executor
         )
@@ -162,11 +163,11 @@ def connect():
 
     # Camera Configuration
     try:
-        try:
-            CAMERA.disconnect()
-        except Exception as e:
-            print("Could not force disconnect camera, continuing...")
-            pass
+        # try:
+        #     CAMERA.disconnect()
+        # except Exception as e:
+        #     print("Could not force disconnect camera, continuing...")
+        #     pass
         if on_robot:
             rsc = real.RealSense()
             rsc.initConnection()
@@ -336,7 +337,9 @@ def move():
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
             # robot.moveL(GOAL_POSE)
+            # z = 0.05 + APERTURE # TODO: figure this out
             z = 0.10
+            print(f"z_offset: {z}")
             gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
             time.sleep(SLEEP_RATE * 4)
             AT_GOAL = True
