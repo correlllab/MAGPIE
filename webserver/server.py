@@ -15,6 +15,7 @@ sys.path.append("../")
 
 # LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
+from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptcv
 from magpie.prompt_planner import conversation
 from magpie.prompt_planner import confirmation_safe_executor
 from magpie.prompt_planner import task_configs
@@ -32,7 +33,7 @@ if on_robot:
     from magpie import ur5 as ur5
     import magpie.realsense_wrapper as real
     from magpie.perception import pcd
-    from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
+    from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptc
 
 import simulated_romi_prompt as srp
 app = Flask(__name__)
@@ -59,6 +60,7 @@ safe_executor = confirmation_safe_executor.ConfirmationSafeExecutor(
     skip_confirmation=True,
     local_execute=True)
 PROMPT = TASK_CONFIG.prompts[PROMPT_TYPE]
+VISION = False
 RESPONSE = None
 PROMPT_MODEL = None
 CONVERSATION = None
@@ -113,11 +115,13 @@ def connect():
     global SERVO_PORT
     global HOME_POSE
     global SLEEP_RATE
+    global on_robot
     # Perception
     global CAMERA
     global LABEL
     # LLM
     global MODEL
+    global TASK_CONFIG
     global PROMPT_MODEL
     global CONVERSATION
     global safe_executor
@@ -134,6 +138,8 @@ def connect():
     connect_msg = ""
     # LLM Configuration
     try:
+        if CONFIG["grasp"] == "dgv" and on_robot:
+            PROMPT = TASK_CONFIG.prompts["thinker_coder_vision"]
         PROMPT_MODEL = PROMPT(
             None, executor=safe_executor
         )
