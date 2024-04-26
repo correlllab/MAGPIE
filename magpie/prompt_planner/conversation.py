@@ -71,14 +71,14 @@ class Conversation:
       message = [{"role": "user", "content": prompt_model.prompts[llm_id]}]
       self._message_queues[llm_id].append(message[0])
 
-  def send_command(self, user_command: str, encoded_image=None) -> str:
+  def send_command(self, user_command: str, encoded_image=None, vision=False) -> str:
     """Sends a user command to the LLMs, returns final processed response."""
     if user_command == "reset":
       self.reset()
       print("Resetting the conversation history.")
       return "reset"
     upstream_message = user_command + " Make sure to ignore irrelevant options."
-    if self._vision_model:
+    if self._vision_model and vision and encoded_image is not None:
       upstream_message = [
           {
             "type": "text",
