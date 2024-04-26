@@ -27,6 +27,7 @@ from typing import Any
 import sys
 sys.path.append('../../')
 import magpie.prompt_planner.prompts.mp_prompt_thinker_coder_muk as mptc
+import magpie.prompt_planner.prompts.mp_prompt_tc_vision as mptcv
 
 @dataclasses.dataclass(frozen=True)
 class TaskConfig:
@@ -43,6 +44,7 @@ ALL_TASKS = {
         client=None,
         prompts={
             'thinker_coder': mptc.PromptThinkerCoder,
+            'thinker_coder_vision': mptcv.PromptThinkerCoderVision,
         },
     ),
 }
