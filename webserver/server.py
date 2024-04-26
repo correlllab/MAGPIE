@@ -49,6 +49,7 @@ CAMERA = None
 label_models = {'owl-vit': "google/owlvit-base-patch32"}
 LABEL = None
 APERTURE = None
+IMAGE = None
 
 # LLM Configuration
 API_KEY = os.environ['CORRELL_API_KEY']
@@ -74,11 +75,11 @@ SLEEP_RATE = 0.5
 GOAL_POSE = None
 AT_GOAL = False
 
-def encode_image(pil_img):
+def encode_image(pil_img, decoder='ascii'):
     img_io = io.BytesIO()
     pil_img.save(img_io, 'jpeg', quality=100)
     img_io.seek(0)
-    img = base64.b64encode(img_io.getvalue()).decode('ascii')
+    img = base64.b64encode(img_io.getvalue()).decode(decoder)
     img_tag = f'<img src="data:image/jpg;base64,{img}" class="img-fluid"/>'
     # return img_tag
     return img
@@ -92,19 +93,6 @@ def index():
     global completion
     # return render_template("index.html", prompt=prompt, completion=completion)
     return render_template("index.html")
-
-@app.route("/generate", methods=["POST"])
-def generate():
-    prompt = str(request.get_json())
-    # Use the OpenAI API to generate a completion using "codex" engine
-    response = openai.Completion.create(
-        engine="code-davinci-002",  # Use "codex" engine for code completions
-        prompt=srp.prompt + prompt,
-        temperature=1.0,
-        max_tokens=200  # Adjust the number of tokens in the completion
-    )
-    completion = response.choices[0].text.strip()
-    return jsonify({"completion": completion})
 
 @app.route("/connect", methods=["POST"])
 def connect():
@@ -123,8 +111,10 @@ def connect():
     global MODEL
     global TASK_CONFIG
     global PROMPT_MODEL
+    global PROMPT
     global CONVERSATION
     global safe_executor
+    global VISION
 
     new_conf = request.get_json()
     CONFIG["move"] = new_conf["moveconf"]
@@ -139,11 +129,12 @@ def connect():
     # LLM Configuration
     try:
         if CONFIG["grasp"] == "dgv" and on_robot:
+            VISION = True
             PROMPT = TASK_CONFIG.prompts["thinker_coder_vision"]
         PROMPT_MODEL = PROMPT(
             None, executor=safe_executor
         )
-        CONVERSATION = conversation.Conversation(PROMPT_MODEL, MODEL)
+        CONVERSATION = conversation.Conversation(PROMPT_MODEL, MODEL, vision_model=VISION)
         connect_msg += "Created conversation agent.\n"
         CONNECTED = True
     except Exception as e:
@@ -201,10 +192,12 @@ def chat():
     global LABEL
     global GOAL_POSE
     global APERTURE
+    global IMAGE
     # LLM
     global PROMPT_MODEL
     global CONVERSATION
     global RESPONSE
+    global VISION
 
     user_command = request.get_json()['message']
     # INPUT PARSING
@@ -216,6 +209,7 @@ def chat():
     try:
         p, rgbd_image = CAMERA.getPCD()
         image = np.array(rgbd_image.color)
+        IMAGE = Image.fromarray(image)
         queries, abbrevq = parse_object_description(user_command)
         bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
         preds_plot = LABEL.preds_plot
@@ -258,13 +252,20 @@ def grasp_policy():
     global PROMPT_MODEL
     global CONVERSATION
     global RESPONSE
+    global IMAGE
+
     user_command = request.get_json()['message']
     conv = CONVERSATION
     pm = PROMPT_MODEL
     desc, code = None, None
-    if CONFIG["grasp"] == "dg":
+
+    if CONFIG["grasp"] == "dg" or VISION:
         try:
-            RESPONSE = conv.send_command(user_command)
+            if VISION:
+                b64img = encode_image(IMAGE, decoder='utf-8')
+                RESPONSE = conv.send_command(user_command, b64img, vision=VISION)
+            else:
+                RESPONSE = conv.send_command(user_command)
             desc = conv._llm_responses[0]
             code = RESPONSE
         except Exception as e:
