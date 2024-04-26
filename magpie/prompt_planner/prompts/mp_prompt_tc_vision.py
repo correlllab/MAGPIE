@@ -1,10 +1,10 @@
 prompt_thinker = """
-Control a robot gripper with torque control and contact information. 
-This is a griper with two independently actuated fingers.
-The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
-As well as the kind of grasp it is attempting to perform.
-The gripper has a measurable max force of 16N and min force of 0.15N, a maximum aperture of 105mm and a minimum aperture of 1mm.
+Given the user instruction and image, control a robot gripper with torque control and contact information.
+The gripper's parameters can be adjusted corresponding to the type of object that it is trying to manipulate.
+As well as the kind of grasp it is attempting to perform, as described in the user command and provided image.
+The gripper has a measurable max force of 16N, min force of 0.15N, max velocity of 0.3 m/s, a maximum aperture of 105mm and a minimum aperture of 1mm.
 Some grasps may be incomplete, intended for observing force information about a given object.
+Some manipulation can be pokes, taps, or other light touches to the object with the left or right finger.
 Describe the grasp strategy using the following form:
 
 [start of description]
@@ -23,6 +23,8 @@ Describe the grasp strategy using the following form:
 * If the gripper slips, this grasp should increase the output force by [PNUM: 0.0] Newtons.
 * [optional] This grasp {CHOICE: [does, does not]} use the default minimum grasp force force.
 * [optional] This grasp sets the force to  [PNUM: 0.0], which is {CHOICE: [lower, higher]} than the default initial contact force because of [GRASP_DESCRIPTION: <str>].
+* [optional] The object and the surface it rests on have an approximate friction coefficient of [PNUM: 0.0].
+* [optional] This grasp is to poke the object to the {CHOICE: [left, right]} by [PNUM: 0.0] mm.
 [end of description]
 
 Rules:
@@ -30,10 +32,10 @@ Rules:
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
 3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
 4. By default the minimum grasp force can be estimated by dividing the object weight (mass * gravitational constant) by the friction coefficient: (m*g/μ).
-5. Using knowledge of the object and the grasp description, set the initial grasp force either to this default value or an appropriate value. 
+5. Using knowledge of the object, the grasp description, and the provided image, set the initial grasp force either to this default value or an appropriate value. 
 6. If you deviate from the default value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
-7. Using knowledge of the object and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
-8. Using knowledge of the object and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
+7. Using knowledge of the object, the provided image of the object, and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
+8. Using knowledge of the object, the provided image of the object, and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
 9. The increase in gripper output force the maximum value of (0.01 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
 10. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
 11. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
