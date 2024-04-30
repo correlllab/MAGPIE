@@ -75,7 +75,7 @@
             </div>
         </div>
         <div class="col-2 text-justify align-self-start" style="padding-left: 20px; padding-right: 0px;">
-            <h5>Grasp </h5>
+            <h5>Grasp Policy</h5>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="graspconf" id="graspconf1" value="dg" checked>
                 <label class="form-check-label" for="graspconf1">
@@ -84,19 +84,25 @@
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="graspconf" id="graspconf2" value="dgv">
-                <label class="form-check-label" for="graspconf1">
+                <label class="form-check-label" for="graspconf2">
                 DeliGrasp Vision
                 </label>
-            </div>       
+            </div>
             <div class="form-check">
-                <input class="form-check-input" type="radio" name="graspconf" id="graspconf3" value="fl">
-                <label class="form-check-label" for="graspconf2">
+                <input class="form-check-input" type="radio" name="graspconf" id="graspconf3" value="dgcot">
+                <label class="form-check-label" for="graspconf3">
+                DeliGrasp CoT
+                </label>
+            </div>          
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="graspconf" id="graspconf4" value="fl">
+                <label class="form-check-label" for="graspconf4">
                 Force Limited
                 </label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="radio" name="graspconf" id="graspconf4" value="vision">
-                <label class="form-check-label" for="graspconf3">
+                <input class="form-check-input" type="radio" name="graspconf" id="graspconf5" value="vision">
+                <label class="form-check-label" for="graspconf5">
                 Visual Width
                 </label>
             </div>
@@ -108,7 +114,7 @@
             </div>
         </div>
         <div class="col-2 text-justify align-self-start" style="padding-left: 0px;">
-            <h5>LLM</h5>
+            <h5>Grasp LLM</h5>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="llmconf" id="llmconf1" value="gpt-4-turbo" checked>
                 <label class="form-check-label" for="llmconf1">
@@ -118,18 +124,24 @@
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="llmconf" id="llmconf2" value="gpt-4-vision-preview">
                 <label class="form-check-label" for="llmconf2">
-                GPT-4V
+                GPT-4 PhysObject FT
                 </label>
             </div>
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="llmconf" id="llmconf3" value="gpt-3.5-turbo">
                 <label class="form-check-label" for="llmconf3">
-                Codex (GPT-3.5)
+                GPT-3.5 <i>(no vision)</i>
                 </label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="radio" name="llmconf" id="llmconf4" value="gemini">
+                <input class="form-check-input" type="radio" name="llmconf" id="llmconf4" value="ft:gpt-3.5-turbo-0125:columbia-university::9IswU4vr">
                 <label class="form-check-label" for="llmconf4">
+                GPT-3.5 PhysObject FT <i>(no vision)</i>
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="llmconf" id="llmconf5" value="gemini">
+                <label class="form-check-label" for="llmconf5">
                 Gemini (WIP)
                 </label>
             </div>
