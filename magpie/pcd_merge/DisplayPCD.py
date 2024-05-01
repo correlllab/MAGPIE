@@ -6,6 +6,8 @@ import rtde_receive
 import open3d as o3d
 import numpy as np
 
+import sys
+sys.path.append("../../")
 from magpie.motor_code import Motors
 from magpie.realsense_wrapper import RealSense
 from magpie.ur5 import UR5_Interface
@@ -60,20 +62,20 @@ def get_pcd_at_multiple_positions(robot: UR5_Interface, camera: RealSense) -> Tu
 
 
 try:
-    robotIP = "192.168.0.6"
+    robotIP = "192.168.0.4"
     con = rtde_control.RTDEControlInterface(robotIP)
     rec = rtde_receive.RTDEReceiveInterface(robotIP)
     servoPort = "/dev/ttyACM0"
     # servoPort = get_USB_port_with_desc("OpenRB") # this and the method are from Magpie
     gripperController = Motors(servoPort)
-    gripperController.torquelimit(600)  # used to be 600
+    gripperController.torquelimit(600)  
     gripperController.speedlimit(100)
     ur = UR5_Interface()
-    ur.gripperController = gripperController
+    ur.gripper = gripperController
     try:
         ur.c = con
         ur.r = rec
-        ur.gripperController = gripperController
+        ur.gripper = gripperController
     except Exception as e:
         raise (e)
     else:
