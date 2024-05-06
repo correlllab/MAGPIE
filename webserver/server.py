@@ -268,7 +268,7 @@ def new_interaction():
     global CONFIG
 
     # save MESSAGE_LOG to json
-    messages = {"messages": MESSAGE_LOG[INTERACTIONS]}
+    messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
     print(messages)
     # get YYYY_MM_DD_HH_MM_SS
     t = time.localtime()
