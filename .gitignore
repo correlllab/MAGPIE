@@ -7,7 +7,7 @@
 .vscode/
 # ignore pddlstream for now in open-grasp
 pddlstream/
-webserver/logs/
+webserver/interaction_logs/
 webserver/generations/
 
 # Byte-compiled / optimized / DLL files
