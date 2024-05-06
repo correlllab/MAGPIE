@@ -77,10 +77,15 @@ $(document).ready(function() {
     $("#configure-form").submit(function(event) {
         event.preventDefault();
 
+        var policyconfValues = $("input[name='policyconf']:checked").map(function(){
+            return $(this).val();
+        }).get();
+        console.log("PolicyConf:", policyconfValues);
         var formData = {
             moveconf: $("input[name='moveconf']:checked").val(),
             graspconf: $("input[name='graspconf']:checked").val(),
-            policyconf: $("input[name='policyconf']:checked").val(),
+            // policyconf: $("input[name='policyconf']:checked").val(),
+            policyconf: policyconfValues,
             llmconf: $("input[name='llmconf']:checked").val(),
             vlmconf: $("input[name='vlmconf']:checked").val()
         };
@@ -114,6 +119,19 @@ $(document).ready(function() {
 
     $("#clear-button").click(function() {
         $("#chat-window").empty(); // Clear chat window
+        $.ajax({
+            type: "POST",
+            url: "/new_interaction",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function() {
+                $("#connect-status").text("Saved Chat Log")
+                $("#connect-status").css("color", "green")
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                console.log("Error:", textStatus, errorThrown);
+            }
+        });
     });
 
     $("#user-input").keypress(function(event) {

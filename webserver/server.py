@@ -11,6 +11,7 @@ import platform
 import time
 import dataclasses
 from typing import Any
+import json
 sys.path.append("../")
 
 # LLM
@@ -89,6 +90,22 @@ def encode_image(pil_img, decoder='ascii'):
 def parse_object_description(user_input):
     return user_input, user_input
 
+def handle_prompt_name(policy):
+    global VISION
+    global on_robot
+    prompt_stub = "thinker_coder"
+    # stupid, but order matters
+    if 'vision' in policy:
+        if on_robot:
+            prompt_stub += "_vision"
+            VISION = True
+        else:
+            print("Vision policy selected but not on robot. No vision policy will be used.")
+    if 'cot' in policy:
+        prompt_stub += "_phys"
+    print(f"Prompt policy: {prompt_stub}")
+    return prompt_stub
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     global prompt
@@ -122,6 +139,7 @@ def connect():
     print(new_conf['policyconf'])
     CONFIG["move"] = new_conf["moveconf"]
     CONFIG["grasp"] = new_conf["graspconf"]
+    CONFIG["policy"] = new_conf["policyconf"]
     CONFIG["llm"] = new_conf["llmconf"]
     CONFIG["vlm"] = new_conf["vlmconf"]
     print(CONFIG)
@@ -131,10 +149,9 @@ def connect():
     connect_msg = ""
     # LLM Configuration
     try:
-        if CONFIG["grasp"] == "dgv" and on_robot:
-            VISION = True
-            PROMPT = TASK_CONFIG.prompts["thinker_coder_vision"]
-            print("configuring language model with vision")
+        if CONFIG["grasp"] == "dg":
+            prompt_name = handle_prompt_name(CONFIG["policy"])
+            PROMPT = TASK_CONFIG.prompts[prompt_name]
         PROMPT_MODEL = PROMPT(
             None, executor=safe_executor
         )
@@ -166,11 +183,6 @@ def connect():
 
     # Camera Configuration
     try:
-        # try:
-        #     CAMERA.disconnect()
-        # except Exception as e:
-        #     print("Could not force disconnect camera, continuing...")
-        #     pass
         if on_robot:
             rsc = real.RealSense()
             rsc.initConnection()
@@ -205,6 +217,7 @@ def chat():
 
     user_command = request.get_json()['message']
     # INPUT PARSING
+    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}]
 
 
     # PERCEPTION
@@ -242,14 +255,29 @@ def chat():
     messages = [
         {"type": "text",  "role": "llm", "content": "This is a text message."},
         {"type": "image", "role": "vlm", "content": enc_img},
-        # {"type": "code",  "role": "llm", "content": desc},
-        # {"type": "code",  "role": "llm", "content": code}
-        # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
     # add user input to front of messages
-    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}, *messages]
+    MESSAGE_LOG[INTERACTIONS] += messages
     # print(MESSAGE_LOG)
     return jsonify(messages=messages)
+
+@app.route("/new_interaction", methods=["POST"])
+def new_interaction():
+    global INTERACTIONS
+    global MESSAGE_LOG
+    global CONFIG
+
+    # save MESSAGE_LOG to json
+    messages = {"messages": MESSAGE_LOG[INTERACTIONS]}
+    print(messages)
+    # get YYYY_MM_DD_HH_MM_SS
+    t = time.localtime()
+    timestamp = time.strftime('%Y_%m_%d_%H_%M_%S', t)
+    with open(f'interaction_logs/message_log_id-{INTERACTIONS}_{timestamp}.json', 'w') as f:
+        f.write(json.dumps(messages))
+    
+    INTERACTIONS += 1
+    return jsonify({"success": True, "message": "New interaction started."})
 
 @app.route("/grasp_policy", methods=["POST"])
 def grasp_policy():
@@ -257,6 +285,9 @@ def grasp_policy():
     global CONVERSATION
     global RESPONSE
     global IMAGE
+    global VISION
+    global MESSAGE_LOG
+    global INTERACTIONS
 
     user_command = request.get_json()['message']
     conv = CONVERSATION
@@ -277,12 +308,11 @@ def grasp_policy():
             err_msg = {"type": "text", "role": "system", "content": msg}
             return(jsonify(messages=[err_msg]))
     messages = [
-        {"type": "text",  "role": "llm", "content": "This is a text message."},
         {"type": "code",  "role": "llm", "content": desc},
         {"type": "code",  "role": "llm", "content": code}
-        # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
 
+    MESSAGE_LOG[INTERACTIONS] += messages
     return jsonify(messages=messages)
 
 @app.route("/execute", methods=["POST"])
