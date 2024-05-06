@@ -16,6 +16,8 @@ sys.path.append("../")
 # LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptcv
+from magpie.prompt_planner.prompts import mp_prompt_tc_vision_phys as mptcvp
+from magpie.prompt_planner.prompts import mp_prompt_tc_phys as mptcp
 from magpie.prompt_planner import conversation
 from magpie.prompt_planner import confirmation_safe_executor
 from magpie.prompt_planner import task_configs
@@ -117,6 +119,7 @@ def connect():
     global VISION
 
     new_conf = request.get_json()
+    print(new_conf['policyconf'])
     CONFIG["move"] = new_conf["moveconf"]
     CONFIG["grasp"] = new_conf["graspconf"]
     CONFIG["llm"] = new_conf["llmconf"]
