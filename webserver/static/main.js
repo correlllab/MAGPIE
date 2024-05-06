@@ -80,6 +80,7 @@ $(document).ready(function() {
         var formData = {
             moveconf: $("input[name='moveconf']:checked").val(),
             graspconf: $("input[name='graspconf']:checked").val(),
+            policyconf: $("input[name='policyconf']:checked").val(),
             llmconf: $("input[name='llmconf']:checked").val(),
             vlmconf: $("input[name='vlmconf']:checked").val()
         };
