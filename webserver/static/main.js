@@ -125,8 +125,8 @@ $(document).ready(function() {
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             success: function() {
-                $("#connect-status").text("Saved Chat Log")
-                $("#connect-status").css("color", "green")
+                $("#chat-status").text("Saved Chat Log")
+                $("#chat-status").css("color", "green")
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 console.log("Error:", textStatus, errorThrown);
