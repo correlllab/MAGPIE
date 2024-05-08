@@ -1,8 +1,5 @@
 from typing import Tuple
 
-import rtde_control
-import rtde_receive
-
 import open3d as o3d
 import numpy as np
 
@@ -44,7 +41,7 @@ def get_pcd_at_multiple_positions(robot: UR5_Interface, camera: RealSense) -> Tu
     rgbds = []
     for pos in positions_array:
         print("pos: ", pos)
-        robot.moveToPosition(pos)
+        robot.moveL(pos)
         pcd, rgbd = camera.getPCD()
         pcds.append(pcd)
         rgbds.append(ob.TorchImage(robot.getPose(), rgbd.color, rgbd.depth))
@@ -63,23 +60,18 @@ def get_pcd_at_multiple_positions(robot: UR5_Interface, camera: RealSense) -> Tu
 
 try:
     robotIP = "192.168.0.4"
-    con = rtde_control.RTDEControlInterface(robotIP)
-    rec = rtde_receive.RTDEReceiveInterface(robotIP)
+    # con = rtde_control.RTDEControlInterface(robotIP)
+    # rec = rtde_receive.RTDEReceiveInterface(robotIP)
     servoPort = "/dev/ttyACM0"
     # servoPort = get_USB_port_with_desc("OpenRB") # this and the method are from Magpie
     gripperController = Motors(servoPort)
     gripperController.torquelimit(600)  
     gripperController.speedlimit(100)
-    ur = UR5_Interface()
+    ur = UR5_Interface(robotIP)
     ur.gripper = gripperController
-    try:
-        ur.c = con
-        ur.r = rec
-        ur.gripper = gripperController
-    except Exception as e:
-        raise (e)
-    else:
-        print("UR5 + Gripper Interface Established")
+    ur.start(usb_port=servoPort)
+    ur.gripper = gripperController
+    print("UR5 + Gripper Interface Established")
     real = RealSense()
     real.initConnection()
     try:
@@ -89,7 +81,7 @@ try:
         detector.real.pipe.stop()
         raise (e)
     urPose = ur.getPose()
-    jointAngles = ur.getJointAngles()
+    jointAngles = ur.get_joint_angles()
     print("Joint Angles: ", jointAngles * 180 / np.pi)
     # pcd, rgbdImage = detector.real.getPCD()  # HERE
     pcd, rgbds = get_pcd_at_multiple_positions(ur, real)
@@ -109,13 +101,8 @@ try:
     for block in blocks:
         print(f"{block.name} - {list(block.gripperFrameCoords)}")
     detector.displayWorld(pcd, blocks)
-    gripperController.disconnect()
-    ur.c.disconnect()
-    ur.r.disconnect()
-    real.disconnect()
+    ur.stop()
 except Exception as e:
-    gripperController.disconnect()
-    ur.c.disconnect()
-    ur.r.disconnect()
+    ur.stop()
     real.disconnect()
     raise (e)

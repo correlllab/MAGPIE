@@ -82,11 +82,11 @@ class UR5_Interface:
             self.set_tcp_to_camera_xform( cameraXform )
 
 
-    def start( self ):
+    def start( self, usb_port="OpenRB"):
         """ Connect to RTDE and the gripper """
         self.ctrl = rtde_control.RTDEControlInterface( self.robotIP )
         self.recv = rtde_receive.RTDEReceiveInterface( self.robotIP )
-        servoPort = get_USB_port_with_desc( "OpenRB" )
+        servoPort = get_USB_port_with_desc( usb_port )
         if servoPort is not None:
             self.gripper =  Motors( servoPort )
             self.gripper.torquelimit( self.torqLim )
@@ -98,8 +98,9 @@ class UR5_Interface:
         """ Shutdown robot and gripper connections """
         self.ctrl.servoStop()
         self.ctrl.stopScript()
-        # self.recv.disconnect()
-        # self.ctrl.disconnect()
+        self.recv.disconnect()
+        self.ctrl.disconnect()
+        self.gripper.disconnect()
 
     def get_name( self ):
         """ Get string that represents this robot """
