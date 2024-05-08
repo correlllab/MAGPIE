@@ -77,7 +77,7 @@ class LabelOWLViT(Label):
             boxes  = self.sorted_boxes[:self.TOP_K]
             labels = self.sorted_labels[:self.TOP_K]
         for score, box, label in zip(scores, boxes, labels):
-            if score < self.SCORE_THRESHOLD:
+            if score < self.SCORE_THRESHOLD and not topk:
                 continue
             cx, cy, w, h = box
             ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
