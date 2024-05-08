@@ -319,13 +319,16 @@ def grasp_policy():
 def execute():
     global PROMPT_MODEL
     global RESPONSE
+    global MESSAGE_LOG
 
     pm = PROMPT_MODEL
     if RESPONSE is None:
-        return jsonify({"success": False, "message": "No response to execute."})
+        return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
-        pm.code_executor(RESPONSE)
-        return jsonify({"success": True, "message": "Code executed successfully."})
+        stdout = pm.code_executor(RESPONSE)
+        msg = {"type": "text", "role": "grasp", "content": f"{stdout}"}
+        # return jsonify({"success": True, "message": "Code executed successfully."})
+        return jsonify(messages=[msg])
     except Exception as e:  # pylint: disable=broad-exception-caught
         msg = "Execution failed. Is the robot connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
@@ -335,6 +338,7 @@ def execute():
 def home():
     global HOME_POSE
     global AT_GOAL
+    global GRIPPER
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:

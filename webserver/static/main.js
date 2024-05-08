@@ -27,22 +27,27 @@
 //     }
 // }
 
-function propagateChat(data) {
+function propagateChat(data, windowName) {
     for (var i = 0; i < data.messages.length; i++) {
         // $("#chat-window").append("<div><span class='llm-label'> LLM:</span> " + data.messages[i] + "</div>");
         var id = data.messages[i].role
         var content = data.messages[i].content
         console.log("ID:", id);
+        console.log("Content:", content);
+        // window = document.getElementById(windowName);
+        // get the chat window by id in jquery
+        window = $("#" + windowName);
         if (data.messages[i].type === "text") {
-            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
+            // $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
+            $("#" + windowName).append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div>${content}</div>`);
         } else if (data.messages[i].type === "image") {
-            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <img src='data:image/jpg;base64,${content}'></div>`);
+            $("#" + windowName).append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <img src='data:image/jpg;base64,${content}'></div>`);
         } else if (data.messages[i].type === "code") {
-            $("#chat-window").append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <pre><code class='python'> ${content} </code></pre></div>`);
+            $("#" + windowName).append(`<div class='label ${id}'> ${id.toUpperCase()}:</div> <div> <pre><code class='python'> ${content} </code></pre></div>`);
             hljs.highlightAll();
         }
     }
-    $("#chat-window").append("<hr>");
+    $("#" + windowName).append("<hr>");
 }
 
 $(document).ready(function() {
@@ -159,8 +164,8 @@ $(document).ready(function() {
                 $("#chat-status").text("Received");
                 $("#chat-status").css("color", "green");
                 console.log("Response:", data);
-                propagateChat(data);
-                $("#chat-window").append("<hr>");
+                propagateChat(data, "chat-window");
+                // $("#chat-window").append("<hr>");
 
                 // nested post
                 $.ajax({
@@ -173,8 +178,8 @@ $(document).ready(function() {
                         $("#chat-status").text("Grasp Policy");
                         $("#chat-status").css("color", "blue");
                         console.log("Response:", data);
-                        propagateChat(data);
-                        $("#chat-window").append("<hr>");
+                        propagateChat(data, "chat-window");
+                        // $("#chat-window").append("<hr>");
         
                     }
                 });
@@ -196,6 +201,8 @@ $(document).ready(function() {
                 console.log("Execute:", data);
                 $("#robot-status").text("Executed");
                 $("#robot-status").css("color", "green");
+                propagateChat(data, "chat-window");
+                propagateChat(data, "robot-chat-window");
             }
         });
     });
