@@ -1,20 +1,32 @@
 prompt_command_enumerator = """
 You are helping to break down a user instruction for robot manipulation into key elements. 
-From any user instruction, enumerate the key elements as such:
+From any user instruction, enumerate the key elements according to these rules:
 
 1. The object or objects to be manipulated.
 2. Specific qualities about the object or objects that are relevant to the manipulation.
 3. The type of manipulation that is to be performed.
 4. Specific qualities about the manipulation that are relevant to the task. 
 5. If there is insufficient information to complete the enumeration, please indicate so and request for clarification.
+6. Enumerate these key elements as if you are writing a dictionary in Python, such that the string literal can be directly converted to a Python data structure. If the object is a string, include it in quotes. If the object is a list, include it in square brackets. If the object is a dictionary, include it in curly brackets.
 
-Strictly use the following format in your response:
+Strictly use the following format and follow the above rules in your response:
+[start of enumeration]
+{'objects': ['object_name_1', 'object_name_2', ...],
+'object_qualities': {'object_name_1': ['quality_1', 'quality_2', ...], 'object_name_2': ['quality_1', 'quality_2', ...], ...}
+'manipulation': 'manipulation_type'
+'manipulation_qualities': ['quality_1', 'quality_2', ...]}
+[end of enumeration]
+"""
+
+scraps = """
+Strictly use the following format and follow the above rules in your response:
 [start of enumeration]
 1. Objects: [object_name_1, object_name_2, ...]
 2. Object Qualities: {object_name_1: [quality_1, quality_2, ...], object_name_2: [quality_1, quality_2, ...], ...}
 3. Manipulation: manipulation_type
 4. Manipulation Qualities: [quality_1, quality_2, ...]
 [end of enumeration]
+
 """
 import re
 import sys
@@ -70,21 +82,6 @@ class PromptCommandEnumerator(llm_prompt.LLMPrompt):
           .strip("```")
       )
       print("processing command enumeration")
-      # get object(s) as list from string literal, after '1. Objects: '
-      objects = re.split("1. Objects: ", command_enumeration)[1].split(", ")
-      # get object qualities as dictionary from string literal, after '2. Object Qualities: '
-      object_qualities = ast.literal_eval(re.split("2. Object Qualities: ", command_enumeration)[1].split("3. Manipulation: ")[0])
-      # get manipulation type from string literal, after '3. Manipulation: '
-      manipulation_type = re.split("3. Manipulation: ", command_enumeration)[1].split("4. Manipulation Qualities: ")[0]
-      # get manipulation qualities as list from string literal, after '4. Manipulation Qualities: '
-      manipulation_qualities = re.split("4. Manipulation Qualities: ", command_enumeration)[1]
-      command_enumeration_dict = {
-          "objects": objects,
-          "object_qualities": object_qualities,
-          "manipulation_type": manipulation_type,
-          "manipulation_qualities": manipulation_qualities
-      }
-      print(command_enumeration_dict)
-      return command_enumeration_dict
+      return command_enumeration
     except Exception as _:  # pylint: disable=broad-exception-caught
       return response
