@@ -22,7 +22,7 @@ scraps = """
 Strictly use the following format and follow the above rules in your response:
 [start of enumeration]
 1. Objects: [object_name_1, object_name_2, ...]
-2. Object Qualities: {object_name_1: [quality_1, quality_2, ...], object_name_2: [quality_1, quality_2, ...], ...}
+2. Object Traits: {object_name_1: [trait_1, trait_2, ...], object_name_2: [trait_1, trait_2, ...], ...}
 3. Manipulation: manipulation_type
 4. Manipulation Qualities: [quality_1, quality_2, ...]
 [end of enumeration]
