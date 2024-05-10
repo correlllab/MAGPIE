@@ -7,6 +7,7 @@ sys.path.append("../../")
 import torch
 import numpy as np
 from magpie.perception.label import Label
+from magpie.perception.object import Object
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 import matplotlib.pyplot as plt
 
@@ -102,7 +103,6 @@ class LabelOWLViT(Label):
         self.preds_plot = predicted_image
         if not show_plot: plt.close(fig)  # Close the figure to prevent displaying it
 
-
     def get_preds(self, outputs, target_sizes):
         logits = torch.max(outputs["logits"][0], dim=-1)
         scores = torch.sigmoid(logits.values).cpu().detach().numpy()
@@ -150,5 +150,3 @@ class LabelOWLViT(Label):
         self.labels = np.array([i[1] for i in uboxes])
         return bboxes, uboxes
 
-    def set_threshold(self, threshold):
-        self.SCORE_THRESHOLD = threshold
