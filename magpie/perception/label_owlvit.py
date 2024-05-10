@@ -57,16 +57,6 @@ class LabelOWLViT(Label):
             uboxes.append((box, text_queries[label]))
         return pboxes, uboxes
     
-    def get_top_boxes(self, topk=None):
-        if topk is None:
-            topk = self.TOP_K
-        return self.sorted[:topk]
-    
-    def get_index(self, index):
-        if index < len(self.sorted):
-            return self.sorted[index]
-        return None
-    
     def plot_predictions(self, input_image, text_queries, scores, boxes, labels, topk=False, show_plot=True):
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         ax.imshow(input_image, extent=(0, 1, 1, 0))
