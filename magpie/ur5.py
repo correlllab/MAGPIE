@@ -123,7 +123,7 @@ class UR5_Interface:
         poseMatrix = self.poseVectorToMatrix(p)
         T_N = sm.SE3(poseMatrix)   # convert a pose vector to a matrix SE3 object, SE3 --> special euclidean in 3-dimensional space
         # T_N.plot(name="C")
-        return T_N    # T_N is a homogenous transform
+        return T_N   # T_N is a homogenous transform
 
     def poseVectorToMatrix(self, poseVector):
         # Converts poseVector into an SE3 Object (4 x 4 Homegenous Transform)
