@@ -20,15 +20,13 @@ import TaskPlanner as tp
 #             break
 #     return match
 
-# use GetRobotPose.py to get the position matrix for where I manually moved the robot to
+# these values come from the p variable in the getPose() function in ur5.py
 pos_left = np.array(
-    [-0.05591429128391958, -0.5380791072811699, 0.02990208142149539, 1.8719105457391148, -0.36717143076244796,
-     -0.28374441118214333])
+    [-0.5269949100183583, -0.3469025118056417, -0.42664206867293003, 1.0785479404822593, -1.2311688772413145, 0.9136153632688694])
 
 # TODO: the robot moves way too fast, from pos_left to pos_right. I need to figure out how to slow this down
 pos_right = np.array(
-    [-0.13941630966009855, -0.5429747311181137, 0.056392101609168285, 1.89720228366065, 0.20627407259726946,
-     0.09467935487757431])
+    [-0.5118882409685005, -0.2752918558943991, -0.3151485950374825, 0.6660300666777781, -1.7252081496925555, 1.1933488314662384])
 
 positions_array = [
     pos_left,
@@ -69,7 +67,7 @@ try:
     gripperController.speedlimit(100)
     ur = UR5_Interface(robotIP)
     ur.gripper = gripperController
-    ur.start(usb_port=servoPort)
+    ur.start()
     ur.gripper = gripperController
     print("UR5 + Gripper Interface Established")
     real = RealSense()
