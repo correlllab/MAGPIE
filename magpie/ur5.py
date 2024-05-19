@@ -164,6 +164,11 @@ class UR5_Interface:
         # tool pose defined relative to the end of the gripper when closed
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
 
+    def moveL_with_coords( self, poseCoords, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
+        """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
+        # poseCoords is a 6 element list of [x, y, z, rX, rY, rZ]
+        # tool pose defined relative to the end of the gripper when closed
+        self.ctrl.moveL(poseCoords, linSpeed, linAccel, asynch )
 
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ Moves the arm linearly in joint space to home pose """

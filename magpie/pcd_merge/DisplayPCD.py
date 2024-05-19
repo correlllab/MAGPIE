@@ -41,7 +41,7 @@ def get_pcd_at_multiple_positions(robot: UR5_Interface, camera: RealSense) -> Tu
     rgbds = []
     for pos in positions_array:
         print("pos: ", pos)
-        robot.moveL(pos)
+        robot.moveL_with_coords(pos)
         pcd, rgbd = camera.getPCD()
         pcds.append(pcd)
         rgbds.append(ob.TorchImage(robot.getPose(), rgbd.color, rgbd.depth))
