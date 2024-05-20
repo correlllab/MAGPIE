@@ -22,11 +22,11 @@ import TaskPlanner as tp
 
 # these values come from the p variable in the getPose() function in ur5.py
 pos_left = np.array(
-    [-0.5269949100183583, -0.3469025118056417, -0.42664206867293003, 1.0785479404822593, -1.2311688772413145, 0.9136153632688694])
+    [-0.5728491986844327, -0.2665255758472088, -0.2932157256924612, -0.009479043067194798, -2.6199047172066074, 1.0365085648368406])
 
 # TODO: the robot moves way too fast, from pos_left to pos_right. I need to figure out how to slow this down
 pos_right = np.array(
-    [-0.5118882409685005, -0.2752918558943991, -0.3151485950374825, 0.6660300666777781, -1.7252081496925555, 1.1933488314662384])
+    [-0.4909784424437883, -0.3229772924246015, -0.449609224618071, 0.8283579388044375, 2.034872485189882, -2.149809095513047])
 
 positions_array = [
     pos_left,
@@ -66,10 +66,12 @@ try:
     gripperController.torquelimit(600)  
     gripperController.speedlimit(100)
     ur = UR5_Interface(robotIP)
-    ur.gripper = gripperController
+    # ur.gripper = gripperController
     ur.start()
     ur.gripper = gripperController
     print("UR5 + Gripper Interface Established")
+    ur.open_gripper()
+    print("gripper open")
     real = RealSense()
     real.initConnection()
     try:
@@ -81,9 +83,11 @@ try:
     urPose = ur.getPose()
     jointAngles = ur.get_joint_angles()
     print("Joint Angles: ", jointAngles * 180 / np.pi)
+    position_coords = ur.get_pose_coords()
+    print("position coords: ", position_coords)
     # pcd, rgbdImage = detector.real.getPCD()  # HERE
     pcd, rgbds = get_pcd_at_multiple_positions(ur, real)
-
+    
     # switch get_pcd_at_multiple_positions method to return list of pcds
     # use displayPCD from RealSense class
 
