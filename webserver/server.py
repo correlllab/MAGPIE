@@ -273,7 +273,7 @@ def new_interaction():
     # get YYYY_MM_DD_HH_MM_SS
     t = time.localtime()
     timestamp = time.strftime('%Y_%m_%d_%H_%M_%S', t)
-    with open(f'interaction_logs/message_log_id-{INTERACTIONS}_{timestamp}.json', 'w') as f:
+    with open(f'interaction_logs/{timestamp}_message_log_id-{INTERACTIONS}.json', 'w') as f:
         f.write(json.dumps(messages))
     
     INTERACTIONS += 1
