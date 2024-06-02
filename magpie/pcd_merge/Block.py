@@ -88,6 +88,27 @@ class Block():
         worldFrameCoords = (gripperFramePose * sm.SE3.Trans(self.gripperFrameCoords)).t
         return worldFrameCoords
 
+    def get_world_frame(self, ur, z_offset=0.08):
+        # given a goal position in gripper coords returns the displacements from the current pose in world coords
+        xB, yB, zB = self.gripperFrameCoords
+        # TODO: stop hardcoding a Z-stop position
+        # maybe dynamically
+        # subtract 0.165 from block position in gripper frame to account for gripper length
+        # in METERS
+        # zB -= 0.155
+        zB -= z_offset
+        currentPose = ur.get_tcp_pose()  # 4x4 homogenous transform matrix
+        print(currentPose)
+
+        R = currentPose[:3, :3]
+
+        # xB,yB,zB here is the block position in the gripper frame which is aligned with the optoforce frame
+        P_goal = np.matmul(R, np.array([xB, yB, zB]).T)  # relative position of the block in world coordinates
+        print(f"P_goal:\n{P_goal}")
+        dX, dY, dZ = tuple(
+            P_goal)  # quantities and directions the the gripper frame should be incremented to be centered at the block
+        return dX, dY, dZ
+
     def getWorldFrameVerticalInGripper(self, verticalDist):
         # given a displacement verticalDist along the z-axis in the world frame, determine the same displacement in the gripper frame
         # used to find the position directly above the blocks in the gripper frame

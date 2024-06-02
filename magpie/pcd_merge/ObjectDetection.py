@@ -41,8 +41,8 @@ class ImagePacket:
     def get_all_blocks(self) -> List[bl.Block]:
         return [self.red_block, self.yellow_block, self.blue_block]
 
-    def get_all_block_world_coords(self):
-        return [self.red_block.worldFrameCoords, self.yellow_block.worldFrameCoords, self.blue_block.worldFrameCoords]
+    def get_all_block_world_coords(self, ur):
+        return [self.red_block.get_world_frame(ur), self.yellow_block.get_world_frame(ur), self.blue_block.get_world_frame(ur)] # TODO: test that this method is correct
 
 class ObjectDetection():
     # This class creates a RealSense Object, takes images and returns Open3D point clouds corresponding to blocks
@@ -149,7 +149,7 @@ class ObjectDetection():
             image_packets.append(ImagePacket(image, redPCD, yellowPCD, bluePCD, redBlock, yellowBlock, blueBlock))
         return image_packets
 
-    def getBlocksFromImages(self, images: List[TorchImage], display=False):
+    def getBlocksFromImages(self, images: List[TorchImage], ur):
         # :colorImage 3-channel rgb image as numpy array
         # :depthImage 1-channel of measurements in z-axis as numpy array
         # :display boolean that toggles whether masks should be shown with color image
@@ -167,7 +167,7 @@ class ObjectDetection():
         yellowBlock = []
         blueBlock = []
         for packet in image_packets:
-            coords = packet.get_all_block_world_coords() # returned as [red, yellow, blue]
+            coords = packet.get_all_block_world_coords(ur) # returned as [red, yellow, blue]
             redBlock.append(coords[0])
             yellowBlock.append(coords[1])
             blueBlock.append(coords[2])

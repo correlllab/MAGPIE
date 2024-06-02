@@ -43,13 +43,11 @@ def get_pcd_at_multiple_positions(robot: UR5_Interface, camera: RealSense) -> Tu
         pcd, rgbd = camera.getPCD()
         pcds.append(pcd)
         rgbds.append(ob.TorchImage(robot.getPose(), rgbd.color, rgbd.depth))
-        o3d.visualization.draw_geometries([pcd])
 
-    o3d.visualization.draw_geometries(pcds)
+    camera.displayPCD(pcds) # TODO: test if this solves point cloud problem
 
     merged_point_cloud = o3d.geometry.PointCloud()  # creates an empty pcd object
 
-    # TODO: Question 1. Is this even possible? If this is possible, we don't need code changes. I don't think this is possible
     for pc in pcds:
         merged_point_cloud += pc
 
@@ -87,7 +85,7 @@ try:
     # switch get_pcd_at_multiple_positions method to return list of pcds
     # use displayPCD from RealSense class
 
-    blocks = detector.getBlocksFromImages(rgbds)
+    blocks = detector.getBlocksFromImages(rgbds, ur)
 
     # need a method to get the best set of blocks from blocksList
 
