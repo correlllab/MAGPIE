@@ -1,45 +1,39 @@
 prompt_thinker = """
-Control a robot gripper with torque control and contact information. 
-This is a griper with two independently actuated fingers.
-The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp.
-As well as the kind of grasp it is attempting to perform.
+Control a robot gripper with force control and contact information. 
+The gripper's parameters can be adjusted corresponding to the type of object that it is trying to grasp as well as the kind of grasp it is attempting to perform.
 The gripper has a measurable max force of 16N and min force of 0.15N, a maximum aperture of 105mm and a minimum aperture of 1mm.
+
 Some grasps may be incomplete, intended for observing force information about a given object.
 Describe the grasp strategy using the following form:
 
 [start of description]
 * This {CHOICE: [is, is not]} a new grasp.
-* This grasp should be [GRASP_DESCRIPTION: <str>].
+* In accordance with the user instruction, this grasp should be [GRASP_DESCRIPTION: <str>].
 * This is a {CHOICE: [complete, incomplete]} grasp.
 * This grasp {CHOICE: [does, does not]} contain multiple grasps.
-* This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * This grasp is for an object with {CHOICE: [high, medium, low]} weight.
 * The object has an approximate mass of [PNUM: 0.0] grams
+* This grasp is for an object with {CHOICE: [high, medium, low]} compliance.
 * The object has an approximate spring constant of [PNUM: 0.0] Newtons per meter.
 * The gripper and object have an approximate friction coefficient of [PNUM: 0.0]
 * This grasp should set the goal aperture to [PNUM: 0.0] mm.
 * If the gripper slips, this grasp should close an additional [PNUM: 0.0] mm.
-* Based on object mass and friction coefficient, grasp should initially set the contact force to [PNUM: 0.0] Newtons.
 * If the gripper slips, this grasp should increase the output force by [PNUM: 0.0] Newtons.
-* [optional] This grasp {CHOICE: [does, does not]} use the default minimum grasp force force.
-* [optional] This grasp sets the force to  [PNUM: 0.0], which is {CHOICE: [lower, higher]} than the default initial contact force because of [GRASP_DESCRIPTION: <str>].
+* [optional] Because of [GRASP_DESCRIPTION: <str>], this grasp sets the force to be {CHOICE: [lower, higher]} than the default minimum grasp force.
 [end of description]
 
 Rules:
 1. If you see phrases like {NUM: default_value}, replace the entire phrase with a numerical value. If you see {PNUM: default_value}, replace it with a positive, non-zero numerical value.
 2. If you see phrases like {CHOICE: [choice1, choice2, ...]}, it means you should replace the entire phrase with one of the choices listed. Be sure to replace all of them. If you are not sure about the value, just use your best judgement.
-3. If you see phrases like [GRASP_DESCRIPTION: default_value], replace the entire phrase with a brief, high level description of the grasp and the object to be grasp, including physical characteristics or important features.
-4. By default the minimum grasp force can be estimated by dividing the object weight (mass * gravitational constant) by the friction coefficient: (m*g/μ).
-5. Using knowledge of the object and the grasp description, set the initial grasp force either to this default value or an appropriate value. 
-6. If you deviate from the default value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
-7. Using knowledge of the object and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
-8. Using knowledge of the object and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
-9. The increase in gripper output force the maximum value of (0.01 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
-10. I will tell you a behavior/skill/task that I want the gripper to perform in the grasp and you will provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
-11. We can assume that the gripper has a good low-level controller that maintains position and force as long as it's in a reasonable pose.
-12. The goal aperture of the gripper will be supplied externally, do not calculate it.
-13. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
-15. Use as few bullet points as possible. Be concise.
+3. If you see phrases like [GRASP_DESCRIPTION: default_value], use information from the user instruction to provide a description of the grasp or the object to be grasped, including mentioned physical characteristics or features.
+4. Using information from the user instruction about the object and the grasp description, set the initial grasp force either to this default value or an appropriate value. 
+5. If you deviate from the default force value, explain your reasoning using the optional bullet points. It is not common to deviate from the default value.
+6. Using knowledge of the object and how compliant it is, estimate the spring constant of the object. This can range broadly from 20 N/m for a very soft object to 2000 N/m for a very stiff object. 
+7. Using knowledge of the object and the grasp description, if the grasp slips, first estimate an appropriate increase to the aperture closure, and then the gripper output force.
+8. The increase in gripper output force the maximum value of (0.05 N, or the product of the estimated aperture closure, the spring constant of the object, and a damping constant 0.1: (k*additional_closure*0.0001)).
+9. Provide the full description of the grasp plan, even if you may only need to change a few lines. Always start the description with [start of description] and end it with [end of description].
+10. Do not add additional descriptions not shown above. Only use the bullet points given in the template.
+11. Make sure to give the full description. Do not skip points if they are not optional.
 """
 
 prompt_coder = """
