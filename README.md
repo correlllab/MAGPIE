@@ -4,6 +4,8 @@
 #### **M**anipulation **A**rchitecture for **G**oal **P**lanning, **I**nference, and **E**xecution
 (The brains)
 
+![](Magpie-2.png)
+
 # Installation
 ## Required
 1. `git clone --recurse-submodules git@github.com:correlllab/MAGPIE.git`
