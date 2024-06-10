@@ -6,6 +6,8 @@
 
 ![](Magpie-2.png)
 
+More info: [https://arxiv.org/pdf/2402.06018](https://arxiv.org/pdf/2402.06018)
+
 # Installation
 ## Required
 1. `git clone --recurse-submodules git@github.com:correlllab/MAGPIE.git`
