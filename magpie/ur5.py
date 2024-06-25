@@ -12,6 +12,8 @@ from spatialmath import SE3
 # UR Interface
 import rtde_control
 import rtde_receive
+from rtde_receive import RTDEReceiveInterface as RTDEReceive
+
 # Gripper Interface
 import serial.tools.list_ports
 from magpie.motor_code import Motors
@@ -65,7 +67,7 @@ class UR5_Interface:
         self.camXform = np.array( xform )
 
 
-    def __init__( self, robotIP = "192.168.0.6", cameraXform = None ):
+    def __init__( self, robotIP = "192.168.0.6", cameraXform = None, freq = 500, record=False, record_path=None):
         """ Store connection params and useful constants """
         self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
@@ -74,6 +76,9 @@ class UR5_Interface:
         self.gripper    = None # -- Gripper Controller Interface
         self.Q_safe     = [ radians( elem ) for elem in [ 12.30, -110.36, 95.90, -75.48, -89.59, 12.33 ] ]
         self.torqLim    = 600
+        self.freq       = freq
+        self.record     = record
+        self.record_path = record_path
         self.gripClos_m = 0.002
         self.camXform   = np.eye(4)
         if cameraXform is None:
@@ -85,7 +90,7 @@ class UR5_Interface:
     def start( self ):
         """ Connect to RTDE and the gripper """
         self.ctrl = rtde_control.RTDEControlInterface( self.robotIP )
-        self.recv = rtde_receive.RTDEReceiveInterface( self.robotIP )
+        self.recv = rtde_receive.RTDEReceiveInterface( self.robotIP, self.freq )
         servoPort = get_USB_port_with_desc( "OpenRB" )
         if servoPort is not None:
             self.gripper =  Motors( servoPort )
@@ -154,13 +159,16 @@ class UR5_Interface:
     def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ qGoal is a 6 element numpy array of joint angles (radians) """
         # speed is joint velocity (rad/s)
+        if self.record:
+            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose"])
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
-
 
     def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
+        if self.record:
+            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose"])
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
 
 
@@ -168,6 +176,10 @@ class UR5_Interface:
         """ Moves the arm linearly in joint space to home pose """
         self.moveJ( self.Q_safe, rotSpeed, rotAccel, asynch )
 
+
+    def stop_recording(self):
+        if self.record:
+            self.recv.stopFileRecording()
 
     def p_moving( self ):
         """ Return True if the robot is in motion, Otherwise return False """
