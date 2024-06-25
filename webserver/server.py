@@ -320,14 +320,18 @@ def execute():
     global PROMPT_MODEL
     global RESPONSE
     global MESSAGE_LOG
+    global INTERACTIONS
 
     pm = PROMPT_MODEL
     if RESPONSE is None:
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
         stdout = pm.code_executor(RESPONSE)
-        msg = {"type": "text", "role": "grasp", "content": f"{stdout}"}
+        print(stdout)
+        msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
         # return jsonify({"success": True, "message": "Code executed successfully."})
+        MESSAGE_LOG[INTERACTIONS] += msg
+        print(MESSAGE_LOG[INTERACTIONS])
         return jsonify(messages=[msg])
     except Exception as e:  # pylint: disable=broad-exception-caught
         msg = "Execution failed. Is the robot connected? " + str(e) + "\n"
@@ -369,17 +373,18 @@ def move():
         return jsonify(msg)
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP)
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=100, record=True, record_path="robot_logs/test.csv") # 10Hz frequency
             robot.start()
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
             # robot.moveL(GOAL_POSE)
             # z = 0.05 + APERTURE # TODO: figure this out
-            z = 0.10
+            z = 0.12
             print(f"z_offset: {z}")
             gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
             time.sleep(SLEEP_RATE * 4)
             AT_GOAL = True
+            robot.stop_recording()
             robot.stop()
             msg["success"] = True
         return jsonify(msg)
