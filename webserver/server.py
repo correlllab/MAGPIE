@@ -188,7 +188,7 @@ def connect():
             rsc.initConnection()
             CAMERA = rsc
         # LABEL = Label(label_models[CONFIG['vlm']])
-        LABEL = LabelOWLViT(label_models['owl-vit'])
+        LABEL = LabelOWLViT(pth=label_models['owl-vit'])
         connect_msg += "Connected to camera and perception models.\n"
     except Exception as e:
         CONNECTED = False
@@ -228,7 +228,7 @@ def chat():
         image = np.array(rgbd_image.color)
         IMAGE = Image.fromarray(image)
         queries, abbrevq = parse_object_description(user_command)
-        bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
+        bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
         preds_plot = LABEL.preds_plot
         enc_img = encode_image(Image.fromarray(preds_plot))
         index = 0 # TODO: make this user selection, for now take highest confidence

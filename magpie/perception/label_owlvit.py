@@ -12,7 +12,7 @@ from transformers import OwlViTProcessor, OwlViTForObjectDetection
 import matplotlib.pyplot as plt
 
 class LabelOWLViT(Label):
-    def __init__(self, topk=3, score_threshold=0.01, pth="google/owlvit-base-patch32"):
+    def __init__(self, topk=3, score_threshold=0.005, pth="google/owlvit-base-patch32"):
         '''
         @param camera camera object, expects realsense_wrapper
         '''
@@ -28,8 +28,10 @@ class LabelOWLViT(Label):
         self.queries = None
         self.sorted_indices = None
         self.sorted_labels = None
+        self.sorted_text_labels = None
         self.sorted_scores = None
         self.sorted_boxes = None
+        self.sorted_boxes_coords = None
         self.sorted = None
         self.boxes = None
 
@@ -52,6 +54,7 @@ class LabelOWLViT(Label):
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD:
                 continue
+            f"{text_queries[label]}: {score:1.2f}",
             pbox = self.box_coordinates(box)
             pboxes.append((pbox, text_queries[label]))
             uboxes.append((box, text_queries[label]))
@@ -66,10 +69,13 @@ class LabelOWLViT(Label):
         if topk:
             scores = self.sorted_scores[:self.TOP_K]
             boxes  = self.sorted_boxes[:self.TOP_K]
-            labels = self.sorted_labels[:self.TOP_K]
+            labels = self.sorted_labels[:self.TOP_K] # oops
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD and not topk:
                 continue
+            print(f"label: {label}")
+            print(f"text_queries: {text_queries}")
+            print(f"please: {text_queries[label]}")
             cx, cy, w, h = box
             ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
                     [cy-h/2, cy-h/2, cy+h/2, cy+h/2, cy-h/2], "r")
@@ -108,11 +114,12 @@ class LabelOWLViT(Label):
         # cut off score indices below threshold
         self.sorted_indices = sorted_indices[scores[sorted_indices] > self.SCORE_THRESHOLD]
         self.sorted_scores = scores[self.sorted_indices]
-        self.sorted_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
-        # self.sorted_labels = labels[self.sorted_indices]
-        self.sorted_boxes = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
+        self.sorted_labels = labels[self.sorted_indices]
+        self.sorted_text_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
+        self.sorted_boxes = boxes[self.sorted_indices]
+        self.sorted_boxes_coords = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
         self.sorted_labeled_boxes = list(zip(self.sorted_boxes, self.sorted_labels))
-        self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_boxes))
+        self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_indices, self.sorted_boxes))
         
         return scores, labels, boxes, pboxes
 
@@ -133,6 +140,9 @@ class LabelOWLViT(Label):
         target_sizes = torch.Tensor([self.dims])
         self.queries = abbrev_labels
         scores, labels, boxes, pboxes = self.get_preds(outputs, target_sizes)
+        print(f"boxes: {boxes}")
+        print(f"labels: {labels}")
+        print(f"abbrev labels: {abbrev_labels}")
         image_plt = img.astype(np.float32) / 255.0
         self.plot_predictions(image_plt, abbrev_labels, scores, boxes, labels, topk=topk, show_plot=plot)
         bboxes, uboxes = self.get_boxes(input_image, abbrev_labels, scores, boxes, labels)
