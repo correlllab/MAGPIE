@@ -232,7 +232,7 @@ def chat():
         preds_plot = LABEL.preds_plot
         enc_img = encode_image(Image.fromarray(preds_plot))
         index = 0 # TODO: make this user selection, for now take highest confidence
-        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes, 
+        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes_coords, 
                                          index, 
                                          rgbd_image, 
                                          CAMERA, 
