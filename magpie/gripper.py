@@ -350,6 +350,7 @@ class Gripper:
         @return ff: final force (N) applied when fc is met
         @return k: spring constant (N/mm) of the object grasped
         '''
+        grasp_log = []
         self.set_force(fc, 'both')
         goal_aperture = x
         self.set_goal_aperture(goal_aperture + dx, finger='both', record_load=False)
@@ -374,7 +375,9 @@ class Gripper:
                 print(f"Current aperture: {curr_aperture} mm")
             slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
             distance = abs(curr_aperture - prev_aperture)
-            k_avg.append(np.mean(avg_force) * distance * 1000.0)
+            k = np.mean(avg_force) * distance * 1000.0
+            k_avg.append(k)
+            grasp_log.append({'aperture': curr_aperture, 'contact_force': avg_force, 'applied_force': applied_force, 'k': k})
             prev_aperture = curr_aperture
             
         time.sleep(self.delay * 5)
@@ -387,7 +390,8 @@ class Gripper:
         if debug:
             print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
             print(f"Spring Constants: {k_avg} N/m")
-        return curr_aperture, applied_force, k_avg
+        print(grasp_log)
+        return curr_aperture, applied_force, k_avg, grasp_log
 
     # gripper motion
     def close_until_contact_force(self, stop_aperture, stop_force, finger='both', debug='False'):
