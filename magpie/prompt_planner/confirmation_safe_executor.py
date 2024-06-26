@@ -96,10 +96,12 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
       #     check=True,
       # )
       # subprocess.run(["/usr/bin/python3", "-m", "compileall", "-b", "-d", "__pycache__", "test.py"], check=True,)
+      print(f"EXECUTOR compiling {filepath}")
       subprocess.run(
           [self._interpreter_path, "-m", "py_compile", filepath],
           check=True,
       )
+      print(f"EXECUTOR compiled {filepath}")
     except subprocess.CalledProcessError as e:
       raise ValueError("Failed to compile code.") from e
     finally:
@@ -121,6 +123,7 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
     
     # Now execute the pyc file
     try:
+      print(f"EXECUTOR executing {pyc_filepath}")
       completed_process = subprocess.run(
           # [self._interpreter_path, pyc_filepath],
           # [self._interpreter_path, local_pyc],
@@ -128,13 +131,14 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
           capture_output=True,
           check=True,
       )
+      # print(f"EXECUTOR completed_process {completed_process.stdout.decode('utf-8')}")
+      print(f"EXECUTOR completed_process")
     except subprocess.CalledProcessError as e:
       print("stdout", e.stdout)
       print("stderr", e.stderr)
       raise ValueError("Failed to run code.") from e
     finally:
       os.unlink(pyc_filepath)
-    print("completed_process", completed_process.stdout.decode("utf-8"))
     return completed_process.stdout.decode("utf-8")
 
 if __name__ == "__main__":

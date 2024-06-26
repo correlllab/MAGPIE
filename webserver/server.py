@@ -326,8 +326,9 @@ def execute():
     if RESPONSE is None:
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
+        print("SERVER executing code")
         stdout = pm.code_executor(RESPONSE)
-        print(stdout)
+        print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
         # return jsonify({"success": True, "message": "Code executed successfully."})
         MESSAGE_LOG[INTERACTIONS] += msg
