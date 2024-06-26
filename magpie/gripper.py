@@ -23,8 +23,8 @@ class Gripper:
         #Motor ID1 should be on the right with the camera facing you
         finger_id1 = 1 # left gripper
         finger_id2 = 2
-        self.Finger1 = Ax12(finger_id1)
-        self.Finger2 = Ax12(finger_id2)
+        self.Finger1 = Ax12(finger_id1, debug=False)
+        self.Finger2 = Ax12(finger_id2, debug=False)
         #speed is in bits from 0-1023 for CCW; 1024 -2047 CW
         # ax-12 manual says no-load moving speed is 59 RPM @ 12V
         self.speed = 100 # about 10% speed, or 11rpm
@@ -371,8 +371,9 @@ class Gripper:
             load_data = self.set_goal_aperture(goal_aperture, finger='both', record_load=True)
             curr_aperture = self.get_aperture(finger='both')
             if debug:
-                print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
-                print(f"Current aperture: {curr_aperture} mm")
+                pass
+                # print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+                # print(f"Current aperture: {curr_aperture} mm")
             slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
             distance = abs(curr_aperture - prev_aperture)
             k = np.mean(avg_force) * distance * 1000.0

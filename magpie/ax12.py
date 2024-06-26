@@ -69,8 +69,9 @@ class Ax12:
     DEVICENAME = '/dev/ttyUSB0'  # e.g 'COM3' windows or '/dev/ttyUSB0' for linux
     DEBUG = True
 
-    def __init__(self, motor_id):
+    def __init__(self, motor_id, debug=False):
         """Initialize motor with id"""
+        self.DEBUG = debug
         self.id = motor_id
 
     def __repr__(self):
