@@ -244,6 +244,7 @@ class PromptThinkerCoder(llm_prompt.LLMPrompt):
     print("ABOUT TO EXECUTE TC MUK \n", code)
     grasp_log = self._safe_executor.execute(code)
     print(f"FINISHED EXECUTION TC MUK \n{grasp_log}")
+    print(f"EXECUTION TYPE: {type(grasp_log)}")
     # print(grasp_log)
     return grasp_log
     # self._agent.set_task_parameters(mjpc_parameters.task_parameters)
