@@ -357,11 +357,25 @@ class Gripper:
         self.set_goal_aperture(goal_aperture + dx, finger='both', record_load=False)
         # Move to the initial goal aperture to attempt the grasp
         load_data = self.set_goal_aperture(goal_aperture, finger='both', record_load=True)
+        slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
         curr_aperture = self.get_aperture(finger='both')
+
+        # first log entry
+        prev_time = time.time()
+        grasp_log.append({'timestamp': prev_time, 
+                    'aperture': curr_aperture,
+                    'gripper_vel': 0, 
+                    'contact_force': np.average(avg_force),
+                    'contact_force_l': avg_force[0], 
+                    'contact_force_r': avg_force[1], 
+                    'applied_force': fc, 
+                    'k': 0})
+        
         # initialize force to contact force
         applied_force = fc
         prev_aperture = curr_aperture
         k_avg = []
+
         # Checking for slip at the initial attempt, indicating whether the grip is firm or needs adjustment
         slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
         while slippage:
@@ -375,13 +389,23 @@ class Gripper:
                 print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
                 print(f"Current aperture: {curr_aperture} mm")
             slippage, avg_force, max_force = self.check_slip(load_data, fc, 'both')
+            curr_time = time.time()
             distance = abs(curr_aperture - prev_aperture)
             k = np.mean(avg_force) * distance * 1000.0
             k_avg.append(k)
-            grasp_log.append({'aperture': curr_aperture, 'contact_force_l': avg_force[0], 'contact_force_r': avg_force[1], 'applied_force': applied_force, 'k': k})
+            gripper_vel = distance / (curr_time - prev_time)
+            grasp_log.append({'timestamp': curr_time, 
+                              'aperture': curr_aperture,
+                              'gripper_vel': gripper_vel, 
+                              'contact_force': np.average(avg_force),
+                              'contact_force_l': avg_force[0], 
+                              'contact_force_r': avg_force[1], 
+                              'applied_force': applied_force, 
+                              'k': k})
+            prev_time = curr_time
             prev_aperture = curr_aperture
             
-        time.sleep(self.delay * 5)
+        time.sleep(self.delay * 2.5)
         # final adjustment
         if complete:
             curr_aperture = self.get_aperture(finger='both')
@@ -494,7 +518,7 @@ class Gripper:
             pld[0].append(curr_pos)
             pld[1].append(curr_load)
 
-    # only for left or right finger, not both
+    # record load on both fingers
     def record_load_both_helper(self, stop_pos, sign, pld, debug=False):
         '''
         @param stop_pos: position to stop at
@@ -516,7 +540,7 @@ class Gripper:
             time.sleep(self.delay * 2)
             curr_pos = self.get_position(finger='both')
             curr_load = self.get_load(finger='both')
-            time.sleep(self.delay)
+            time.sleep(self.latency)
             if debug:
                 print(f'left position: {curr_pos[0]}, load: {curr_load[1]}')
                 print(f'right position: {curr_pos[1]}, load: {curr_load[1]}')
