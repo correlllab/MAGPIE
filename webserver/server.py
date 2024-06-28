@@ -1,17 +1,20 @@
+import ast
+import base64
+import codecs
+import dataclasses
 from flask import Flask, render_template, request, jsonify
+import io
+import json
+import logging
+import numpy as np
 import openai
 import os
-import sys
-import base64
+import pandas as pd
 from PIL import Image
-import numpy as np
-import io
-import logging
 import platform
+import sys
 import time
-import dataclasses
 from typing import Any
-import json
 sys.path.append("../")
 
 # LLM
@@ -105,6 +108,87 @@ def handle_prompt_name(policy):
         prompt_stub += "_phys"
     print(f"Prompt policy: {prompt_stub}")
     return prompt_stub
+
+def log_grasp(grasp_log):
+    path = "robot_logs/grasp_log.json"
+    # list of dictionaries to json
+    # get content after last newline of stdout
+    sep = grasp_log.split('\n')
+    gl = np.array(ast.literal_eval(sep[-2]))
+    # write list of dicts to json
+    with open(path, 'w') as f:
+        json.dump(gl, f)
+
+def log_to_rlds():
+    '''
+    combine 3 logs:
+    1. move (csv)
+    2. grasp_log (json)
+    3. home (csv)
+    into one tfds in rlds format
+    rlds: https://github.com/google-research/rlds?tab=readme-ov-file#load-with-tfds
+    '''
+    global IMAGE
+    # required format
+    # observation: 6x joint velocities, gripper velocity, gripper force
+    # camera: 640x480x3 RGB image
+    # alternative: depth image too?
+
+    # list of dictionaries to tfds
+    # https://stackoverflow.com/questions/68567630/converting-a-list-of-dictionaries-to-a-tf-dataset
+
+    # load csv to pd df
+    home = pd.read_csv("robot_logs/home.csv")
+    move = pd.read_csv("robot_logs/move.csv")
+
+    # extract timestamp columns and actual_qd columns from actual_qd_0 to actual_qd_5
+    home = home[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    move = move[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+
+    # load json
+    path = "robot_logs/grasp_log.json"
+    obj_text = codecs.open(path, 'r', encoding='utf-8').read()
+    gl = np.array(json.loads(obj_text))
+    # create df from np array of dictionaries with keys: timestamp, aperture, contact_force, and gripper_vel values
+    grasp_log = pd.DataFrame(gl.tolist())
+    # keep only timestamp, aperture, gripper_vel, and contact_force cols
+    grasp_log = grasp_log[['timestamp', 'aperture', 'gripper_vel', 'contact_force']]
+    # add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
+    grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    # add columns to move and home dfs, zeroed out
+    move['aperture'] = 0
+    move['gripper_vel'] = 0
+    move['contact_force'] = 0
+    home['aperture'] = 0
+    home['gripper_vel'] = 0
+    home['contact_force'] = 0
+
+
+    # get initial values, iteratively subtract 0.1s from ti and assign to to move timestamps, from last to first
+    ti = gl[0]['timestamp']
+    ai = gl[0]['aperture']
+
+    for i in np.arange(len(gl)-1, -1, -1):
+        # iterate backwards through move timestamps
+        ti -= 0.1
+        move.loc[i, 'timestamp'] = ti
+        move.loc[i, 'aperture'] = ai
+
+    # get last timestamp tf, iteratively add 0.1s to tf and assign to to home timestamps, from first to last
+    tf = gl[-1]['timestamp']
+    af = gl[-1]['aperture']
+    cf = gl[-1]['contact_force']
+
+    for i in np.arange(len(home)):
+        # iterate forwards through home timestamps
+        tf += 0.1
+        home.loc[i, 'timestamp'] = tf
+        home.loc[i, 'aperture'] = af
+        home.loc[i, 'contact_force'] = cf
+
+    # combine dataframes
+    df = pd.concat([move, grasp_log, home], axis=1)
+    return df
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -226,7 +310,8 @@ def chat():
     try:
         p, rgbd_image = CAMERA.getPCD()
         image = np.array(rgbd_image.color)
-        IMAGE = Image.fromarray(image)
+        # scale image to 640 x 480
+        IMAGE = Image.fromarray(image).resize((640, 480))
         queries, abbrevq = parse_object_description(user_command)
         bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
         preds_plot = LABEL.preds_plot
@@ -328,6 +413,7 @@ def execute():
     try:
         print("SERVER executing code")
         stdout = pm.code_executor(RESPONSE)
+        grasp_log = stdout.split('\n')[-2] # hardcoded...very brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
         # return jsonify({"success": True, "message": "Code executed successfully."})
@@ -347,10 +433,11 @@ def home():
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP)
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path="robot_logs/home.csv") # 10Hz frequency
             robot.start()
             robot.moveL(HOME_POSE)
-            time.sleep(SLEEP_RATE * 4)
+            time.sleep(SLEEP_RATE * 3)
+            robot.stop_recording()
             AT_GOAL = False
             robot.stop()
             msg["success"] = True
@@ -374,7 +461,7 @@ def move():
         return jsonify(msg)
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP, freq=100, record=True, record_path="robot_logs/test.csv") # 10Hz frequency
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path="robot_logs/move.csv") # 10Hz frequency
             robot.start()
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
@@ -383,7 +470,7 @@ def move():
             z = 0.12
             print(f"z_offset: {z}")
             gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
-            time.sleep(SLEEP_RATE * 4)
+            time.sleep(SLEEP_RATE * 3)
             AT_GOAL = True
             robot.stop_recording()
             robot.stop()
