@@ -188,5 +188,6 @@ class PromptThinkerCoderPhys(llm_prompt.LLMPrompt):
     print("ABOUT TO EXECUTE\n", code)
     grasp_log = self._safe_executor.execute(code)
     print(grasp_log)
+    return grasp_log
     # self._agent.set_task_parameters(mjpc_parameters.task_parameters)
     # self._agent.set_cost_weights(mjpc_parameters.cost_weights)

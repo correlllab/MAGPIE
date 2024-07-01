@@ -71,11 +71,11 @@ def move_to_L(pos, ur, z_offset=0.08):
     goal1 = copy.deepcopy(homePose)
     goal1.t[0] += dX
     goal1.t[1] += dY
-    time.sleep(sleepRate)
+    # time.sleep(sleepRate)
     goal2 = goal1
     goal2.t[2] += dZ
     ur.moveL(goal2)
-    time.sleep(sleepRate)
+    # time.sleep(sleepRate)
 
 # move up on Z first, then X, Y
 def move_back(homePose, ur):

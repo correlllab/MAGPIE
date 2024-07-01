@@ -235,8 +235,11 @@ class PromptThinkerCoder(llm_prompt.LLMPrompt):
     return process_code.process_code_block(response)
 
   def execute_code(self, code: str) -> None:
-    print("ABOUT TO EXECUTE\n", code)
+    print("ABOUT TO EXECUTE TC MUK \n", code)
     grasp_log = self._safe_executor.execute(code)
-    print(grasp_log)
+    print(f"FINISHED EXECUTION TC MUK \n{grasp_log}")
+    print(f"EXECUTION TYPE: {type(grasp_log)}")
+    # print(grasp_log)
+    return grasp_log
     # self._agent.set_task_parameters(mjpc_parameters.task_parameters)
     # self._agent.set_cost_weights(mjpc_parameters.cost_weights)

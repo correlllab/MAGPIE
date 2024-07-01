@@ -12,7 +12,7 @@ from transformers import OwlViTProcessor, OwlViTForObjectDetection
 import matplotlib.pyplot as plt
 
 class LabelOWLViT(Label):
-    def __init__(self, topk=3, score_threshold=0.01, pth="google/owlvit-base-patch32"):
+    def __init__(self, topk=3, score_threshold=0.005, pth="google/owlvit-base-patch32"):
         '''
         @param camera camera object, expects realsense_wrapper
         '''
@@ -28,8 +28,12 @@ class LabelOWLViT(Label):
         self.queries = None
         self.sorted_indices = None
         self.sorted_labels = None
+        self.sorted_text_labels = None
         self.sorted_scores = None
         self.sorted_boxes = None
+        self.sorted_boxes_coords = None
+        self.sorted_labeled_boxes = None
+        self.sorted_labeled_boxes_coords = None
         self.sorted = None
         self.boxes = None
 
@@ -66,7 +70,7 @@ class LabelOWLViT(Label):
         if topk:
             scores = self.sorted_scores[:self.TOP_K]
             boxes  = self.sorted_boxes[:self.TOP_K]
-            labels = self.sorted_labels[:self.TOP_K]
+            labels = self.sorted_labels[:self.TOP_K] # oops
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD and not topk:
                 continue
@@ -108,11 +112,13 @@ class LabelOWLViT(Label):
         # cut off score indices below threshold
         self.sorted_indices = sorted_indices[scores[sorted_indices] > self.SCORE_THRESHOLD]
         self.sorted_scores = scores[self.sorted_indices]
-        self.sorted_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
-        # self.sorted_labels = labels[self.sorted_indices]
-        self.sorted_boxes = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
+        self.sorted_labels = labels[self.sorted_indices]
+        self.sorted_text_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
+        self.sorted_boxes = boxes[self.sorted_indices]
+        self.sorted_boxes_coords = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
         self.sorted_labeled_boxes = list(zip(self.sorted_boxes, self.sorted_labels))
-        self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_boxes))
+        self.sorted_labeled_boxes_coords = list(zip(self.sorted_boxes_coords, self.sorted_labels))
+        self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_indices, self.sorted_boxes))
         
         return scores, labels, boxes, pboxes
 

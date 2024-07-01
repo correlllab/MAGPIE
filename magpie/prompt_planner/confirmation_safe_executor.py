@@ -91,50 +91,47 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
 
     # Start by compiling the code to pyc (to get compilation errors)
     try:
-      # subprocess.run(
-      #     [self._interpreter_path, "-m", "compileall", "-b", filepath],
-      #     check=True,
-      # )
-      # subprocess.run(["/usr/bin/python3", "-m", "compileall", "-b", "-d", "__pycache__", "test.py"], check=True,)
+      print(f"EXECUTOR compiling {filepath}")
       subprocess.run(
           [self._interpreter_path, "-m", "py_compile", filepath],
           check=True,
       )
+      print(f"EXECUTOR compiled {filepath}")
     except subprocess.CalledProcessError as e:
       raise ValueError("Failed to compile code.") from e
     finally:
       os.unlink(filepath)
 
     # py_compile should output a pyc file in the pycache directory
-    # filename = os.path.basename(filepath)
     filename = os.path.splitext(os.path.basename(filepath))[0]
     directory = os.path.dirname(filepath)
     pycache_dir = os.path.join(directory, "__pycache__")
-    # pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-310.pyc")
     pyc_filepath = os.path.join(pycache_dir, filename + ".cpython-310.pyc")
-    # pyc_filepath = os.path.join(pycache_dir, filename + "c")
     # also write pyc to local filepath, generations/<pycname>
-    local_pyc = None
     with open(f'generations/{os.path.basename(pyc_filepath)}', 'w') as gen_file:
       gen_file.write(code)
-      local_pyc = gen_file.name
     
     # Now execute the pyc file
+    output = None
     try:
+      print(f"EXECUTOR executing {pyc_filepath}")
       completed_process = subprocess.run(
-          # [self._interpreter_path, pyc_filepath],
-          # [self._interpreter_path, local_pyc],
           [self._interpreter_path, local_py if self._local_execute else pyc_filepath],
           capture_output=True,
           check=True,
       )
+      output = completed_process.stdout.decode('utf-8')
+      print(f"EXECUTOR completed_process {output}")
     except subprocess.CalledProcessError as e:
       print("stdout", e.stdout)
       print("stderr", e.stderr)
       raise ValueError("Failed to run code.") from e
     finally:
       os.unlink(pyc_filepath)
-    return completed_process.stdout.decode("utf-8")
+
+    print(f"EXECUTOR RETURNING STDOUT: {output}")
+    print(f"EXECUTOR return type: {type(output)}")
+    return output
 
 if __name__ == "__main__":
   pass

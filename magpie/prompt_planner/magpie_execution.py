@@ -60,7 +60,9 @@ class MagpieSafeExecutor(metaclass=abc.ABCMeta):
 def _parse_output(output: str):
   """Parses the output from executing param generation code."""
   try:
-    overwriting_weights, overwriting_params = json.loads(output)
+    # overwriting_weights, overwriting_params = json.loads(output)
+    print(f"PARSING OUTPUT type: {type(output)}")
+    return output
   except ValueError as e:
     raise ValueError(f'Invalid JSON output: {output}') from e
 
