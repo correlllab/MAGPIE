@@ -1,3 +1,4 @@
+# general package imports
 import ast
 import base64
 import codecs
@@ -111,25 +112,13 @@ def index():
 
 @app.route("/connect", methods=["POST"])
 def connect():
-    global CONFIG
-    global CONNECTED
+    global CONFIG, CONNECTED
     # Robot
-    global GRIPPER
-    global SERVO_PORT
-    global HOME_POSE
-    global SLEEP_RATE
-    global on_robot
+    global GRIPPER, SERVO_PORT, HOME_POSE, SLEEP_RATE, on_robot
     # Perception
-    global CAMERA
-    global LABEL
+    global CAMERA, LABEL
     # LLM
-    global MODEL
-    global TASK_CONFIG
-    global PROMPT_MODEL
-    global PROMPT
-    global CONVERSATION
-    global safe_executor
-    global VISION
+    global MODEL, TASK_CONFIG, PROMPT_MODEL, PROMPT, CONVERSATION, safe_executor, VISION
 
     new_conf = request.get_json()
     print(new_conf['policyconf'])
@@ -196,20 +185,11 @@ def connect():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    global INTERACTIONS
-    global MESSAGE_LOG
-    global CONFIG
+    global INTERACTIONS, MESSAGE_LOG, CONFIG
     # Perception
-    global CAMERA
-    global LABEL
-    global GOAL_POSE
-    global APERTURE
-    global IMAGE
+    global CAMERA, LABEL, GOAL_POSE, APERTURE, IMAGE
     # LLM
-    global PROMPT_MODEL
-    global CONVERSATION
-    global RESPONSE
-    global VISION
+    global PROMPT_MODEL, CONVERSATION, RESPONSE, VISION
 
     user_command = request.get_json()['message']
     # INPUT PARSING
@@ -260,10 +240,7 @@ def chat():
 
 @app.route("/new_interaction", methods=["POST"])
 def new_interaction():
-    global INTERACTIONS
-    global MESSAGE_LOG
-    global CONFIG
-    global IMAGE
+    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE
 
     # save MESSAGE_LOG to json
     messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
@@ -291,13 +268,7 @@ def new_interaction():
 
 @app.route("/grasp_policy", methods=["POST"])
 def grasp_policy():
-    global PROMPT_MODEL
-    global CONVERSATION
-    global RESPONSE
-    global IMAGE
-    global VISION
-    global MESSAGE_LOG
-    global INTERACTIONS
+    global PROMPT_MODEL, CONVERSATION, RESPONSE, IMAGE, VISION, MESSAGE_LOG, INTERACTIONS
 
     user_command = request.get_json()['message']
     conv = CONVERSATION
@@ -327,10 +298,7 @@ def grasp_policy():
 
 @app.route("/execute", methods=["POST"])
 def execute():
-    global PROMPT_MODEL
-    global RESPONSE
-    global MESSAGE_LOG
-    global INTERACTIONS
+    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS
 
     pm = PROMPT_MODEL
     if RESPONSE is None:
@@ -353,9 +321,7 @@ def execute():
 
 @app.route("/home", methods=["POST"])
 def home():
-    global HOME_POSE
-    global AT_GOAL
-    global GRIPPER
+    global HOME_POSE, AT_GOAL, GRIPPER, ROBOT_IP
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
@@ -373,11 +339,7 @@ def home():
 
 @app.route("/move", methods=["POST"])
 def move():
-    global HOME_POSE
-    global GOAL_POSE
-    global APERTURE
-    global CONFIG
-    global AT_GOAL
+    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
         msg["message"] = "No goal pose set."
