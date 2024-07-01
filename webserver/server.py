@@ -12,8 +12,11 @@ import os
 import pandas as pd
 from PIL import Image
 import platform
+import rlds # GDM Reinforcement Learning Dataset
 import sys
 import time
+import tensorflow as tf
+import tensorflow_datasets as tfds
 from typing import Any
 sys.path.append("../")
 
@@ -119,7 +122,7 @@ def log_grasp(grasp_log):
     with open(path, 'w') as f:
         json.dump(gl, f)
 
-def log_to_rlds():
+def log_to_df():
     '''
     combine 3 logs:
     1. move (csv)
@@ -149,12 +152,13 @@ def log_to_rlds():
     path = "robot_logs/grasp_log.json"
     obj_text = codecs.open(path, 'r', encoding='utf-8').read()
     gl = np.array(json.loads(obj_text))
-    # create df from np array of dictionaries with keys: timestamp, aperture, contact_force, and gripper_vel values
-    grasp_log = pd.DataFrame(gl.tolist())
-    # keep only timestamp, aperture, gripper_vel, and contact_force cols
-    grasp_log = grasp_log[['timestamp', 'aperture', 'gripper_vel', 'contact_force']]
-    # add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
-    grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    grasp_log = pd.DataFrame(gl.tolist()) # convert to pd df
+    # keep only timestamp, aperture, gripper_vel, and contact_force cols, add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
+
+    grasp_log = (grasp_log[['timestamp']] + 
+                 move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] +
+                 grasp_log[['aperture', 'gripper_vel', 'contact_force']])
+    
     # add columns to move and home dfs, zeroed out
     move['aperture'] = 0
     move['gripper_vel'] = 0
@@ -168,7 +172,7 @@ def log_to_rlds():
     ti = gl[0]['timestamp']
     ai = gl[0]['aperture']
 
-    for i in np.arange(len(gl)-1, -1, -1):
+    for i in np.arange(len(move)-1, -1, -1):
         # iterate backwards through move timestamps
         ti -= 0.1
         move.loc[i, 'timestamp'] = ti
@@ -186,9 +190,96 @@ def log_to_rlds():
         home.loc[i, 'aperture'] = af
         home.loc[i, 'contact_force'] = cf
 
-    # combine dataframes
-    df = pd.concat([move, grasp_log, home], axis=1)
+    # combine dataframes vertically
+    df = pd.concat([move, grasp_log, home], axis=0)
+    # save df to csv
+    df.to_csv("robot_logs/combined.csv", index=False)
+
     return df
+
+def df_to_rlds(df):
+    episode_steps = df.to_dict(orient='records')
+
+    # Convert list of dictionaries to RLDS episode
+    episode = {
+        'steps':[{
+            'observation': {
+                'timestamp': step['timestamp'],
+                'actual_qd': [
+                    step['actual_qd_0'],
+                    step['actual_qd_1'],
+                    step['actual_qd_2'],
+                    step['actual_qd_3'],
+                    step['actual_qd_4'],
+                    step['actual_qd_5']
+                ],
+                'aperture': step['aperture'],
+                'gripper_vel': step['gripper_vel'],
+                'contact_force': step['contact_force'],
+                'image': np.zeros([64, 64, 3])
+            },
+            'action': 1,  # Placeholder, assuming no action data is available
+            'reward': 0,  # Placeholder, assuming no reward data is available
+            'is_terminal': False  # Placeholder, assuming steps are not terminal
+        } for step in episode_steps]
+    }
+
+    # Convert the episode to a list of tuples
+    steps = [
+        (
+            step['observation'],  # observation
+            step['action'],       # action
+            step['reward'],       # reward
+            step['is_terminal']   # is_terminal
+        )
+        for step in episode['steps']
+    ]
+
+    # Generator function
+    def generator():
+        for step in steps:
+            yield step
+
+    # Define the dataset types and shapes
+    output_types = (
+        {
+            'timestamp': tf.float32,
+            'actual_qd': tf.float32,
+            'aperture': tf.float32,
+            'gripper_vel': tf.float32,
+            'contact_force': tf.float32,
+            'image': tf.uint8
+        },
+        tf.float32,  # action
+        tf.float32,  # reward
+        tf.bool      # is_terminal
+    )
+
+    output_shapes = (
+        {
+            'timestamp': tf.TensorShape([]),
+            'actual_qd': tf.TensorShape([6]),
+            'aperture': tf.TensorShape([]),
+            'gripper_vel': tf.TensorShape([]),
+            'contact_force': tf.TensorShape([]),
+            'image': tf.TensorShape([64, 64, 3])
+        },
+        tf.TensorShape([]),  # action
+        tf.TensorShape([]),  # reward
+        tf.TensorShape([])   # is_terminal
+    )
+
+    # Create the tf.data.Dataset
+    dataset = tf.data.Dataset.from_generator(
+        generator,
+        output_types=output_types,
+        output_shapes=output_shapes
+    )
+
+    # save tfds as file
+    rlds.save_as_tfds(dataset, 'robot_logs/episode.tfds')
+
+    return dataset
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -360,6 +451,18 @@ def new_interaction():
     timestamp = time.strftime('%Y_%m_%d_%H_%M_%S', t)
     with open(f'interaction_logs/{timestamp}_message_log_id-{INTERACTIONS}.json', 'w') as f:
         f.write(json.dumps(messages))
+
+    # save robot log to rlds
+    # assert that grasp_log.json, move.csv, and home.csv exist in robot/logs
+    path = "robot_logs/grasp_log.json"
+    if not os.path.exists(path):
+        return jsonify({"success": False, "message": "No grasp log found."})
+    if not os.path.exists("robot_logs/move.csv"):
+        return jsonify({"success": False, "message": "No move log found."})
+    if not os.path.exists("robot_logs/home.csv"):
+        return jsonify({"success": False, "message": "No home log found."})
+    df = log_to_df()
+    dataset = df_to_rlds(df)
     
     INTERACTIONS += 1
     return jsonify({"success": True, "message": "New interaction started."})
