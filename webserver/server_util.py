@@ -122,6 +122,9 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0):
 def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
     episode_steps = df.to_dict(orient='records')
 
+    # # make images array with length == len(steps) that is img at index 0 and a blank image the rest
+    # images = [img] + [np.zeros_like(img) for _ in range(len(episode_steps)-1)]
+
     # Convert list of dictionaries to RLDS episode
     episode = {
         'steps':[{
@@ -145,6 +148,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
             'reward': 0,  # Placeholder, assuming no reward data is available
             'is_terminal': False  # Placeholder, assuming steps are not terminal
         } for step in episode_steps]
+        # } for step, i in zip(episode_steps, images)]
     }
 
     # Convert the episode to a list of tuples
@@ -203,6 +207,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
 
     # save tfds as file
     tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}')
+    episode = rlds.build_episode(tfds.as_numpy(dataset), metadata=output_types[0])
     # rlds.save_as_tfds(dataset, f'robot_logs/{path}.tfds')
 
-    return dataset
+    return episode
