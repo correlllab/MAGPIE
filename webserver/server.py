@@ -240,8 +240,7 @@ def chat():
 
 @app.route("/new_interaction", methods=["POST"])
 def new_interaction():
-    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE
-
+    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE, GRASP_TIMESTAMP
     # save MESSAGE_LOG to json
     messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
     print(messages)
@@ -253,14 +252,14 @@ def new_interaction():
 
     # save robot log to rlds
     # assert that grasp_log.json, move.csv, and home.csv exist in robot/logs
-    if not os.path.exists("robot_logs/grasp_log.json"):
+    if not os.path.exists(f"robot_logs/grasp_log_{GRASP_TIMESTAMP}.json"):
         return jsonify({"success": False, "message": "No grasp log found."})
-    if not os.path.exists("robot_logs/move.csv"):
+    if not os.path.exists(f"robot_logs/move_{GRASP_TIMESTAMP}.csv"):
         return jsonify({"success": False, "message": "No move log found."})
-    if not os.path.exists("robot_logs/home.csv"):
+    if not os.path.exists(f"robot_logs/home_{GRASP_TIMESTAMP}.csv"):
         return jsonify({"success": False, "message": "No home log found."})
-    path = f"{timestamp}_id-{INTERACTIONS}.csv"
-    df = log_to_df(path=path)
+    path = f"{timestamp}_id-{INTERACTIONS}"
+    df = log_to_df(path=path, timestamp=GRASP_TIMESTAMP)
     dataset = df_to_rlds(df, IMAGE, path=path)
     
     INTERACTIONS += 1
@@ -298,8 +297,7 @@ def grasp_policy():
 
 @app.route("/execute", methods=["POST"])
 def execute():
-    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS
-
+    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS, GRASP_TIMESTAMP
     pm = PROMPT_MODEL
     if RESPONSE is None:
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
@@ -307,7 +305,7 @@ def execute():
         print("SERVER executing code")
         stdout = pm.code_executor(RESPONSE)
         # grasp_log = stdout.split('\n')[-2] # hardcoded...very brittle...
-        log_grasp(stdout) # still hardcoded...brittle...
+        log_grasp(stdout, path=f"robot_logs/grasp_log_{GRASP_TIMESTAMP}.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
         # return jsonify({"success": True, "message": "Code executed successfully."})
@@ -321,11 +319,11 @@ def execute():
 
 @app.route("/home", methods=["POST"])
 def home():
-    global HOME_POSE, AT_GOAL, GRIPPER, ROBOT_IP
+    global HOME_POSE, AT_GOAL, GRIPPER, ROBOT_IP, GRASP_TIMESTAMP
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path="robot_logs/home.csv") # 10Hz frequency
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/home_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
             robot.start()
             robot.moveL(HOME_POSE)
             time.sleep(SLEEP_RATE * 3)
@@ -339,7 +337,7 @@ def home():
 
 @app.route("/move", methods=["POST"])
 def move():
-    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
+    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL, GRASP_TIMESTAMP
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
         msg["message"] = "No goal pose set."
@@ -349,7 +347,8 @@ def move():
         return jsonify(msg)
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path="robot_logs/move.csv") # 10Hz frequency
+            GRASP_TIMESTAMP = time.time()
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/move_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
             robot.start()
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)

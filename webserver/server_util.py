@@ -31,17 +31,16 @@ def encode_image(pil_img, decoder='ascii'):
 def parse_object_description(user_input):
     return user_input, user_input
 
-def log_grasp(grasp_log):
-    path = "robot_logs/grasp_log.json"
+def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json
     # get content after last newline of stdout
     sep = grasp_log.split('\n')
     gl = np.array(ast.literal_eval(sep[-2]))
     # write list of dicts to json
     with open(path, 'w') as f:
-        json.dump(gl, f)
+        f.write(json.dumps(gl.tolist()))
 
-def log_to_df(path="robot_logs/df_combined.csv"):
+def log_to_df(path="robot_logs/df_combined.csv", timestamp=0):
     '''
     combine 3 logs:
     1. move (csv)
@@ -60,31 +59,31 @@ def log_to_df(path="robot_logs/df_combined.csv"):
     # https://stackoverflow.com/questions/68567630/converting-a-list-of-dictionaries-to-a-tf-dataset
 
     # load csv to pd df
-    home = pd.read_csv("robot_logs/home.csv")
-    move = pd.read_csv("robot_logs/move.csv")
+    home = pd.read_csv(f"robot_logs/home_{timestamp}.csv")
+    move = pd.read_csv(f"robot_logs/move_{timestamp}.csv")
 
     # extract timestamp columns and actual_qd columns from actual_qd_0 to actual_qd_5
     home = home[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
     move = move[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
 
     # load json
-    path = "robot_logs/grasp_log.json"
-    obj_text = codecs.open(path, 'r', encoding='utf-8').read()
+    grasp_pth = f"robot_logs/grasp_log_{timestamp}.json"
+    obj_text = codecs.open(grasp_pth, 'r', encoding='utf-8').read()
     gl = np.array(json.loads(obj_text))
     grasp_log = pd.DataFrame(gl.tolist()) # convert to pd df
     # keep only timestamp, aperture, gripper_vel, and contact_force cols, add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
 
-    grasp_log = (grasp_log[['timestamp']] + 
-                 move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] +
-                 grasp_log[['aperture', 'gripper_vel', 'contact_force']])
+    grasp_log = grasp_log[['timestamp', 'aperture', 'gripper_vel', 'contact_force']]
+    grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    grasp_log = grasp_log[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5', 'aperture', 'gripper_vel', 'contact_force']]
     
     # add columns to move and home dfs, zeroed out
-    move['aperture'] = 0
-    move['gripper_vel'] = 0
-    move['contact_force'] = 0
-    home['aperture'] = 0
-    home['gripper_vel'] = 0
-    home['contact_force'] = 0
+    move['aperture'] = 0.0
+    move['gripper_vel'] = 0.0
+    move['contact_force'] = 0.0
+    home['aperture'] = 0.0
+    home['gripper_vel'] = 0.0
+    home['contact_force'] = 0.0
 
 
     # get initial values, iteratively subtract 0.1s from ti and assign to to move timestamps, from last to first
@@ -112,7 +111,7 @@ def log_to_df(path="robot_logs/df_combined.csv"):
     # combine dataframes vertically
     df = pd.concat([move, grasp_log, home], axis=0)
     # save df to csv
-    df.to_csv(f"robot_logs/{path}.csv", index=False)
+    df.to_csv(f"robot_logs/df_{path}.csv", index=False)
 
     return df
 
@@ -181,7 +180,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
             'aperture': tf.TensorShape([]),
             'gripper_vel': tf.TensorShape([]),
             'contact_force': tf.TensorShape([]),
-            'image': tf.TensorShape([64, 64, 3])
+            'image': tf.TensorShape([480, 640, 3])
         },
         tf.TensorShape([]),  # action
         tf.TensorShape([]),  # reward
@@ -196,6 +195,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
     )
 
     # save tfds as file
-    rlds.save_as_tfds(dataset, f'robot_logs/episode_{path}.tfds')
+    tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}')
+    # rlds.save_as_tfds(dataset, f'robot_logs/{path}.tfds')
 
     return dataset
