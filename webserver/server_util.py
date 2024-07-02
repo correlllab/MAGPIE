@@ -127,7 +127,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
         'steps':[{
             'observation': {
                 'timestamp': step['timestamp'],
-                'actual_qd': [
+                'joint_vel': [
                     step['actual_qd_0'],
                     step['actual_qd_1'],
                     step['actual_qd_2'],
@@ -167,7 +167,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
     output_types = (
         {
             'timestamp': tf.float32,
-            'actual_qd': tf.float32,
+            'joint_vel': tf.float32,
             'aperture': tf.float32,
             'gripper_vel': tf.float32,
             'contact_force': tf.float32,
@@ -182,7 +182,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
     output_shapes = (
         {
             'timestamp': tf.TensorShape([]),
-            'actual_qd': tf.TensorShape([6]),
+            'joint_vel': tf.TensorShape([6]),
             'aperture': tf.TensorShape([]),
             'gripper_vel': tf.TensorShape([]),
             'contact_force': tf.TensorShape([]),
