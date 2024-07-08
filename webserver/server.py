@@ -77,6 +77,7 @@ VISION = False
 RESPONSE = None
 PROMPT_MODEL = None
 CONVERSATION = None
+OBJECT_NAME = None
 
 # hardware
 SERVO_PORT = "/dev/ttyACM0"
@@ -189,7 +190,7 @@ def chat():
     # Perception
     global CAMERA, LABEL, GOAL_POSE, APERTURE, IMAGE
     # LLM
-    global PROMPT_MODEL, CONVERSATION, RESPONSE, VISION
+    global PROMPT_MODEL, CONVERSATION, RESPONSE, VISION, OBJECT_NAME
 
     user_command = request.get_json()['message']
     # INPUT PARSING
@@ -205,6 +206,8 @@ def chat():
         # scale image to 640 x 480
         IMAGE = Image.fromarray(image).resize((640, 480))
         queries, abbrevq = parse_object_description(user_command)
+        # cast queries to lower case and replace ' ' with '_'
+        OBJECT_NAME = queries.lower().replace(' ', '_')
         bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
         preds_plot = LABEL.preds_plot
         enc_img = encode_image(Image.fromarray(preds_plot))
@@ -240,7 +243,7 @@ def chat():
 
 @app.route("/new_interaction", methods=["POST"])
 def new_interaction():
-    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE, GRASP_TIMESTAMP
+    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE, GRASP_TIMESTAMP, OBJECT_NAME
     # save MESSAGE_LOG to json
     messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
     print(messages)
@@ -259,8 +262,8 @@ def new_interaction():
     if not os.path.exists(f"robot_logs/home_{GRASP_TIMESTAMP}.csv"):
         return jsonify({"success": False, "message": "No home log found."})
     path = f"{timestamp}_id-{INTERACTIONS}"
-    df = log_to_df(path=path, timestamp=GRASP_TIMESTAMP)
-    dataset = df_to_rlds(df, IMAGE, path=path)
+    df = log_to_df(path=path, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
+    dataset = df_to_rlds(df, IMAGE, path=path, obj=OBJECT_NAME)
     
     INTERACTIONS += 1
     return jsonify({"success": True, "message": "New interaction started."})

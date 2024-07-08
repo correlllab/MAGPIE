@@ -12,6 +12,7 @@ import pandas as pd
 from PIL import Image
 import platform
 import rlds # GDM Reinforcement Learning Dataset
+import spacy
 import sys
 import time
 import tensorflow as tf
@@ -28,8 +29,31 @@ def encode_image(pil_img, decoder='ascii'):
     # return img_tag
     return img
 
+def get_adjective_noun_phrase(token):
+    # Get all tokens that depend on the token
+    dependents = [child for child in token.children]
+    
+    # Get adjectives that modify the token
+    adjectives = [child.text for child in dependents if child.dep_ == "amod"]
+    
+    # Combine the adjectives and the noun
+    phrase = " ".join(adjectives + [token.text])
+    
+    return phrase
+
 def parse_object_description(user_input):
-    return user_input, user_input
+    # Process the sentence using spaCy
+    nlp = spacy.load("en_core_web_sm")
+    doc = nlp(user_input)
+    query, abbrevq = None, None
+    # Extract the adjective and noun
+    for token in doc:
+        if token.dep_ == "dobj":  # Direct object dependency
+            phrase = get_adjective_noun_phrase(token)
+            print(f"Adjective-Noun phrase for '{token.text}': {phrase}")
+            query = phrase
+            abbrevq = token.text
+    return query, abbrevq
 
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json
@@ -40,7 +64,7 @@ def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     with open(path, 'w') as f:
         f.write(json.dumps(gl.tolist()))
 
-def log_to_df(path="robot_logs/df_combined.csv", timestamp=0):
+def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
     '''
     combine 3 logs:
     1. move (csv)
@@ -115,11 +139,11 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0):
     # combine dataframes vertically
     df = pd.concat([move, grasp_log, home], axis=0)
     # save df to csv
-    df.to_csv(f"robot_logs/df_{path}.csv", index=False)
+    df.to_csv(f"robot_logs/df_{path}_{obj}.csv", index=False)
 
     return df
 
-def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
+def df_to_rlds(df, img, path="robot_logs/episode.tfds", obj=""):
     episode_steps = df.to_dict(orient='records')
 
     # # make images array with length == len(steps) that is img at index 0 and a blank image the rest
@@ -206,7 +230,7 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds"):
     )
 
     # save tfds as file
-    tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}')
+    tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}_{obj}')
     episode = rlds.build_episode(tfds.as_numpy(dataset), metadata=output_types[0])
     # rlds.save_as_tfds(dataset, f'robot_logs/{path}.tfds')
 
