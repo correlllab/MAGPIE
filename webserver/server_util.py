@@ -45,7 +45,7 @@ def parse_object_description(user_input):
     # Process the sentence using spaCy
     nlp = spacy.load("en_core_web_sm")
     doc = nlp(user_input)
-    query, abbrevq = None, None
+    query, abbrevq = user_input, user_input
     # Extract the adjective and noun
     for token in doc:
         if token.dep_ == "dobj":  # Direct object dependency
