@@ -10,21 +10,15 @@ import math
 
 sleepRate = 0.75
 
-def get_world_frame(gripperFrameCoords, ur, z_offset=0.08):
+def get_world_frame(gripperFrameCoords, ur, z_offset=0.11463):
+    '''
+    z_offset: z_offset from camera to wrist joint on ur5
+    '''
     # given a goal position in gripper coords returns the displacements from the current pose in world coords
     xB,yB,zB = gripperFrameCoords
-    # TODO: stop hardcoding a Z-stop position
-    # maybe dynamically
-    # subtract 0.165 from block position in gripper frame to account for gripper length
-    # in METERS
-    # zB -= 0.155
     zB -= z_offset
     currentPose = ur.get_tcp_pose() # 4x4 homogenous transform matrix
-    # print(f"Current Pose:\n{currentPose*1000}")
-    print(currentPose)
     R = currentPose[:3,:3]
-    # pX,pY,pZ = tuple(currentPose.t)
-    pX,pY,pZ = tuple(currentPose[:3, 3])
     # xB,yB,zB here is the block position in the gripper frame which is aligned with the optoforce frame
     P_goal = np.matmul(R,np.array([xB,yB,zB]).T)  # relative position of the block in world coordinates
     print(f"P_goal:\n{P_goal}")
