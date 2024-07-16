@@ -11,11 +11,14 @@ import platform
 import time
 import dataclasses
 from typing import Any
+import json
 sys.path.append("../")
 
 # LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptcv
+from magpie.prompt_planner.prompts import mp_prompt_tc_vision_phys as mptcvp
+from magpie.prompt_planner.prompts import mp_prompt_tc_phys as mptcp
 from magpie.prompt_planner import conversation
 from magpie.prompt_planner import confirmation_safe_executor
 from magpie.prompt_planner import task_configs
@@ -87,6 +90,22 @@ def encode_image(pil_img, decoder='ascii'):
 def parse_object_description(user_input):
     return user_input, user_input
 
+def handle_prompt_name(policy):
+    global VISION
+    global on_robot
+    prompt_stub = "thinker_coder"
+    # stupid, but order matters
+    if 'vision' in policy:
+        if on_robot:
+            prompt_stub += "_vision"
+            VISION = True
+        else:
+            print("Vision policy selected but not on robot. No vision policy will be used.")
+    if 'cot' in policy:
+        prompt_stub += "_phys"
+    print(f"Prompt policy: {prompt_stub}")
+    return prompt_stub
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     global prompt
@@ -117,8 +136,10 @@ def connect():
     global VISION
 
     new_conf = request.get_json()
+    print(new_conf['policyconf'])
     CONFIG["move"] = new_conf["moveconf"]
     CONFIG["grasp"] = new_conf["graspconf"]
+    CONFIG["policy"] = new_conf["policyconf"]
     CONFIG["llm"] = new_conf["llmconf"]
     CONFIG["vlm"] = new_conf["vlmconf"]
     print(CONFIG)
@@ -128,10 +149,9 @@ def connect():
     connect_msg = ""
     # LLM Configuration
     try:
-        if CONFIG["grasp"] == "dgv" and on_robot:
-            VISION = True
-            PROMPT = TASK_CONFIG.prompts["thinker_coder_vision"]
-            print("configuring language model with vision")
+        if CONFIG["grasp"] == "dg":
+            prompt_name = handle_prompt_name(CONFIG["policy"])
+            PROMPT = TASK_CONFIG.prompts[prompt_name]
         PROMPT_MODEL = PROMPT(
             None, executor=safe_executor
         )
@@ -163,17 +183,12 @@ def connect():
 
     # Camera Configuration
     try:
-        # try:
-        #     CAMERA.disconnect()
-        # except Exception as e:
-        #     print("Could not force disconnect camera, continuing...")
-        #     pass
         if on_robot:
             rsc = real.RealSense()
             rsc.initConnection()
             CAMERA = rsc
         # LABEL = Label(label_models[CONFIG['vlm']])
-        LABEL = LabelOWLViT(label_models['owl-vit'])
+        LABEL = LabelOWLViT(pth=label_models['owl-vit'])
         connect_msg += "Connected to camera and perception models.\n"
     except Exception as e:
         CONNECTED = False
@@ -202,6 +217,7 @@ def chat():
 
     user_command = request.get_json()['message']
     # INPUT PARSING
+    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}]
 
 
     # PERCEPTION
@@ -212,11 +228,11 @@ def chat():
         image = np.array(rgbd_image.color)
         IMAGE = Image.fromarray(image)
         queries, abbrevq = parse_object_description(user_command)
-        bboxes, _ = LABEL.label(image, queries, abbrevq, plot=False)
+        bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
         preds_plot = LABEL.preds_plot
         enc_img = encode_image(Image.fromarray(preds_plot))
         index = 0 # TODO: make this user selection, for now take highest confidence
-        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes, 
+        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes_coords, 
                                          index, 
                                          rgbd_image, 
                                          CAMERA, 
@@ -239,14 +255,29 @@ def chat():
     messages = [
         {"type": "text",  "role": "llm", "content": "This is a text message."},
         {"type": "image", "role": "vlm", "content": enc_img},
-        # {"type": "code",  "role": "llm", "content": desc},
-        # {"type": "code",  "role": "llm", "content": code}
-        # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
     # add user input to front of messages
-    MESSAGE_LOG[INTERACTIONS] = [{"type": "text", "role": "user", "content": user_command}, *messages]
+    MESSAGE_LOG[INTERACTIONS] += messages
     # print(MESSAGE_LOG)
     return jsonify(messages=messages)
+
+@app.route("/new_interaction", methods=["POST"])
+def new_interaction():
+    global INTERACTIONS
+    global MESSAGE_LOG
+    global CONFIG
+
+    # save MESSAGE_LOG to json
+    messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
+    print(messages)
+    # get YYYY_MM_DD_HH_MM_SS
+    t = time.localtime()
+    timestamp = time.strftime('%Y_%m_%d_%H_%M_%S', t)
+    with open(f'interaction_logs/{timestamp}_message_log_id-{INTERACTIONS}.json', 'w') as f:
+        f.write(json.dumps(messages))
+    
+    INTERACTIONS += 1
+    return jsonify({"success": True, "message": "New interaction started."})
 
 @app.route("/grasp_policy", methods=["POST"])
 def grasp_policy():
@@ -254,6 +285,9 @@ def grasp_policy():
     global CONVERSATION
     global RESPONSE
     global IMAGE
+    global VISION
+    global MESSAGE_LOG
+    global INTERACTIONS
 
     user_command = request.get_json()['message']
     conv = CONVERSATION
@@ -274,25 +308,31 @@ def grasp_policy():
             err_msg = {"type": "text", "role": "system", "content": msg}
             return(jsonify(messages=[err_msg]))
     messages = [
-        {"type": "text",  "role": "llm", "content": "This is a text message."},
         {"type": "code",  "role": "llm", "content": desc},
         {"type": "code",  "role": "llm", "content": code}
-        # {"type": "image", "content": encode_image(np.array(Image.open("static/favicon.jpg")))},
     ]
 
+    MESSAGE_LOG[INTERACTIONS] += messages
     return jsonify(messages=messages)
 
 @app.route("/execute", methods=["POST"])
 def execute():
     global PROMPT_MODEL
     global RESPONSE
+    global MESSAGE_LOG
+    global INTERACTIONS
 
     pm = PROMPT_MODEL
     if RESPONSE is None:
-        return jsonify({"success": False, "message": "No response to execute."})
+        return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
-        pm.code_executor(RESPONSE)
-        return jsonify({"success": True, "message": "Code executed successfully."})
+        stdout = pm.code_executor(RESPONSE)
+        print(stdout)
+        msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
+        # return jsonify({"success": True, "message": "Code executed successfully."})
+        MESSAGE_LOG[INTERACTIONS] += msg
+        print(MESSAGE_LOG[INTERACTIONS])
+        return jsonify(messages=[msg])
     except Exception as e:  # pylint: disable=broad-exception-caught
         msg = "Execution failed. Is the robot connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
@@ -302,6 +342,7 @@ def execute():
 def home():
     global HOME_POSE
     global AT_GOAL
+    global GRIPPER
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
@@ -332,17 +373,18 @@ def move():
         return jsonify(msg)
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP)
+            robot = ur5.UR5_Interface(ROBOT_IP, freq=100, record=True, record_path="robot_logs/test.csv") # 10Hz frequency
             robot.start()
             # current_pose = robot.getPose()
             # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
             # robot.moveL(GOAL_POSE)
             # z = 0.05 + APERTURE # TODO: figure this out
-            z = 0.10
+            z = 0.12
             print(f"z_offset: {z}")
             gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
             time.sleep(SLEEP_RATE * 4)
             AT_GOAL = True
+            robot.stop_recording()
             robot.stop()
             msg["success"] = True
         return jsonify(msg)
