@@ -1,3 +1,11 @@
+*.pkl
+*/*.pkl
+*/*/*.pkl
+*/*/*/*.pkl
+*/*/*/*/*.pkl
+*/*/*/*/*/*.pkl
+
+
 */temp/
 */runs/
 .gitignore~

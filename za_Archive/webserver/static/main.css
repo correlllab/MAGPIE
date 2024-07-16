@@ -1,0 +1,66 @@
+/* Custom CSS for Python code style */
+.code {
+    font-family: "Courier New", monospace;
+    white-space: pre;
+}
+
+/* Custom CSS for code box */
+.code-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f8f9fa;
+    margin-top: 20px;
+}
+
+.row{ display: flex; align-items: center;}
+.CodeMirror { border: 2px solid lightgrey }
+.CodeMirror.CodeMirror-focused { border: 2px solid blue }
+
+.label {
+    background-color: #f8c291;
+    color: #000;
+    border-radius: 5px;
+    padding: 3px 8px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    display: inline-block;
+}
+
+.label.user {
+    background-color: #c7ecee;
+}
+
+.label.llm {
+    background-color: #f8c291;
+}
+
+.label.vlm {
+    background-color: #f8f391;
+}
+
+.outer {
+    /* width: 150pt; */
+    border: 1px solid #ccc;
+    border-radius: 15pt;
+    overflow: hidden;
+    margin-top: 10px;
+}
+  
+.inner {
+    margin: 10px;
+    height: 450px;
+    overflow-y: auto;
+}
+
+hr {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+code {
+    border-radius: 10px;
+    margin-right: 10px;
+}
+
+.status {
+}
