@@ -9,41 +9,27 @@
                         "pythonClassName": "tensorflow_datasets.core.features.features_dict.FeaturesDict",
                         "featuresDict": {
                             "features": {
+                                "timestamp": {
+                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
+                                    "tensor": {
+                                        "shape": {},
+                                        "dtype": "float32",
+                                        "encoding": "none"
+                                    },
+                                    "description": "Epoch timestamp"
+                                },
                                 "action": {
                                     "pythonClassName": "tensorflow_datasets.core.features.tensor_feature.Tensor",
                                     "tensor": {
                                         "shape": {
                                             "dimensions": [
-                                                "8"
+                                                "10"
                                             ]
                                         },
                                         "dtype": "float32",
                                         "encoding": "none"
                                     },
-                                    "description": "Robot action, consists of [3x end effector pos, 3x robot rpy angles, 1x gripper open/close command, 1x terminal action]."
-                                },
-                                "is_terminal": {
-                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
-                                    "tensor": {
-                                        "shape": {},
-                                        "dtype": "bool",
-                                        "encoding": "none"
-                                    },
-                                    "description": "True on last step of the episode if it is a terminal step, True for demos."
-                                },
-                                "is_last": {
-                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
-                                    "tensor": {
-                                        "shape": {},
-                                        "dtype": "bool",
-                                        "encoding": "none"
-                                    },
-                                    "description": "True on last step of the episode."
-                                },
-                                "language_instruction": {
-                                    "pythonClassName": "tensorflow_datasets.core.features.text_feature.Text",
-                                    "text": {},
-                                    "description": "Language Instruction."
+                                    "description": "Robot action, consists of [3x end effector pos, 3x robot rpy angles, 1x gripper position, 1x gripper velocity, 1x contact force, 1x applied force]."
                                 },
                                 "observation": {
                                     "pythonClassName": "tensorflow_datasets.core.features.features_dict.FeaturesDict",
@@ -54,8 +40,8 @@
                                                 "image": {
                                                     "shape": {
                                                         "dimensions": [
-                                                            "128",
-                                                            "128",
+                                                            "480",
+                                                            "640",
                                                             "3"
                                                         ]
                                                     },
@@ -69,16 +55,39 @@
                                                 "tensor": {
                                                     "shape": {
                                                         "dimensions": [
-                                                            "7"
+                                                            "10"
                                                         ]
                                                     },
                                                     "dtype": "float32",
                                                     "encoding": "none"
                                                 },
-                                                "description": "Robot state, consists of [3x end effector pos, 3x robot rpy angles, 1x gripper position]."
+                                                "description": "Robot state, consists of [3x end effector pos, 3x robot rpy angles, 1x gripper position, 1x gripper velocity, 1x contact force, 1x applied force]."
                                             }
                                         }
                                     }
+                                },
+                                "language_instruction": {
+                                    "pythonClassName": "tensorflow_datasets.core.features.text_feature.Text",
+                                    "text": {},
+                                    "description": "Language Instruction."
+                                },
+                                "reward": {
+                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
+                                    "tensor": {
+                                        "shape": {},
+                                        "dtype": "float32",
+                                        "encoding": "none"
+                                    },
+                                    "description": "Reward if provided, 1 on final step for demos."
+                                },
+                                "is_terminal": {
+                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
+                                    "tensor": {
+                                        "shape": {},
+                                        "dtype": "bool",
+                                        "encoding": "none"
+                                    },
+                                    "description": "True on last step of the episode if it is a terminal step, True for demos."
                                 },
                                 "is_first": {
                                     "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
@@ -89,23 +98,14 @@
                                     },
                                     "description": "True on first step of the episode."
                                 },
-                                "discount": {
+                                "is_last": {
                                     "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
                                     "tensor": {
                                         "shape": {},
-                                        "dtype": "float32",
+                                        "dtype": "bool",
                                         "encoding": "none"
                                     },
-                                    "description": "Discount if provided, default to 1."
-                                },
-                                "reward": {
-                                    "pythonClassName": "tensorflow_datasets.core.features.scalar.Scalar",
-                                    "tensor": {
-                                        "shape": {},
-                                        "dtype": "float32",
-                                        "encoding": "none"
-                                    },
-                                    "description": "Reward if provided, 1 on final step for demos."
+                                    "description": "True on last step of the episode."
                                 }
                             }
                         }
