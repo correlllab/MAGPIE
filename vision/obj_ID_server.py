@@ -1,33 +1,3 @@
-""" 
-
-########## DEV GUIDE ##########
-
-Approach & Guidelines:
-* Keep perception and robot motion separate
-
-Input: Python Dictionary
-{
-    'camera_pose': <list[16]: homog coord>,
-}
-
-Outputs: List of {Object Poses & Class Distributions}
-[
-    ...
-    {
-        'pose': <list>
-        'labels': { ... , <str:label>: <float:confidence> , ... }
-    },
-    ...
-]
-
-
-########## DEV PLAN ##########
-[>] Test perception class as PY file
-[ ] Wrap in XML-RPC
-    [ ] Test initiating server from Jupyter
-
-"""
-
 ########## INIT ####################################################################################
 
 ##### Imports #####
