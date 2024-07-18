@@ -28,6 +28,10 @@ import sys
 sys.path.append('../../')
 import magpie.prompt_planner.prompts.mp_prompt_thinker_coder_muk as mptc
 import magpie.prompt_planner.prompts.mp_prompt_tc_vision as mptcv
+import magpie.prompt_planner.prompts.mp_prompt_tc_vision_phys as mptcvp
+import magpie.prompt_planner.prompts.mp_prompt_tc_phys as mptcp
+import magpie.prompt_planner.prompts.dg_system_executor as dgse
+import magpie.prompt_planner.prompts.dg_command_enumerator as dgce
 
 @dataclasses.dataclass(frozen=True)
 class TaskConfig:
@@ -44,7 +48,21 @@ ALL_TASKS = {
         client=None,
         prompts={
             'thinker_coder': mptc.PromptThinkerCoder,
+            'thinker_coder_phys': mptcp.PromptThinkerCoderPhys,
             'thinker_coder_vision': mptcv.PromptThinkerCoderVision,
+            'thinker_coder_vision_phys': mptcvp.PromptThinkerCoderVisionPhys
+        },
+    ),
+    'system': TaskConfig(
+      client=None,
+        prompts={
+            'system_executor': dgse.PromptSystemExecutor
+        },
+    ),
+    'command_enumerator': TaskConfig(
+        client=None,
+            prompts={
+                'command_enumerator': dgce.PromptCommandEnumerator
         },
     ),
 }

@@ -8,6 +8,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from open3d.web_visualizer import draw
 import copy
+import time
 
 def create_depth_mask_from_mask(mask, orig_depth):
     '''
@@ -132,17 +133,15 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     dm = None
     cpcd = None
     pcaFrame, tmat = None, None
-
+    start = time.time()
     if type == "box" or type == "box-dbscan":
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
     elif type == "mask":
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
-    
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
-
     if type == "box-dbscan": # much cheaper than SAM
         # find largest cluster with dbscan
-        labels = np.array(cpcd.cluster_dbscan(eps=0.01, min_points=50))
+        labels = np.array(cpcd.cluster_dbscan(eps=0.04, min_points=50))
         # Find the label with the maximum count
         unique_labels, label_counts = np.unique(labels, return_counts=True)
         largest_cluster_label = unique_labels[np.argmax(label_counts)]
@@ -152,7 +151,6 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dbspcd.points = o3d.utility.Vector3dVector(largest_cluster_points)
         dbspcd.colors = o3d.utility.Vector3dVector(largest_cluster_colors)
         cpcd = dbspcd
-
     mc = cpcd.compute_mean_and_covariance()
     grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]
     if method == 'iterative':

@@ -134,6 +134,7 @@ class ConfirmationSafeExecutor(safe_executor.SafeExecutor):
       raise ValueError("Failed to run code.") from e
     finally:
       os.unlink(pyc_filepath)
+    print("completed_process", completed_process.stdout.decode("utf-8"))
     return completed_process.stdout.decode("utf-8")
 
 if __name__ == "__main__":
