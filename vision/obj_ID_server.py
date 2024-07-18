@@ -63,7 +63,7 @@ class Perception_OWLViT:
     label_vit       = None 
     lst             = 0.0 #------------------------------------------ Last time loop ended,  INSIDE  Process
     per             = _ID_PERIOD_S #--------------------------------- Period [s], __________ INSIDE  Process
-    effPose         = Array( 'd', [0.0 for _ in range( 16 )] )
+    effPose         = Array( 'd', np.eye(4).reshape( (16,) ) )
     objIDstr        = Array( 'c', bytes( "Hello, World!", 'utf-8' ) )
     run             = Value( 'B', 0 )
     viz             = Value( 'B', 0 )
@@ -109,7 +109,7 @@ class Perception_OWLViT:
         cpcd.transform(tmat_gripper)
         cpcd.transform(rotation_matrix)
         #convert to 4*4
-        cpcd.transform(effPose)
+        cpcd.transform( np.array( cls.effPose[:] ).reshape( (4,4,) ) )
 
         return cpcd
     
@@ -431,12 +431,17 @@ class Object_ID_Manager:
             self.proc.kill()
 
 
+    def 
+
+
 if __name__ == "__main__":
     print( "Create mamanger ..." )
     mngr = Object_ID_Manager()
     print( "Start thread ..." )
     mngr.start()
-    sleep( 60 )
+    
+    
+
     print( "Stop thread ..." )
     mngr.stop()
     print( "DONE" )

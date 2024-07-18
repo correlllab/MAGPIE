@@ -45,13 +45,24 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
         extrinsic=rsc.extrinsics
     )
 
-    # denoise pcd
-    print( f"About to `cpcd.remove_statistical_outlier` on {cpcd} ...", flush=True )
-    cl, ind = cpcd.remove_statistical_outlier(nb_neighbors=NB, std_ratio=0.01)
-    print( "About to `cpcd.select_by_index` ...", flush=True )
-    inlier_cloud = cpcd.select_by_index(ind)
-    # display_inlier_outlier(saved_pcd, ind)
-    # displayWorld(inlier_cloud)
+    if 0:
+        # denoise pcd
+        print( f"About to `cpcd.remove_statistical_outlier` on {cpcd}\nRequired Neighbors: {NB} ...", flush=True )
+
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.001 )
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.002 )
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.005 )
+        cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.01 )
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.02 )
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.05 )
+        # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.10 )
+
+        print( "About to `cpcd.select_by_index` ...", flush=True )
+        inlier_cloud = cpcd.select_by_index( ind )
+        # display_inlier_outlier(saved_pcd, ind)
+        # displayWorld(inlier_cloud)
+    else:
+        inlier_cloud = cpcd
 
     return inlier_cloud
 
@@ -146,8 +157,13 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
     elif type == "mask":
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
-    print( f"About to `crop_and_denoise_pcd` ...", flush=True )
+    
+    print( f"About to `crop_and_denoise_pcd` with {dm} ...", flush=True )
+
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
+    # cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=10)
+    # cpcd = crop_and_denoise_pcd( dm, rgbd_image, rsc, NB=20 )
+    
     if type == "box-dbscan": # much cheaper than SAM
         # find largest cluster with dbscan
         labels = np.array(cpcd.cluster_dbscan(eps=0.04, min_points=50))
