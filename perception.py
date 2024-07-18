@@ -1,4 +1,5 @@
-import time
+import time, traceback
+from time import sleep
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
 
 # Configure logging
-logging.basicConfig( level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig( level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s' )
 
 class Perception:
     def __init__( self, num_blocks, query, abbrevq, visualize_boxes, visualize_pcd ):
@@ -247,6 +248,7 @@ class Perception:
                 break
 
         return clustered_objects
+    
 
     def build_model(self):
         """Builds the perception model."""
@@ -293,17 +295,34 @@ class Perception:
             return self.objects
 
         except Exception as e:
-            self.stop_interface()
             logging.error(f"Error building model: {e}")
+            self.stop_interface()
             raise e
+        
+        except KeyboardInterrupt as e:
+            logging.error( f"Program was stopped by user: {e}" )
+            traceback.print_exc()
+            self.stop_interface()
 
-# Initialize Perception
-queries = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-abbrevq = ["purple", "blue", "red"]
-num_blocks = 3
-view_combined_boxes_plot = True
-visualize_pcd = False
+try:
+    # Initialize Perception
+    queries = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
+    abbrevq = ["purple", "blue", "red"]
+    num_blocks = 3
+    view_combined_boxes_plot = False
+    visualize_pcd = False
 
-tower = Perception(num_blocks, queries, abbrevq, view_combined_boxes_plot, visualize_pcd)
-data = tower.build_model()
-print(data)
+    tower = Perception( num_blocks, queries, abbrevq, view_combined_boxes_plot, visualize_pcd )
+    for i in range(2):
+        print( f"\n\n##### Iter {i+1} #####" )
+        data = tower.build_model()
+        tower.stop_interface()
+        # tower.rsc.disconnect()
+        sleep(1)
+    
+    # print(data)
+    # exit()
+
+except KeyboardInterrupt as e:
+    logging.error( f"Program was stopped by user: {e}" )
+    traceback.print_exc()

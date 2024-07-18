@@ -2,7 +2,7 @@
 
 ##### Imports #####
 ### Standard ###
-import time, logging, copy, signal, multiprocessing, os, sys, socket, glob
+import time, logging, copy, signal, multiprocessing, os, sys, socket, glob, traceback
 from time import sleep
 from multiprocessing import Process, Array, Value, Pool
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
@@ -15,10 +15,22 @@ from open3d.web_visualizer import draw
 import matplotlib.pyplot as plt
 
 ### Local ###
+sys.path.append( "../" )
 from magpie import grasp as gt
 from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
+
+
+
+########## PERCEPTION SETTINGS #####################################################################
+
+_QUERIES     = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
+_ABBREV_Q    = ["purple", "blue", "red"]
+_NUM_BLOCKS  = 3
+_PLOT_BOX    = False
+_VIZ_PCD     = False
+_ID_PERIOD_S = 2.0
 
 
 
@@ -35,60 +47,50 @@ class RequestHandler( SimpleXMLRPCRequestHandler ):
 # Configure logging
 logging.basicConfig( level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+
 class Perception_OWLViT:
     """ Perception service based on OWL-ViT """
 
-    def __init__( self, num_blocks, query, abbrevq, visualize_boxes, visualize_pcd ):
-        """
-        Initializes the Perception class.
+    ### Class Vars ###
 
-        Args:
-            num_blocks (int): Number of blocks.
-            query (list): List of queries.
-            abbrevq (list): List of abbreviations for the queries.
-            visualize_boxes (bool): Flag to visualize bounding boxes.
-            visualize_pcd (bool): Flag to visualize point clouds.
-        """
-        self.query           = query
-        self.abbrevq         = abbrevq
-        self.blocks          = num_blocks
-        self.visualize_boxes = visualize_boxes
-        self.view_pcd        = visualize_pcd
-        self.sleep_rate      = 3
-        self.objects         = {}
+    query           = _QUERIES
+    abbrevq         = _ABBREV_Q
+    blocks          = _NUM_BLOCKS
+    visualize_boxes = _PLOT_BOX
+    view_pcd        = _VIZ_PCD
+    rsc             = None
+    label_vit       = None 
+    lst             = 0.0 #------------------------------------------ Last time loop ended,  INSIDE  Process
+    per             = _ID_PERIOD_S #--------------------------------- Period [s], __________ INSIDE  Process
+    effPose         = Array( 'd', [0.0 for _ in range( 16 )] )
+    objIDstr        = Array( 'c', bytes( "Hello, World!", 'utf-8' ) )
+    run             = Value( 'B', 0 )
+    viz             = Value( 'B', 0 )
 
+    @classmethod
+    def start_vision( cls ):
         try:
-            self.rsc = real.RealSense()
-            self.rsc.initConnection()
-            logging.info( f"RealSense camera CONNECTED" )
+            cls.rsc = real.RealSense()
+            cls.rsc.initConnection()
+            # logging.info( f"RealSense camera CONNECTED" )
+            print( f"RealSense camera CONNECTED", flush=True )
         except Exception as e:
-            logging.error( f"Error initializing RealSense: {e}" )
+            # logging.error( f"Error initializing RealSense: {e}" )
+            print( f"Error initializing RealSense: {e}", flush=True )
             raise e
         
-        self.label_vit = LabelOWLViT( pth = "google/owlvit-base-patch32" )
-
-    def start_interface(self):
-        """Starts the UR5 interface."""
         try:
-            self.ur.start()
+            cls.label_vit = LabelOWLViT( pth = "google/owlvit-base-patch32" )
+            # logging.info( f"V-LLM STARTED" )
+            print( f"V-LLM STARTED", flush=True )
         except Exception as e:
-            logging.error(f"Error starting UR5 interface: {e}")
+            # logging.error( f"Error initializing OWL-ViT: {e}" )
+            print( f"Error initializing OWL-ViT: {e}", flush=True )
             raise e
 
-    def stop_interface(self):
-        """Stops the UR5 interface."""
-        self.ur.stop()
-
-    def move_to_pose(self, pose):
-        """Moves the UR5 to the given pose."""
-        self.ur.moveL(pose)
-        time.sleep(self.sleep_rate)
-
-    def get_pose(self):
-        """Gets the current TCP pose of the UR5."""
-        return self.ur.get_tcp_pose()
-
-    def transform_point_cloud(self, cpcd):
+    @classmethod
+    def transform_point_cloud(cls, cpcd):
         """Transforms the given point cloud to align with the gripper pose."""
         rotation_matrix = np.array([
             [0, 1, 0, 0],
@@ -106,53 +108,42 @@ class Perception_OWLViT:
 
         cpcd.transform(tmat_gripper)
         cpcd.transform(rotation_matrix)
-        cpcd.transform(self.get_pose())
+        #convert to 4*4
+        cpcd.transform(effPose)
 
         return cpcd
-
-    def save_point_cloud(self, filename, point_cloud):
+    
+    @classmethod
+    def save_point_cloud(cls, filename, point_cloud):
         """Saves the point cloud to a file."""
         o3d.io.write_point_cloud(filename, point_cloud)
 
-    def save_pose(self, filename, pose):
-        """Saves the pose to a file."""
-        np.save(filename, pose)
-
-    def load_pose(self, filename):
-        """Loads the pose from a file."""
-        return np.load(filename)
-
-    def return_to_home(self):
-        """Returns the UR5 to the home position."""
-        home = self.load_pose("home_pose.npy")
-        self.move_to_pose(home)
-
-    def visualize_point_cloud(self, point_cloud):
-        """Visualizes the given point cloud."""
-        o3d.visualization.draw_geometries([point_cloud])
-
-    def get_pcd_pose(self, point_cloud):
+    @classmethod
+    def get_pcd_pose(cls, point_cloud):
         """Gets the pose of the point cloud."""
         center = point_cloud.get_center()
         pose_vector = [center[0], center[1], center[2], 3.14, 0, 0]
         return pose_vector
 
-    def calculate_area(self, box):
+    @classmethod
+    def calculate_area(cls, box):
         """Calculates the area of the bounding box."""
         return abs(box[3] - box[1]) * abs(box[2] - box[0])
 
-    def filter_by_area(self, tolerance, box, total_area):
+    @classmethod
+    def filter_by_area(cls, tolerance, box, total_area):
         """Filters the bounding box by area."""
-        area = self.calculate_area(box)
+        area = cls.calculate_area(box)
         return abs(area / total_area) <= tolerance
 
-    def bound(self, query, abbrevq):
+    @classmethod
+    def bound(cls, query, abbrevq):
         """Bounds the given query with the OWLViT model."""
-        _, rgbd_image = self.rsc.getPCD()
+        _, rgbd_image = cls.rsc.getPCD()
         image = np.array(rgbd_image.color)
 
-        self.label_vit.set_threshold(0.005)
-        _, _, scores, labels = self.label_vit.label(image, query, abbrevq, topk=True, plot=False)
+        cls.label_vit.set_threshold(0.005)
+        _, _, scores, labels = cls.label_vit.label(image, query, abbrevq, topk=True, plot=False)
 
         scores = sorted(scores, reverse=True)
         filtered_boxes = []
@@ -160,20 +151,21 @@ class Perception_OWLViT:
         filtered_labels = []
         filter_coords = []
 
-        for i in range(min(20, len(self.label_vit.sorted_labeled_boxes_coords))):
-            if self.filter_by_area(0.05, self.label_vit.sorted_labeled_boxes_coords[i][0], image.shape[0] * image.shape[1]):
-                filtered_boxes.append(self.label_vit.sorted_boxes[i])
+        for i in range(min(20, len(cls.label_vit.sorted_labeled_boxes_coords))):
+            if cls.filter_by_area(0.05, cls.label_vit.sorted_labeled_boxes_coords[i][0], image.shape[0] * image.shape[1]):
+                filtered_boxes.append(cls.label_vit.sorted_boxes[i])
                 filtered_scores.append(scores[i])
                 filtered_labels.append(labels[i])
-                filter_coords.append(self.label_vit.sorted_labeled_boxes_coords[i])
+                filter_coords.append(cls.label_vit.sorted_labeled_boxes_coords[i])
 
         return rgbd_image, image, abbrevq, filtered_boxes, filtered_scores, filtered_labels, filter_coords
 
-    def calculate_probability_dist(self, cluster):
+    @classmethod
+    def calculate_probability_dist(cls, cluster):
         """Calculates the probability distribution of the cluster."""
-        probabilities = {color: 0 for color in self.abbrevq}
+        probabilities = {color: 0 for color in _ABBREV_Q}
         total = len(cluster)
-        color_counts = {color: 0 for color in self.abbrevq}
+        color_counts = {color: 0 for color in _ABBREV_Q}
 
         for _, color, _, _ in cluster:
             color_counts[color] += 1
@@ -183,25 +175,28 @@ class Perception_OWLViT:
 
         return probabilities
 
-    def format_coordinates(self, box):
+    @classmethod
+    def format_coordinates(cls, box):
         """Formats the coordinates of the bounding box."""
         cx, cy, w, h = box
         return [cx - w / 2, cy + h / 2, cx + w / 2, cx - h / 2]
 
-    def find_euclidean_distance(self, point1, point2):
+    @classmethod
+    def find_euclidean_distance(cls, point1, point2):
         """Finds the Euclidean distance between two points."""
         return np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
-    def plot_bounding_boxes(self, input_image, scores, boxes, labels, topk=False, show_plot=False):
+    @classmethod
+    def plot_bounding_boxes(cls, input_image, scores, boxes, labels, topk=False, show_plot=False):
         """Plots the bounding boxes on the input image."""
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         ax.imshow(input_image, extent=(0, 1, 1, 0))
         ax.set_axis_off()
         idx = 0
 
-        for i in range(self.blocks):
+        for i in range(_NUM_BLOCKS):
             for score, box, label in zip(scores[i], boxes[i], labels[i]):
-                if score < self.label_vit.SCORE_THRESHOLD:
+                if score < cls.label_vit.SCORE_THRESHOLD:
                     continue
                 cx, cy, w, h = box
                 ax.plot([cx - w / 2, cx + w / 2, cx + w / 2, cx - w / 2, cx - w / 2],
@@ -212,7 +207,7 @@ class Perception_OWLViT:
                     f"({idx}): {score:1.2f}",
                     ha="left",
                     va="top",
-                    color=self.abbrevq[i],
+                    color=_ABBREV_Q[i],
                     bbox={
                         "facecolor": "white",
                         "edgecolor": "red",
@@ -224,14 +219,16 @@ class Perception_OWLViT:
             if not show_plot:
                 plt.close(fig)
 
-    def assign_label(self, k, boundaries):
+    @classmethod
+    def assign_label(cls, k, boundaries):
         """Assigns a label based on the index."""
         output_list = [sum(boundaries[:i + 1]) - 1 for i in range(len(boundaries))]
         for i in range(len(output_list)):
             if k <= output_list[i]:
                 return i
 
-    def find_clusters(self, boxes, scores_list):
+    @classmethod
+    def find_clusters(cls, boxes, scores_list):
         """Finds clusters in the bounding boxes."""
         bounding_boxes = []
         boundaries = []
@@ -256,13 +253,13 @@ class Perception_OWLViT:
                 if bounding_boxes[i] is not None:
                     if not clusters:
                         temp = bounding_boxes[i]
-                        k = self.assign_label(i, boundaries)
-                        clusters.append([bounding_boxes[i], self.abbrevq[k], scores[i], i])
+                        k = cls.assign_label(i, boundaries)
+                        clusters.append([bounding_boxes[i], _ABBREV_Q[k], scores[i], i])
                         bounding_boxes[i] = None
                     else:
-                        if self.find_euclidean_distance([temp[0], temp[1]], [bounding_boxes[i][0], bounding_boxes[i][1]]) < minw:
-                            k = self.assign_label(i, boundaries)
-                            clusters.append([bounding_boxes[i], self.abbrevq[k], scores[i], i])
+                        if cls.find_euclidean_distance([temp[0], temp[1]], [bounding_boxes[i][0], bounding_boxes[i][1]]) < minw:
+                            k = cls.assign_label(i, boundaries)
+                            clusters.append([bounding_boxes[i], _ABBREV_Q[k], scores[i], i])
                             bounding_boxes[i] = None
 
             clustered_objects.append(clusters)
@@ -271,89 +268,176 @@ class Perception_OWLViT:
 
         return clustered_objects
 
-    def build_model(self):
+    @classmethod
+    def build_model(cls):
         """Builds the perception model."""
+
+        print( f"\nInside `build_model`\n", flush=True )
+
         try:
-            self.start_interface()
             images, abbrevqs, filtered_boxes, filtered_scores, filtered_labels, filtered_coords = [], [], [], [], [], []
 
-            for j in range(len(self.query)):
-                rgbd, image, abbrevq, boxes, scores, labels, coords = self.bound(self.query[j], self.abbrevq[j])
+            for j in range(len(_QUERIES)):
+                rgbd, image, abbrevq, boxes, scores, labels, coords = cls.bound(_QUERIES[j], _ABBREV_Q[j])
+                
                 abbrevqs.append(abbrevq)
                 filtered_boxes.append(boxes)
                 filtered_scores.append(scores)
                 filtered_labels.append(labels)
                 filtered_coords.append(coords)
 
-            clusters = self.find_clusters(filtered_boxes, filtered_scores)
-            self.objects = {f'Object {objectnum + 1}': {} for objectnum in range(len(clusters))}
+            print( f"\nAbout to build clusters ...\n", flush=True )
+
+            clusters = cls.find_clusters(filtered_boxes, filtered_scores)
+            objIDstrTemp = {f'Object {objectnum + 1}': {} for objectnum in range(len(clusters))}
+
             index_to_segment = [max(cluster, key=lambda x: x[2])[3] for cluster in clusters]
             formatted_boxes = [box for box_list in filtered_coords for box in box_list]
 
+            print( f"\nIs there a depth image?: {rgbd}\n", flush=True )
+            print( f"\nAre there boxes?: {formatted_boxes}\n", flush=True )
+
             for num, index in enumerate(index_to_segment):
-                _, cpcd, _, _ = pcd.get_segment(
-                    formatted_boxes,
-                    index,
-                    rgbd,
-                    self.rsc,
-                    type="box",
-                    method="iterative",
-                    display=False,
-                    viz_scale=1000
-                )
 
-                cpcd = self.transform_point_cloud(cpcd)
-                if self.view_pcd:
-                    self.visualize_point_cloud(cpcd)
+                print( f"\nNumber {num}, Index {index}, Camera {cls.rsc} ...\n", flush=True )
 
-                self.objects[f'Object {num + 1}']['Probability'] = self.calculate_probability_dist(clusters[num])
-                self.objects[f'Object {num + 1}']['Pose'] = self.get_pcd_pose(cpcd)
+                try:
+                    _, cpcd, _, _ = pcd.get_segment(
+                        formatted_boxes,
+                        index,
+                        rgbd,
+                        cls.rsc,
+                        type="box",
+                        method="iterative",
+                        display=False,
+                        viz_scale=1000
+                    )
+                    print( f"\nPCD {cpcd} ...\n", flush=True )
+                except Exception as e:
+                    # logging.error(f"Error building model: {e}", flush=True)
+                    print(f"Segmentation error: {e}", flush=True)
+                    raise e
+                
 
-            if self.visualize_boxes:
-                self.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
+                print( f"\nAbout to transform PCD ...\n", flush=True )
 
-            self.stop_interface()
-            return self.objects
+                cpcd = cls.transform_point_cloud(cpcd)
+                if cls.view_pcd:
+                    cls.visualize_point_cloud(cpcd)
+
+                objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
+                objIDstrTemp[f'Object {num + 1}']['Pose'] = cls.get_pcd_pose(cpcd)
+
+            if cls.visualize_boxes:
+                cls.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
+
+                
+            # cls.objIDstr.value = bytes(objIDstrTemp , 'utf-8')
+            return objIDstrTemp
 
         except Exception as e:
-            self.stop_interface()
-            logging.error(f"Error building model: {e}")
+            # logging.error(f"Error building model: {e}", flush=True)
+            print(f"Error building model: {e}", flush=True)
             raise e
+        
+        except KeyboardInterrupt as e:
+            # logging.error( f"Program was stopped by user: {e}", flush=True )
+            print( f"Program was stopped by user: {e}", flush=True )
+            traceback.print_exc()
 
-# Initialize Perception
-queries = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-abbrevq = ["purple", "blue", "red"]
-num_blocks = 3
-view_combined_boxes_plot = True
-visualize_pcd = False
+    @classmethod
+    def TARGET_ID_loop( cls ):
+        """ Retrieve and store a force reading """
+        # NOTE: DO NOT ALLOW OUTSIDE REFERENCE TO ANY OBJECT MORE COMPLEX THAN A SIMPLE TYPE
+        
+        print( f"Begin process {os.getpid()}", flush=True )
 
-tower = Perception(num_blocks, queries, abbrevq, view_combined_boxes_plot, visualize_pcd)
-data = tower.build_model()
-print(data)
+        # 0. Set up perception
+        cls.start_vision()
+        
+        print( f"Init complete!, About to run loop ...", flush=True )
+
+        while cls.run.value:
+            # 1. Mark the start of the loop
+            t_mark = time.time() 
+
+            print( f"\nRunning process {os.getpid()}\n", flush=True )
+
+            # 2. Fetch the pose + image && identify objects in the scene
+            if cls.viz.value:
+                print( f"\nVision was ENABLED\n", flush=True )
+                data = cls.build_model()
+                # cls.objIDstr.value = bytes( str( data ), 'utf-8' )
+                print( f"\n\nPerception Result: {data}\n", flush=True )
+            else:
+                print( f"\nVision was DISABLED\n", flush=True )
+
+            print( f"\nIteration complete\n", flush=True )
+            
+            # 3. Determine if there is slack to wait
+            elapsed = time.time() - cls.lst
+            # 4. Store loop start
+            cls.lst = t_mark
+
+            # 5. Consume slack
+            # if elapsed < cls.per:
+                # sleep( cls.per - elapsed )
+
+        print( f"About to KILL {os.getpid()}", flush=True )
+        os.system( 'kill %d' % os.getpid()) 
 
 
-##### XML-RPC Init ########################################################
-# _QUERIES    = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-# _ABBREV_Q   = ["purple", "blue", "red"]
-# _NUM_BLOCKS = 3
+########## O_ID_Classifier, MULTIPROCESSING, PARENT #########################################
 
-# def create_obj_id_xmlrpc_server( configTuple ):
-#     """ Create an XML-RPC server that is either local or remote """
-#     # 0. Unpack copnfig
-#     print( "\n Config Tuple:" , configTuple , '\n' )
-#     ipad = configTuple['ip']
-#     port = configTuple['port']
-#     # 1. Create the XML-RPC object
-#     server = SimpleXMLRPCServer( ( ipad, port )                    ,
-#                                  requestHandler = RequestHandler ,
-#                                  logRequests    = False          )
-#     # 2. Register the `FT_RegObj` and server query functions
-#     instance = Perception_OWLViT( _NUM_BLOCKS, _QUERIES, _ABBREV_Q )
-    
-#     server.register_function( instance.get_objects_in_scene )        
-#     server.register_introspection_functions()
+class Object_ID_Manager:
+    """ Use the OWL-ViT in a separate process to identify objects in a scene in the BG """
+    _DEBUG = 1
 
-#     # 3. Run the server's main loop (This will be done in its own process)
-#     print( "XML-RPC serving object ID service from", ( ipad, port ) )
-    
-#     server.serve_forever()
+
+    def __init__( self ):
+        self.prc = None
+        self.viz = 0 #--------------------------------- Running flag for loop, OUTSIDE Process
+
+
+    def __init__( self ):
+        """ Set up the daemon process """
+        
+        # Obj ID Data Sharing: Keep a monitoring process as a class var to get us observations from the wrist #
+        self.prc = Perception_OWLViT()
+
+
+    def set_vision_state( self, runFlag = 1 ):
+        """ Set the shared running flag """
+        self.prc.viz.value = bool( runFlag )
+
+
+    def start( self ):
+        """ Start the streaming process """
+        self.set_vision_state(1)
+        self.prc.run.value = bool(1)
+        self.proc = Process( 
+            target = Perception_OWLViT.TARGET_ID_loop,  
+            daemon = True,
+        )
+        self.proc.start()
+
+
+    def stop( self ):
+        self.prc.run.value = bool(0)
+        sleep( 0.25 )
+        self.proc.join(timeout=1)
+        if self.proc.is_alive():
+            self.proc.kill()
+            self.proc.kill()
+
+
+if __name__ == "__main__":
+    print( "Create mamanger ..." )
+    mngr = Object_ID_Manager()
+    print( "Start thread ..." )
+    mngr.start()
+    sleep( 60 )
+    print( "Stop thread ..." )
+    mngr.stop()
+    print( "DONE" )
+    os.system( 'kill %d' % os.getpid() ) 

@@ -3,6 +3,7 @@
 @brief Utility functions to manipulate point cloud data in open3d
         and get PCA pose estimation given 3D point cloud
 '''
+import os
 import open3d as o3d
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -35,6 +36,7 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
     ###
     orig_pcd.depth = depth_m
     # et voila
+    print( "About to `o3d.geometry.PointCloud.create_from_rgbd_image` ...", flush=True )
     cpcd = o3d.geometry.PointCloud.create_from_rgbd_image(
         orig_pcd,
         # rgbd_m_image,
@@ -44,7 +46,9 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
     )
 
     # denoise pcd
+    print( f"About to `cpcd.remove_statistical_outlier` on {cpcd} ...", flush=True )
     cl, ind = cpcd.remove_statistical_outlier(nb_neighbors=NB, std_ratio=0.01)
+    print( "About to `cpcd.select_by_index` ...", flush=True )
     inlier_cloud = cpcd.select_by_index(ind)
     # display_inlier_outlier(saved_pcd, ind)
     # displayWorld(inlier_cloud)
@@ -128,6 +132,9 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     @param index index of segment to display
     @param rgbd_image Open3D RGBD Image
     '''
+
+    print( f"Inside `get_segment` @ {os.getpid()}...", flush=True )
+
     color_copy = copy.deepcopy(rgbd_image.color)
     depth_copy = copy.deepcopy(rgbd_image.depth)
     dm = None
@@ -135,9 +142,11 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     pcaFrame, tmat = None, None
     start = time.time()
     if type == "box" or type == "box-dbscan":
+        print( f"About to `retrieve_mask_from_image_crop` ...", flush=True )
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
     elif type == "mask":
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
+    print( f"About to `crop_and_denoise_pcd` ...", flush=True )
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
     if type == "box-dbscan": # much cheaper than SAM
         # find largest cluster with dbscan
@@ -151,13 +160,16 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dbspcd.points = o3d.utility.Vector3dVector(largest_cluster_points)
         dbspcd.colors = o3d.utility.Vector3dVector(largest_cluster_colors)
         cpcd = dbspcd
+    print( f"About to `cpcd.compute_mean_and_covariance` ...", flush=True )
     mc = cpcd.compute_mean_and_covariance()
     grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]
     if method == 'iterative':
+        print( f"About to `get_pca_frame` ...", flush=True )
         pcaFrame, tmat = get_pca_frame(mc[0], mc[1], scale=viz_scale)
     elif method == 'quat':
         pcaFrame, tmat = get_pca_frame_quat(mc[0], mc[1], scale=viz_scale)
     tmat[:3, 3] = grasp_pose
+    print( f"About to `o3d.geometry.TriangleMesh.create_coordinate_frame` ...", flush=True )
     worldFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.075, origin=[0, 0, 0])
     geometries = [cpcd, pcaFrame, worldFrame]
 

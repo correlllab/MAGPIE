@@ -1,14 +1,19 @@
 # `DEV GUIDE`
 
 ## Approach & Guidelines:
-* Keep perception and robot motion separate
-    - This includes the camera
+* Keep perception and robot motion in separate processes
+    - Perception Process
+        * Camera
+        * LLM
+    - Parent Process
+        * UR5
+        * BT
+            - Keep the robot effector pose updated on the Perception Process
 
-## Input: Python Dictionary
+
+## Input: 
 ``` 
-{
-    'camera_pose': <list[16]: homog coord>,
-} 
+
 ```
 
 ## Outputs: List of {Object Poses & Class Distributions}
