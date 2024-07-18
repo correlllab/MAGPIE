@@ -40,8 +40,6 @@
                     (AtObj ?obj1)
                     (HandEmpty)
                     ;; Requirements ;;
-                    (Waypoint ?obj1)
-                    (Waypoint ?obj2)
                     (SafeMotion ?obj1 ?obj2 ?traj)
                   )
     :effect (and (AtObj ?obj2)
@@ -57,14 +55,12 @@
                     (GraspObj ?label ?obj)
                     (AtObj ?obj)
                     (HandEmpty)
-                    ;; Requirements ;;
-                    (Graspable ?label)
-                    (Waypoint ?obj)
+                    ; (Occupied ?obj)
                     (FreePlacement ?label ?obj) ; This is silly but the solver REQUIRES it!
                   )
     :effect (and (Holding ?label) 
                  (not (HandEmpty))
-                 (increase (total-cost) 0.5)
+                 (increase (total-cost) 0)
             )
     )
 
@@ -75,9 +71,6 @@
                     (Holding ?label)
                     (AtObj ?obj1)
                     ;; Requirements ;;
-                    (Waypoint ?obj1)
-                    (Waypoint ?obj2)
-                    (Graspable ?label)
                     (GraspObj ?label ?obj1)
                     (SafeCarry ?label ?obj1 ?obj2 ?traj)
                   )
@@ -96,15 +89,13 @@
                     (AtObj ?obj)
                     (Holding ?label)
                     ;; Requirements ;;
-                    (Waypoint ?obj)
-                    (Graspable ?label)
                     (FreePlacement ?label ?obj)
                   )
     :effect (and (HandEmpty) 
                  (not (Holding ?label)) 
                  (not (FreePlacement ?label ?obj))
                 ;  (not (Waypoint ?obj))
-                 (increase (total-cost) 0.5)
+                 (increase (total-cost) 0)
             )
   )
   
@@ -116,12 +107,6 @@
                     (AtObj ?objUp)
                     (Holding ?labelUp)
                     ;; Requirements ;;
-                    (Waypoint ?objUp)
-                    (Waypoint ?objDn1)
-                    (Waypoint ?objDn2)
-                    (Graspable ?labelUp)
-                    (Graspable ?labelDn1)
-                    (Graspable ?labelDn2)
                     (FreePlacement ?labelUp ?objUp)
                     (GraspObj ?labelDn1 ?objDn1)
                     (GraspObj ?labelDn2 ?objDn2)
