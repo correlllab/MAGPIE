@@ -60,7 +60,7 @@
                   )
     :effect (and (Holding ?label) 
                  (not (HandEmpty))
-                 (increase (total-cost) 0.5)
+                 (increase (total-cost) 0)
             )
     )
 
@@ -95,7 +95,7 @@
                  (not (Holding ?label)) 
                  (not (FreePlacement ?label ?obj))
                 ;  (not (Waypoint ?obj))
-                 (increase (total-cost) 0.5)
+                 (increase (total-cost) 0)
             )
   )
   

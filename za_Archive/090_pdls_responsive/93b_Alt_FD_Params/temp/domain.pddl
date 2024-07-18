@@ -5,30 +5,24 @@
 
   (:predicates
 
-    ;;; Symbols ;;;
-    (GraspObj ?label ?obj)
-    (SafeMotion ?obj1 ?obj2 ?traj) ; Is there a safe path from config A to config B?: Checked by world
-    (SafeCarry ?label ?obj1 ?obj2 ?traj)
-    (StackPlace ?objUp ?objDn1 ?objDn2)
+    ;;; Objects ;;;
+    (GraspObj ?label ?obj) ; The concept of a named object at a pose
+    (SafeMotion ?obj1 ?obj2 ?traj) ; Safe path from pose 1 to pose 2
+    (SafeCarry ?label ?obj1 ?obj2 ?traj) ; Safe path for object from pose 1 to pose 2
+    (StackPlace ?objUp ?objDn1 ?objDn2) ; A pose that forms an arch
 
     ;;; Domains ;;;
     (Graspable ?label); Name of a real object we can grasp
     (Waypoint ?obj) ; Model of any object we can go to in the world, real or not
-    ; (Path ?traj) ; A robot motion
-    
-    ; (Conf ?config) ; Used by "stream.pddl"
-    ; (Pose ?pose) ; Used by "stream.pddl", Do NOT pollute this space!
-    ; (EffPose ?pose) ; Used by "stream.pddl"
   
-    ;;; States ;;;
-    (AtObj ?obj)
-    (Holding ?label) ; From Pick
-    (HandEmpty) ; From Place
-    (Supported ?labelUp ?labelDn) ; Is the up object on top of the down object?
+    ;;; Conditions ;;;
+    (AtObj ?obj) ; The effector is at a grasp for this pose
+    (Holding ?label) ; The label of the held object
+    (HandEmpty) ; Is the robot hand empty?
+    (Supported ?labelUp ?labelDn) ; Is the "up" object on top of the "down" object?
 
     ;;; Checks ;;;
-    (FreePlacement ?label ?obj) ; Is there an open spot for placement?: Checked by world
-    
+    (FreePlacement ?label ?obj) ; Is there an open spot for placement?
   )
 
   ;;;;;;;;;; FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
