@@ -1,43 +1,20 @@
-########## INIT ####################################################################################
-
-##### Imports #####
-### Standard ###
-import time, logging, copy, signal, multiprocessing, os, sys, socket, glob
-from time import sleep
-from multiprocessing import Process, Array, Value, Pool
-from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
-
-### Special ###
+import time
 import numpy as np
-from PIL import Image
 import open3d as o3d
-from open3d.web_visualizer import draw
 import matplotlib.pyplot as plt
+import logging
 
-### Local ###
 from magpie import grasp as gt
+from magpie.motor_code import Motors
+from magpie import ur5 as ur5
 from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
 
-
-
-########## PERCEPTION SERVER, XML-RPC ##############################################################
-
-##### Helper Classes ######################################################
-
-class RequestHandler( SimpleXMLRPCRequestHandler ):
-    """ Restrict to a particular path? """
-    rpc_paths = ( '/RPC2', )
-
-
-##### Server ##############################################################
 # Configure logging
 logging.basicConfig( level = logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-class Perception_OWLViT:
-    """ Perception service based on OWL-ViT """
-
+class Perception:
     def __init__( self, num_blocks, query, abbrevq, visualize_boxes, visualize_pcd ):
         """
         Initializes the Perception class.
@@ -49,23 +26,23 @@ class Perception_OWLViT:
             visualize_boxes (bool): Flag to visualize bounding boxes.
             visualize_pcd (bool): Flag to visualize point clouds.
         """
-        self.query           = query
-        self.abbrevq         = abbrevq
-        self.blocks          = num_blocks
+        self.ur = ur5.UR5_Interface()
+        self.query = query
+        self.abbrevq = abbrevq
+        self.blocks = num_blocks
         self.visualize_boxes = visualize_boxes
-        self.view_pcd        = visualize_pcd
-        self.sleep_rate      = 3
-        self.objects         = {}
+        self.view_pcd = visualize_pcd
+        self.sleep_rate = 3
+        self.objects = {}
 
         try:
             self.rsc = real.RealSense()
             self.rsc.initConnection()
-            logging.info( f"RealSense camera CONNECTED" )
         except Exception as e:
-            logging.error( f"Error initializing RealSense: {e}" )
+            logging.error(f"Error initializing RealSense: {e}")
             raise e
         
-        self.label_vit = LabelOWLViT( pth = "google/owlvit-base-patch32" )
+        self.label_vit = LabelOWLViT(pth="google/owlvit-base-patch32")
 
     def start_interface(self):
         """Starts the UR5 interface."""
@@ -330,30 +307,3 @@ visualize_pcd = False
 tower = Perception(num_blocks, queries, abbrevq, view_combined_boxes_plot, visualize_pcd)
 data = tower.build_model()
 print(data)
-
-
-##### XML-RPC Init ########################################################
-# _QUERIES    = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-# _ABBREV_Q   = ["purple", "blue", "red"]
-# _NUM_BLOCKS = 3
-
-# def create_obj_id_xmlrpc_server( configTuple ):
-#     """ Create an XML-RPC server that is either local or remote """
-#     # 0. Unpack copnfig
-#     print( "\n Config Tuple:" , configTuple , '\n' )
-#     ipad = configTuple['ip']
-#     port = configTuple['port']
-#     # 1. Create the XML-RPC object
-#     server = SimpleXMLRPCServer( ( ipad, port )                    ,
-#                                  requestHandler = RequestHandler ,
-#                                  logRequests    = False          )
-#     # 2. Register the `FT_RegObj` and server query functions
-#     instance = Perception_OWLViT( _NUM_BLOCKS, _QUERIES, _ABBREV_Q )
-    
-#     server.register_function( instance.get_objects_in_scene )        
-#     server.register_introspection_functions()
-
-#     # 3. Run the server's main loop (This will be done in its own process)
-#     print( "XML-RPC serving object ID service from", ( ipad, port ) )
-    
-#     server.serve_forever()

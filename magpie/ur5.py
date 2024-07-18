@@ -65,7 +65,7 @@ class UR5_Interface:
         self.camXform = np.array( xform )
 
 
-    def __init__( self, robotIP = "192.168.0.6", cameraXform = None ):
+    def __init__( self, robotIP = "192.168.0.4", cameraXform = None ):
         """ Store connection params and useful constants """
         self.name       = "UR5_CB3"
         self.robotIP    = robotIP # IP address of the robot
