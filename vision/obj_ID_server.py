@@ -63,10 +63,10 @@ class Perception_OWLViT:
 
     # objIDstr        = Array( 'c', bytes( "Hello, World!", 'utf-8' ) )
     # objIDstr        = Array( 'c_wchar_p', "Hello, World!" )
-    # objIDstr        = Array( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
+    objIDstr        = Array( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
     # objIDstr        = RawArray( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
     # objIDstr        = Array( ctypes.c_byte, [0 for _ in range( _STR_MAX )] )
-    objIDstr        = Manager().list( [b'\x00' for _ in range( _STR_MAX )] )
+    # objIDstr        = Manager().list( [b'\x00' for _ in range( _STR_MAX )] )
 
     # objIDstr        = Value( ctypes.c_char_p, b"Hello, World!" )
     # objIDstr        = Value( ctypes.c_wchar_p, "Hello, World!" )
@@ -76,6 +76,10 @@ class Perception_OWLViT:
 
     @classmethod
     def start_vision( cls ):
+
+        # cls.effPose  = Array( 'd', np.eye(4).reshape( (16,) ).tolist() )
+        # cls.objIDstr = Array( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
+
         try:
             cls.rsc = real.RealSense()
             cls.rsc.initConnection()
@@ -384,10 +388,13 @@ class Perception_OWLViT:
                 # cls.objIDstr.value = ctypes.c_char_p( str( data ).encode() )
 
                 byteArr = str( data ).encode()
+
+                cls.objIDstr.acquire()
                 for i, byt in enumerate( byteArr ):
                     cls.objIDstr[i] = byt    
                 # cls.objIDstr[:len(byteArr)] = byteArr[:]
                 cls.objIDstr[len(byteArr)] = b'\0'
+                cls.objIDstr.release()
                 
                 print( f"\n\nPerception Result: {data}\n", flush=True )
                 
@@ -450,12 +457,14 @@ class Object_ID_Manager:
 
             msg = bytearray()
             print( '\n\n' )
+            Perception_OWLViT.objIDstr.acquire()
             for byt in Perception_OWLViT.objIDstr[:]:
                 print( byt, end=', ', flush=True )
                 if byt != b'\x00':
                     msg.append( byt )
                 else:
                     break
+            Perception_OWLViT.objIDstr.release()
             print( "",flush=True )
             content = msg.decode()
             # content = Perception_OWLViT.objIDstr.value.decode()
