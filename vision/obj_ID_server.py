@@ -3,6 +3,7 @@
 ##### Imports #####
 ### Standard ###
 import time, logging, ctypes, os, sys, traceback, multiprocessing
+now = time.time
 from time import sleep
 from ast import literal_eval
 from pprint import pprint
@@ -21,6 +22,7 @@ from magpie import grasp as gt
 from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
+from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 
 
 
@@ -84,19 +86,19 @@ class Perception_OWLViT:
             cls.rsc = real.RealSense()
             cls.rsc.initConnection()
             # logging.info( f"RealSense camera CONNECTED" )
-            print( f"RealSense camera CONNECTED", flush=True )
+            print( f"RealSense camera CONNECTED", flush=True, file=sys.stderr )
         except Exception as e:
             # logging.error( f"Error initializing RealSense: {e}" )
-            print( f"\nERROR initializing RealSense: {e}\n", flush=True )
+            print( f"\nERROR initializing RealSense: {e}\n", flush=True, file=sys.stderr )
             raise e
         
         try:
             cls.label_vit = LabelOWLViT( pth = "google/owlvit-base-patch32" )
             # logging.info( f"V-LLM STARTED" )
-            print( f"V-LLM STARTED", flush=True )
+            print( f"V-LLM STARTED", flush=True, file=sys.stderr )
         except Exception as e:
             # logging.error( f"Error initializing OWL-ViT: {e}" )
-            print( f"\nERROR initializing OWL-ViT: {e}\n", flush=True )
+            print( f"\nERROR initializing OWL-ViT: {e}\n", flush=True, file=sys.stderr )
             raise e
 
     @classmethod
@@ -282,7 +284,7 @@ class Perception_OWLViT:
     def build_model(cls):
         """Builds the perception model."""
 
-        print( f"\nInside `build_model`\n", flush=True )
+        print( f"\nInside `build_model`\n", flush=True, file=sys.stderr )
 
         try:
             images, abbrevqs, filtered_boxes, filtered_scores, filtered_labels, filtered_coords = [], [], [], [], [], []
@@ -296,7 +298,7 @@ class Perception_OWLViT:
                 filtered_labels.append(labels)
                 filtered_coords.append(coords)
 
-            print( f"\nAbout to build clusters ...\n", flush=True )
+            print( f"\nAbout to build clusters ...\n", flush=True, file=sys.stderr )
 
             clusters = cls.find_clusters(filtered_boxes, filtered_scores)
             objIDstrTemp = {f'Object {objectnum + 1}': {} for objectnum in range(len(clusters))}
@@ -304,12 +306,12 @@ class Perception_OWLViT:
             index_to_segment = [max(cluster, key=lambda x: x[2])[3] for cluster in clusters]
             formatted_boxes = [box for box_list in filtered_coords for box in box_list]
 
-            print( f"\nIs there a depth image?: {rgbd}\n", flush=True )
-            print( f"\nAre there boxes?: {formatted_boxes}\n", flush=True )
+            print( f"\nIs there a depth image?: {rgbd}\n", flush=True, file=sys.stderr )
+            print( f"\nAre there boxes?: {formatted_boxes}\n", flush=True, file=sys.stderr )
 
             for num, index in enumerate(index_to_segment):
 
-                print( f"\nNumber {num}, Index {index}, Camera {cls.rsc} ...\n", flush=True )
+                print( f"\nNumber {num}, Index {index}, Camera {cls.rsc} ...\n", flush=True, file=sys.stderr )
 
                 cpcd = None
 
@@ -324,21 +326,21 @@ class Perception_OWLViT:
                         display=False,
                         viz_scale=1000
                     )
-                    print( f"\nPCD {cpcd} ...\n", flush=True )
+                    print( f"\nPCD {cpcd} ...\n", flush=True, file=sys.stderr )
                 except Exception as e:
-                    # logging.error(f"Error building model: {e}", flush=True)
-                    print(f"Segmentation error: {e}", flush=True)
+                    # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
+                    print(f"Segmentation error: {e}", flush=True, file=sys.stderr)
                     raise e
                 
                 try:
-                    print( f"\nAbout to transform PCD ...\n", flush=True )
+                    print( f"\nAbout to transform PCD ...\n", flush=True, file=sys.stderr )
 
                     cpcd = cls.transform_point_cloud( cpcd )
                     if cls.view_pcd:
                         cls.visualize_point_cloud( cpcd )
                 except Exception as e:
-                    # logging.error(f"Error building model: {e}", flush=True)
-                    print(f"Transformation error: {e}", flush=True)
+                    # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
+                    print(f"Transformation error: {e}", flush=True, file=sys.stderr)
                     raise e
 
                 objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
@@ -352,152 +354,90 @@ class Perception_OWLViT:
             return objIDstrTemp
 
         except Exception as e:
-            # logging.error(f"Error building model: {e}", flush=True)
-            print(f"Error building model: {e}", flush=True)
+            # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
+            print(f"Error building model: {e}", flush=True, file=sys.stderr)
             raise e
         
         except KeyboardInterrupt as e:
-            # logging.error( f"Program was stopped by user: {e}", flush=True )
-            print( f"Program was stopped by user: {e}", flush=True )
+            # logging.error( f"Program was stopped by user: {e}", flush=True, file=sys.stderr )
+            print( f"Program was stopped by user: {e}", flush=True, file=sys.stderr )
             traceback.print_exc()
 
-    @classmethod
-    def TARGET_ID_loop( cls ):
-        """ Retrieve and store a force reading """
-        # NOTE: DO NOT ALLOW OUTSIDE REFERENCE TO ANY OBJECT MORE COMPLEX THAN A SIMPLE TYPE
-        
-        print( f"Begin process {os.getpid()}", flush=True )
-
-        # 0. Set up perception
-        cls.start_vision()
-        
-        print( f"Init complete!, About to run loop ...", flush=True )
-
-        while cls.run.value:
-            # 1. Mark the start of the loop
-            t_mark = time.time() 
-
-            print( f"\nRunning process {os.getpid()}\n", flush=True )
-
-            # 2. Fetch the pose + image && identify objects in the scene
-            if cls.viz.value:
-                print( f"\nVision was ENABLED\n", flush=True )
-                data = cls.build_model()
-
-                # cls.objIDstr.value = bytes( str( data ), 'utf-8' )
-                # cls.objIDstr.value = ctypes.c_char_p( str( data ).encode() )
-
-                byteArr = str( data ).encode()
-
-                cls.objIDstr.acquire()
-                for i, byt in enumerate( byteArr ):
-                    cls.objIDstr[i] = byt    
-                # cls.objIDstr[:len(byteArr)] = byteArr[:]
-                cls.objIDstr[len(byteArr)] = b'\0'
-                cls.objIDstr.release()
-                
-                print( f"\n\nPerception Result: {data}\n", flush=True )
-                
-                # print( f"\n\nStored: {cls.objIDstr.value.decode()}\n", flush=True )
-                print( f"\n\nStored: {cls.objIDstr[:]}\n", flush=True )
-
-            else:
-                print( f"\nVision was DISABLED\n", flush=True )
-
-            print( f"\nIteration complete\n", flush=True )
-            
-            # 3. Determine if there is slack to wait
-            elapsed = time.time() - cls.lst
-            # 4. Store loop start
-            cls.lst = t_mark
-
-            # # 5. Consume slack
-            # if elapsed < cls.per:
-            #     sleep( cls.per - elapsed )
-
-        print( f"About to KILL {os.getpid()}", flush=True )
-        os.system( 'kill %d' % os.getpid()) 
 
 
-########## O_ID_Classifier, MULTIPROCESSING, PARENT #########################################
-
-class Object_ID_Manager:
-    """ Use the OWL-ViT in a separate process to identify objects in a scene in the BG """
-    _DEBUG = 1
-
-    def __init__( self ):
-        self.instance = Perception_OWLViT()
-
-
-    def start( self ):
-        """ Start the streaming process """
-        # Perception_OWLViT.viz.value = bool(1)
-        # Perception_OWLViT.run.value = bool(1)
-        self.proc = Process( 
-            target = Perception_OWLViT.TARGET_ID_loop,  
-            # target = self.instance.TARGET_ID_loop,  
-            # daemon = True,
-            daemon = False,
-        )
-        self.proc.start()
-
-
-    def stop( self ):
-        Perception_OWLViT.run.value = bool(0)
-        sleep( 0.25 )
-        self.proc.join(timeout=1)
-        if self.proc.is_alive():
-            self.proc.kill()
-            self.proc.kill()
-
-
-    def get_current_observation( self ):
-        content = None
-        try:
-
-            msg = bytearray()
-            print( '\n\n' )
-            Perception_OWLViT.objIDstr.acquire()
-            for byt in Perception_OWLViT.objIDstr[:]:
-                print( byt, end=', ', flush=True )
-                if byt != b'\x00':
-                    msg.append( byt )
-                else:
-                    break
-            Perception_OWLViT.objIDstr.release()
-            print( "",flush=True )
-            content = msg.decode()
-            # content = Perception_OWLViT.objIDstr.value.decode()
-            # content = Perception_OWLViT.objIDstr.value
-            content = bytes( Perception_OWLViT.objIDstr[:] ).decode()
-
-            print( f'\n`get_current_observation`, Decoded message of length {len(content)}: {content}\n' )
-            struct  = literal_eval( content )
-        except Exception as e:
-            print( f"{e}, Could NOT parse!: {content}" )
-            struct = list()
-        return struct
-
-
+########## MAIN ####################################################################################
 
 if __name__ == "__main__":
 
+    # 0. Set the process context so that Open3D does not randomly hang and/or crash
     # https://github.com/isl-org/Open3D/issues/4007#issuecomment-940996106
     multiprocessing.set_start_method( 'forkserver', force = True )
 
-    print( "Create mamanger ..." )
-    mngr = Object_ID_Manager()
-    print( "Start thread ..." )
-    mngr.start()
+    # 1. Setup stdout/in JSON message passing
+    set_non_blocking( sys.stdin )
+    pbj = PBJSON_IO()
+    sleep( 0.100 )
+
+    # 2. Start RealSense and OWL-ViT, NOTE: Parent process should wait 20s for massive model to load
+    Perception_OWLViT.start_vision()
+
+
+    ##### 3. Perception Loop ##############################################
+    effPose = np.eye(4)
+    lstLoop = now()
+    vizFlag = True
+    runFlag = True
+
+    while runFlag:
+
+        ##### Input ##############################
+        # A. Receive all available bytes
+        inpt = non_block_read( sys.stdin.buffer )
+        pbj.write( inpt )
+
+        # B. Decode any complete messages that have accumulated
+        if pbj.unpack():
+            inbox = pbj.get_all()
+        else:
+            inbox = []
+
+        # C. If messages exist, then handle them
+        for msg in inbox:
+            print( f"Message Received:\n{msg}\n", flush=True, file=sys.stderr )
+            if ('cmnd' in msg):
+                if (msg['cmnd'] == "SHUTDOWN"):
+                    print( "\nDONE\n", flush=True, file=sys.stderr )
+                    runFlag = False
+                elif (msg['cmnd'] == "SET_VIZ"):
+                    vizFlag = bool( msg['data'] )
+                elif (msg['cmnd'] == "POSE_IN"):
+                    effPose = np.array( msg['data'] ).reshape( (4,4,) )
+                else:
+                    print( f"\nPerception received a POORLY FORMED command!:\n{msg}\n", flush=True, file=sys.stderr )
+            else:
+                print( f"\nPerception received a POORLY FORMED command!:\n{msg}\n", flush=True, file=sys.stderr )
+
     
-    sleep( 20 )
 
-    for i in range( 10 ):
-        pprint( mngr.get_current_observation() )
-        print( '\n' )
-        sleep(2)
+        ##### Vision #############################
 
-    print( "Stop thread ..." )
-    mngr.stop()
-    print( "DONE" )
+        # D. Fetch the pose+image  &&  Identify objects in the scene  &&  Create output message  &&  Send
+        if vizFlag:
+            print( f"\nVision was ENABLED\n", flush=True, file=sys.stderr )
+            Perception_OWLViT.effPose = effPose.copy()
+            data = Perception_OWLViT.build_model()
+            print( f"\nAbout to pack data: {data}\n", flush=True, file=sys.stderr )
+            sys.stdout.buffer.write( pbj.pack( data ) )
+            sys.stdout.buffer.flush()
+        
+
+        ##### Rate Limit #########################
+        elapsed = now() - lstLoop
+        if (elapsed < Perception_OWLViT.per):
+            sleep( Perception_OWLViT.per - elapsed )
+        lstLoop = now()
+
+
+    print( "\nPerception Process will DIE\n", flush=True, file=sys.stderr )
     os.system( 'kill %d' % os.getpid() ) 
+

@@ -11,9 +11,12 @@
             - Keep the robot effector pose updated on the Perception Process
 
 
-## Input: 
+## Input: Message Structure
 ``` 
-
+{
+    'cmnd': <One of {"SET_VIZ", "POSE_IN", "SHUTDOWN"}>,
+    'data': <One of {<Homog Effector Pose as 1x16 List>, 0, 1, None}>,
+}
 ```
 
 ## Outputs: List of {Object Poses & Class Distributions}
