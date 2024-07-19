@@ -34,8 +34,8 @@
 
 # `DEV PLAN`
 
-## Perception Stack
-* `[>]` Test perception class as PY file
-* `[ ]` Wrap in XML-RPC
-    - `[ ]` Test initiating server from Jupyter
-* `[ ]` Run ID service in a periodic loop as a separate process
+## Perception Stack, Complete, 2024-07-19: Works as designed!
+* `[Y]` Test perception class as PY file, 2024-07-1X: Works as designed!
+* `[Y]` Wrap in Subprocess, 2024-07-19: Works as designed!
+    - `[Y]` Test initiating server from another file, 2024-07-19: Works as designed!
+* `[Y]` Run ID service in a periodic loop as a separate process, 2024-07-19: Works as designed!
