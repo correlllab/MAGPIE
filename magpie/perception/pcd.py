@@ -46,6 +46,9 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
     )
 
     if 0:
+
+        # FIXME: POSSIBLE REMEDY FOR MULTIPROCESS PROBLEM, https://github.com/isl-org/Open3D/issues/4007
+
         # denoise pcd
         print( f"About to `cpcd.remove_statistical_outlier` on {cpcd}\nRequired Neighbors: {NB} ...", flush=True )
 
