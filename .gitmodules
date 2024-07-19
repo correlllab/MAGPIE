@@ -1,0 +1,3 @@
+[submodule "pddlstream"]
+	path = pddlstream
+	url = git@github.com:correlllab/pddlstream.git

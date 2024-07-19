@@ -13,8 +13,6 @@
 */*.pt
 */*.png
 .vscode/
-# ignore pddlstream for now in open-grasp
-pddlstream/
 webserver/logs/
 webserver/generations/
 
