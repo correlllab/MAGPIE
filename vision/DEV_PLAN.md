@@ -39,3 +39,4 @@
 * `[Y]` Wrap in Subprocess, 2024-07-19: Works as designed!
     - `[Y]` Test initiating server from another file, 2024-07-19: Works as designed!
 * `[Y]` Run ID service in a periodic loop as a separate process, 2024-07-19: Works as designed!
+* `[ ]` Add all relevant blocks to the vision stack queries

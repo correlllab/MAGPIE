@@ -4,10 +4,12 @@
 
 ### Standard ###
 import sys, subprocess, pickle, time
+now = time.time
 from queue import Queue
 from time import sleep
 from pprint import pprint
 from random import random
+from copy import deepcopy
 from traceback import print_exc, format_exc
 
 
@@ -17,17 +19,19 @@ import numpy as np
 from py_trees.common import Status
 
 ### Local ###
-from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
-                         _BLOCK_NAMES, _VERBOSE, _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, 
+from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, _BLOCK_NAMES, _VERBOSE, 
+                         _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _POST_N_SPINS, _USE_GRAPHICS, _N_XTRA_SPOTS, )
-sys.path.append( "../task_planning/" )
+sys.path.append( "./task_planning/" )
 from task_planning.symbols import ObjectReading, ObjPose, extract_row_vec_pose, GraspObj
 from task_planning.utils import ( multiclass_Bayesian_belief_update, get_confusion_matx, get_confused_class_reading, 
                                   DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
 from task_planning.belief import ObjectMemory
-sys.path.append( "../vision/" )
+sys.path.append( "./vision/" )
 from vision.interprocess import stdioCommWorker
+sys.path.append( "./magpie/" )
+from magpie import ur5 as ur5
 
 
 ### PDDLStream ### 
@@ -70,6 +74,7 @@ class VisualCortex:
         # 1. Setup comm `Queue`s
         self.cmndQ = Queue() # Commands     to   Perception Process
         self.dataQ = Queue() # Segmentation from Perception Process
+        self.scan  = list()
 
          # 2. Start the Perception Process
         self.percProc = subprocess.Popen(
@@ -105,14 +110,18 @@ class VisualCortex:
         print( "\n##### `VisualCortex` SHUTDOWN #####\n" )
 
 
-    def set_effector_pose( self, effPose ):
+    def set_effector_pose( self, effHomog ):
         """ Notify the Perception Process of the current effector pose """
-        pass
+        self.cmndQ.put_nowait( {
+            'cmnd': "POSE_IN",
+            'data': np.array( effHomog ).reshape( (16,) ).tolist(),
+        } )
 
 
     def observation_to_readings( self, obs ):
         """ Parse the Perception Process output struct """
         rtnBel = []
+        ts     = now()
         for item in obs.values():
             dstrb = {}
             for nam, prb in item['Probability'].items():
@@ -128,16 +137,18 @@ class VisualCortex:
         if not self.dataQ.empty():
             dataMsgs = self.dataQ.get_nowait()
             if isinstance( dataMsgs, dict ):
-                scan = self.observation_to_readings( dataMsgs )
+                self.scan = self.observation_to_readings( dataMsgs )
             # FIXME: CONFIRM THE LAST IN THE LIST IS THE MOST RECENT
             elif isinstance( dataMsgs, list ) and isinstance( dataMsgs[-1], dict ):
-                scan = self.observation_to_readings( dataMsgs[-1] )
+                self.scan = self.observation_to_readings( dataMsgs[-1] )
             else:
                 print( "`VisualCortex.full_scan_noisy`: BAD BESSAGE!" )
                 pprint( dataMsgs )
                 print()
-                scan = list()
-            return scan
+                self.scan = list()
+            return deepcopy( self.scan )
+        elif (self.scan is not None):
+            return deepcopy( self.scan )
         else:
             print( "`VisualCortex.full_scan_noisy`: NO AVAILABLE OBJECT DATA!" )
             return list()
@@ -146,9 +157,8 @@ class VisualCortex:
 
 ########## BASELINE PLANNER ########################################################################
 
-# FIXME: VERIFY THAT THESE ARE NOT USED! IF USED THEN TROUBLE!
-_trgtRed = ObjPose( [ _MIN_X_OFFSET+2.0*_BLOCK_SCALE, 0.000, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
-_trgtGrn = ObjPose( [ _MIN_X_OFFSET+6.0*_BLOCK_SCALE, 0.000, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
+# FIXME: VERIFY THAT THIS IS A SAFE POSE TO BUILD ON
+_trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
 
 
 class BaselineTaskPlanner:
@@ -172,13 +182,22 @@ class BaselineTaskPlanner:
 
     def __init__( self, world = None ):
         """ Create a pre-determined collection of poses and plan skeletons """
+        # NOTE: The planner will start the Perception Process and the UR5 connection as soon as it is instantiated
         self.reset_beliefs()
         self.reset_state()
         self.world  = world if (world is not None) else VisualCortex()
+        self.robot  = ur5.UR5_Interface()
         self.logger = DataLogger()
         # DEATH MONITOR
         self.noSoln =  0
         self.nonLim = 10
+        self.robot.start()
+
+
+    def shutdown( self ):
+        """ Stop the Perception Process and the UR5 connection """
+        self.world.stop()
+        self.robot.stop()
 
 
     def perceive_scene( self ):
@@ -441,6 +460,10 @@ class BaselineTaskPlanner:
     def phase_1_Perceive( self, Nscans = 1 ):
         """ Take in evidence and form beliefs """
 
+        # FIXME: VERIFY THAT THE CAMERA XFORM IS CORRECT
+        self.world.set_effector_pose( self.robot.get_cam_pose() )
+        sleep( 3 )
+        
         for _ in range( Nscans ):
             self.perceive_scene() # We need at least an initial set of beliefs in order to plan
 
@@ -452,12 +475,6 @@ class BaselineTaskPlanner:
             for obj in self.symbols:
                 print( f"\t{obj}" )
 
-
-    def phase_N_Halt( self ):
-        """ Perception shutdown and other cleanup """ 
-        self.world.stop()
-        # FIXME: DISCONNECT FROM ROBOT
-        sleep(2)
 
 
 ########## MAIN ####################################################################################
@@ -471,7 +488,7 @@ if __name__ == "__main__":
 
     sleep( 2.5 )
 
-    planner.phase_N_Halt()
+    planner.shutdown()
 
     print( "\n########## PROGRAM END ##########\n" )
         

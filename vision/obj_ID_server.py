@@ -34,13 +34,15 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 
 ########## PERCEPTION SETTINGS #####################################################################
 
-_QUERIES     = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-_ABBREV_Q    = ["vio", "blu", "red"]
-_NUM_BLOCKS  = 3
+_QUERIES     = [ "a photo of a purple block", "a photo of a blue block" , "a photo of a red block"     ,
+                 "a photo of a yellow block", "a photo of a green block", "a photo of an orange block" ]
+_ABBREV_Q    = ["vio", "blu", "red", "ylw", "grn", "orn"]
+assert len( _QUERIES ) == len( _ABBREV_Q ), "ERROR: MISMATCH in number of queries and abbreviated queries!"
+_NUM_BLOCKS  = len( _QUERIES )
 _PLOT_BOX    = False
 _VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
-_STR_MAX     = 2048
+_VERBOSE     = 1
 
 
 
@@ -57,7 +59,6 @@ class Perception_OWLViT:
     """ Perception service based on OWL-ViT """
 
     ### Class Vars ###
-
     query           = _QUERIES
     abbrevq         = _ABBREV_Q
     blocks          = _NUM_BLOCKS
@@ -67,68 +68,63 @@ class Perception_OWLViT:
     label_vit       = None 
     lst             = 0.0 #------------------------------------------ Last time loop ended,  INSIDE  Process
     per             = _ID_PERIOD_S #--------------------------------- Period [s], __________ INSIDE  Process
-    effPose         = Array( 'd', np.eye(4).reshape( (16,) ).tolist() )
+    effPose         = np.eye(4).reshape( (16,) ).tolist()
+    rotation_matrix = np.array([
+        [ 0, 1, 0, 0],
+        [-1, 0, 0, 0],
+        [ 0, 0, 1, 0],
+        [ 0, 0, 0, 1]
+    ])
+    tmat_gripper = np.array([
+        [1, 0, 0, -1.15 / 100        ],
+        [0, 1, 0,  1.3 / 100         ],
+        [0, 0, 1, (309.63-195.0)/1000],
+        [0, 0, 0, 1                  ]
+    ])
 
-    # objIDstr        = Array( 'c', bytes( "Hello, World!", 'utf-8' ) )
-    # objIDstr        = Array( 'c_wchar_p', "Hello, World!" )
-    objIDstr        = Array( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
-    # objIDstr        = RawArray( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
-    # objIDstr        = Array( ctypes.c_byte, [0 for _ in range( _STR_MAX )] )
-    # objIDstr        = Manager().list( [b'\x00' for _ in range( _STR_MAX )] )
 
-    # objIDstr        = Value( ctypes.c_char_p, b"Hello, World!" )
-    # objIDstr        = Value( ctypes.c_wchar_p, "Hello, World!" )
+    @classmethod
+    def set_update_period( cls, per_ ):
+        cls.per = per_
 
-    run             = Value( 'B', 1 )
-    viz             = Value( 'B', 1 )
 
     @classmethod
     def start_vision( cls ):
-
-        # cls.effPose  = Array( 'd', np.eye(4).reshape( (16,) ).tolist() )
-        # cls.objIDstr = Array( ctypes.c_char, [b'\x00' for _ in range( _STR_MAX )] )
-
         try:
             cls.rsc = real.RealSense()
             cls.rsc.initConnection()
-            # logging.info( f"RealSense camera CONNECTED" )
-            print( f"RealSense camera CONNECTED", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"RealSense camera CONNECTED", flush=True, file=sys.stderr )
         except Exception as e:
-            # logging.error( f"Error initializing RealSense: {e}" )
-            print( f"\nERROR initializing RealSense: {e}\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nERROR initializing RealSense: {e}\n", flush=True, file=sys.stderr )
             raise e
         
         try:
             cls.label_vit = LabelOWLViT( pth = "google/owlvit-base-patch32" )
-            # logging.info( f"V-LLM STARTED" )
-            print( f"V-LLM STARTED", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"V-LLM STARTED", flush=True, file=sys.stderr )
         except Exception as e:
-            # logging.error( f"Error initializing OWL-ViT: {e}" )
-            print( f"\nERROR initializing OWL-ViT: {e}\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nERROR initializing OWL-ViT: {e}\n", flush=True, file=sys.stderr )
             raise e
+
+    @classmethod
+    def get_corrected_gripper_pose( cls ):
+        matx = np.eye(4)
+        matx = matx.dot( cls.tmat_gripper )
+        matx = matx.dot( cls.rotation_matrix )
+        matx = matx.dot( np.asarray( cls.effPose[:] ).reshape( (4,4,) ) )
+        return matx
 
     @classmethod
     def transform_point_cloud(cls, cpcd):
         """Transforms the given point cloud to align with the gripper pose."""
-        rotation_matrix = np.array([
-            [0, 1, 0, 0],
-            [-1, 0, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1]
-        ])
-
-        tmat_gripper = np.array([
-            [1, 0, 0, -1.15 / 100],
-            [0, 1, 0, 1.3 / 100],
-            [0, 0, 1, (309.63 - 195.0) / 1000],
-            [0, 0, 0, 1]
-        ])
-
-        cpcd.transform(tmat_gripper)
-        cpcd.transform(rotation_matrix)
+        cpcd.transform( cls.tmat_gripper )
+        cpcd.transform( cls.rotation_matrix )
         #convert to 4*4
         cpcd.transform( np.asarray( cls.effPose[:] ).reshape( (4,4,) ) )
-
+        # cpcd.transform( cls.get_corrected_gripper_pose() )
         return cpcd
     
     @classmethod
@@ -137,11 +133,17 @@ class Perception_OWLViT:
         o3d.io.write_point_cloud(filename, point_cloud)
 
     @classmethod
-    def get_pcd_pose(cls, point_cloud):
+    def get_pcd_pose( cls, point_cloud ):
         """Gets the pose of the point cloud."""
         center = point_cloud.get_center()
-        pose_vector = [center[0], center[1], center[2], 3.14, 0, 0]
-        return pose_vector
+
+        # pose_vector = [center[0], center[1], center[2], 3.14, 0, 0]
+        # HACK: HARDCODED ORIENTATION
+        # FIXME: GET THE "ACTUAL" ORIENTATION VIA PCA
+        pose_vector = np.eye(4)
+        for i in range(3):
+            pose_vector[i,3] = center[i]
+        return pose_vector.reshape( (16,) ).tolist()
 
     @classmethod
     def calculate_area(cls, box):
@@ -304,7 +306,8 @@ class Perception_OWLViT:
                 filtered_labels.append(labels)
                 filtered_coords.append(coords)
 
-            print( f"\nAbout to build clusters ...\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nAbout to build clusters ...\n", flush=True, file=sys.stderr )
 
             clusters = cls.find_clusters(filtered_boxes, filtered_scores)
             objIDstrTemp = {f'Object {objectnum + 1}': {} for objectnum in range(len(clusters))}
@@ -312,12 +315,14 @@ class Perception_OWLViT:
             index_to_segment = [max(cluster, key=lambda x: x[2])[3] for cluster in clusters]
             formatted_boxes = [box for box_list in filtered_coords for box in box_list]
 
-            print( f"\nIs there a depth image?: {rgbd}\n", flush=True, file=sys.stderr )
-            print( f"\nAre there boxes?: {formatted_boxes}\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nIs there a depth image?: {rgbd}\n", flush=True, file=sys.stderr )
+                print( f"\nAre there boxes?: {formatted_boxes}\n", flush=True, file=sys.stderr )
 
             for num, index in enumerate(index_to_segment):
 
-                print( f"\nNumber {num}, Index {index}, Camera {cls.rsc} ...\n", flush=True, file=sys.stderr )
+                if _VERBOSE:
+                    print( f"\nNumber {num}, Index {index}, Camera {cls.rsc} ...\n", flush=True, file=sys.stderr )
 
                 cpcd = None
 
@@ -332,40 +337,39 @@ class Perception_OWLViT:
                         display=False,
                         viz_scale=1000
                     )
-                    print( f"\nPCD {cpcd} ...\n", flush=True, file=sys.stderr )
+                    if _VERBOSE:
+                        print( f"\nPCD {cpcd} ...\n", flush=True, file=sys.stderr )
                 except Exception as e:
-                    # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
-                    print(f"Segmentation error: {e}", flush=True, file=sys.stderr)
+                    if _VERBOSE:
+                        print(f"Segmentation error: {e}", flush=True, file=sys.stderr)
                     raise e
                 
                 try:
-                    print( f"\nAbout to transform PCD ...\n", flush=True, file=sys.stderr )
+                    if _VERBOSE:
+                        print( f"\nAbout to transform PCD ...\n", flush=True, file=sys.stderr )
 
                     cpcd = cls.transform_point_cloud( cpcd )
                     if cls.view_pcd:
                         cls.visualize_point_cloud( cpcd )
                 except Exception as e:
-                    # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
-                    print(f"Transformation error: {e}", flush=True, file=sys.stderr)
+                    if _VERBOSE:
+                        print(f"Transformation error: {e}", flush=True, file=sys.stderr)
                     raise e
 
                 objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
-                objIDstrTemp[f'Object {num + 1}']['Pose'] = cls.get_pcd_pose(cpcd)
+                objIDstrTemp[f'Object {num + 1}']['Pose']        = cls.get_pcd_pose(cpcd)
 
             if cls.visualize_boxes:
                 cls.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
 
                 
-            # cls.objIDstr.value = bytes(objIDstrTemp , 'utf-8')
             return objIDstrTemp
 
         except Exception as e:
-            # logging.error(f"Error building model: {e}", flush=True, file=sys.stderr)
             print(f"Error building model: {e}", flush=True, file=sys.stderr)
             raise e
         
         except KeyboardInterrupt as e:
-            # logging.error( f"Program was stopped by user: {e}", flush=True, file=sys.stderr )
             print( f"Program was stopped by user: {e}", flush=True, file=sys.stderr )
             traceback.print_exc()
 
@@ -429,10 +433,12 @@ if __name__ == "__main__":
 
         # D. Fetch the pose+image  &&  Identify objects in the scene  &&  Create output message  &&  Send
         if vizFlag:
-            print( f"\nVision was ENABLED\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nVision was ENABLED\n", flush=True, file=sys.stderr )
             Perception_OWLViT.effPose = effPose.copy()
             data = Perception_OWLViT.build_model()
-            print( f"\nAbout to pack data: {data}\n", flush=True, file=sys.stderr )
+            if _VERBOSE:
+                print( f"\nAbout to pack data: {data}\n", flush=True, file=sys.stderr )
             sys.stdout.buffer.write( pbj.pack( data ) )
             sys.stdout.buffer.flush()
         

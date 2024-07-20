@@ -1,4 +1,6 @@
 ########## INIT ####################################################################################
+import time
+now = time.time
 from copy import deepcopy
 from itertools import count
 
@@ -67,11 +69,12 @@ class GraspObj:
 class ObjectReading( GraspObj ):
     """ Represents a signal coming from the vision pipeline """
 
-    def __init__( self, labels = None, pose = None ):
+    def __init__( self, labels = None, pose = None, ts = None ):
         """ Init distribution and  """
         super().__init__( None, pose )
         self.labels  = labels if (labels is not None) else {} # Current belief in each class
-        self.visited = False
+        self.visited = False # -------------------------------- Flag: Was this belief associated with a relevant reading
+        self.ts      = ts if (ts is not None) else now() # ---- When was this reading created? [epoch time]
 
 
     def __repr__( self ):
