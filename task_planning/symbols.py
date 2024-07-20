@@ -4,7 +4,7 @@ from itertools import count
 
 import numpy as np
 
-from utils import NaN_row_vec
+from task_planning.utils import NaN_row_vec
 from env_config import _NULL_NAME
 
 

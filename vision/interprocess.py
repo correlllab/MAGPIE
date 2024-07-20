@@ -1,4 +1,6 @@
-import os, fcntl
+import os, fcntl, time, threading
+now = time.time
+from time import sleep
 import pbjson
 from queue import Queue
 
@@ -131,3 +133,65 @@ class PBJSON_IO:
         while not self.que.empty():
             rtnLst.append( self.que.get() )
         return rtnLst
+    
+
+
+########## THREADS #################################################################################
+
+class stdioCommWorker( threading.Thread ):
+    """ Handle interprocess communication via stdio """
+    # Adapted from work by dano, https://stackoverflow.com/a/25904681
+
+
+    def __init__( self, updateHz, inQ, outQ, proc, procStdin, procStdout, args=(), kwargs=None ):
+        """ Init thread with I/O connections to the child process """
+        threading.Thread.__init__( self, args = (), kwargs = None )
+        self.inQ        = inQ
+        self.outQ       = outQ
+        self.daemon     = True
+        self.proc       = proc
+        self.procStdin  = procStdin
+        self.procStdout = procStdout        
+        self.bgn        = now()
+        self.pbj        = PBJSON_IO()
+        self.per        = 1.0 / updateHz
+        self.lst        = now()
+        set_non_blocking( procStdout )
+        sleep( 0.050 )
+
+
+    def run( self ):
+        """ Req'd superclass driver function """
+        while (self.proc.poll() is None):
+            ### Input ###
+            ## From Parent ##
+            if not self.inQ.empty():
+                msg = self.inQ.get_nowait()
+                if msg:
+                    self.input_cb( msg )
+            
+            ## From Perception ##
+            inpt = non_block_read( self.procStdout )
+            self.pbj.write( inpt )
+
+            ### Output ###
+            ## To Parent ##
+            if self.pbj.unpack():
+                msgs = self.pbj.get_all()
+                for msg in msgs:
+                    self.outQ.put( msg )
+
+            ### Rate Limit ###
+            elapsed = now() - self.lst
+            if (elapsed < self.per):
+                sleep( self.per - elapsed )
+            self.lst = now()
+        
+
+    def input_cb( self, msg ):
+        """ Pass message to the Perception Process """
+        ### Output ###
+        ## To Perception ##
+        cObj = self.pbj.pack( msg )
+        self.procStdin.write( cObj )
+        self.procStdin.flush()

@@ -13,6 +13,8 @@ from spatialmath import Quaternion
 from spatialmath.quaternion import UnitQuaternion
 from spatialmath.base import r2q
 
+
+
 ########## CONTAINER OPERATIONS ####################################################################
 
 def p_lst_has_nan( lst ):
@@ -27,6 +29,22 @@ def p_list_duplicates( lst ):
     """ Return True if a value appears more than once """
     s = set( lst )
     return (len( lst ) > len( s ))
+
+def sorted_obj_labels( obj ):
+    """ Get the label dist keys in a PREDICTABLE ORDER """
+    # WARNING: THIS FUNCTION BECOMES NECESSARY *AS SOON AS* GLOBAL LABLES ARE **NOT** FIXED!
+    rtnLst = list( obj.labels.keys() )
+    rtnLst.sort()
+    return rtnLst
+
+
+def extract_dct_values_in_order( dct, keyLst ):
+    """ Get the `dct` values in the order specified in `keyLst` """
+    rtnLst = []
+    for k in keyLst:
+        if k in dct:
+            rtnLst.append( dct[k] )
+    return rtnLst
 
 
 

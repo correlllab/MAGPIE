@@ -17,8 +17,14 @@ from open3d.web_visualizer import draw
 import matplotlib.pyplot as plt
 
 ### Local ###
-sys.path.append( "../" )
-from magpie import grasp as gt
+
+
+
+print( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..', 'magpie')), flush=True, file=sys.stderr )
+# sys.path.append( os.path.join( os.path.dirname( os.path.dirname( __file__ ) ), "magpie" ) )
+# sys.path.append(os.path.abspath('../magpie'))
+# sys.path.append( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..', 'magpie')))
+sys.path.append( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..' )))
 from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
@@ -29,7 +35,7 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 ########## PERCEPTION SETTINGS #####################################################################
 
 _QUERIES     = ["a photo of a purple block", "a photo of a blue block", "a photo of a red block"]
-_ABBREV_Q    = ["purple", "blue", "red"]
+_ABBREV_Q    = ["vio", "blu", "red"]
 _NUM_BLOCKS  = 3
 _PLOT_BOX    = False
 _VIZ_PCD     = False
