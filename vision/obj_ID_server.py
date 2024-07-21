@@ -35,7 +35,7 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 ########## PERCEPTION SETTINGS #####################################################################
 
 _QUERIES     = [ "a photo of a violet block", "a photo of a blue block" , "a photo of a red block"     ,
-                 "a photo of a yellow block", "a photo of a green block", "a photo of a orange colored block" ]
+                 "a photo of a yellow block", "a photo of a green block", "a photo of a orange block" ]
 _ABBREV_Q    = ["vio", "blu", "red", "ylw", "grn", "orn"]
 assert len( _QUERIES ) == len( _ABBREV_Q ), "ERROR: MISMATCH in number of queries and abbreviated queries!"
 _NUM_BLOCKS  = len( _QUERIES )
