@@ -127,21 +127,25 @@ class VisualCortex:
         if xform is None:
             xform = np.eye(4)
         for item in obs.values():
-            dstrb = {}
-            for nam, prb in item['Probability'].items():
-                dstrb[ match_name( nam ) ] = prb
-            if len( item['Pose'] ) == 16:
-                objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
-                # HACK: SNAP TO NEAREST BLOCK UNIT
-                # blcZ = int((objPose[2,3] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
-                blcZ = int((objPose[2,3])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
-                objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
-            else:
-                # HACK: SNAP TO NEAREST BLOCK UNIT
-                # blcZ = int((item['Pose'][2] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
-                blcZ = int((item['Pose'][2])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
-                objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
-            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
+
+            # HACK: FILTER OBJECTS WITH ONLY ONE BB
+            if item['Count'] > 1:
+
+                dstrb = {}
+                for nam, prb in item['Probability'].items():
+                    dstrb[ match_name( nam ) ] = prb
+                if len( item['Pose'] ) == 16:
+                    objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
+                    # HACK: SNAP TO NEAREST BLOCK UNIT
+                    # blcZ = int((objPose[2,3] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
+                    blcZ = int((objPose[2,3])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                    objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
+                else:
+                    # HACK: SNAP TO NEAREST BLOCK UNIT
+                    # blcZ = int((item['Pose'][2] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
+                    blcZ = int((item['Pose'][2])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                    objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
+                rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
         return rtnBel
 
 

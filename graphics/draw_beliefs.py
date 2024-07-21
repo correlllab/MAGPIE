@@ -59,6 +59,43 @@ def UR5_geo( qConfig ):
     return plot_DH_robot( UR5_DH, qConfig, getDrawList=1, suppressTable=1 )
 
 
+def wireframe_box_geo( xScl, yScl, zScl ):
+    """ Draw a wireframe cuboid """
+    xHf = xScl/2.0
+    yHf = yScl/2.0
+    zHf = zScl/2.0
+    verts = np.array([
+        [ -xHf, -yHf, +zHf ],
+        [ +xHf, -yHf, +zHf ],
+        [ +xHf, +yHf, +zHf ],
+        [ -xHf, +yHf, +zHf ],
+        [ -xHf, -yHf, -zHf ],
+        [ +xHf, -yHf, -zHf ],
+        [ +xHf, +yHf, -zHf ],
+        [ -xHf, +yHf, -zHf ],
+    ])
+    ndces = np.array([
+        [0,4,],
+        [1,5,],
+        [2,6,],
+        [3,7,],
+        [0,1,],
+        [1,2,],
+        [2,3,],
+        [3,0,],
+        [4,5,],
+        [5,6,],
+        [6,7,],
+        [7,4,],
+    ])
+    wireBox = o3d.geometry.LineSet( 
+        o3d.utility.Vector3dVector( np.array( verts ) ), # Vertices
+        o3d.utility.Vector2iVector( np.array( ndces ) ) #- Indices
+    )
+    wireBox.paint_uniform_color( [0/255.0, 0/255.0, 0/255.0] )
+    return wireBox
+
+
 def reading_geo( objReading ):
     """ Get geo for a single observation """
     labelSort = zip_dict_sorted_by_decreasing_value( objReading.labels )
@@ -73,13 +110,14 @@ def reading_geo( objReading ):
         homog_xform( np.eye(3), [ hf+hf, hf+hf, _BLOCK_SCALE,] ),
     ]
     objXfrm = homog_xform( R_quat( *ornt ), posn )
+    rtnGeo  = list()
+    
+    wir = wireframe_box_geo( _BLOCK_SCALE, _BLOCK_SCALE, _BLOCK_SCALE )
+    wir.transform( objXfrm )
+    rtnGeo.extend( [wir,] )
+    
     for i in range(3):
         objXfrm[i,3] -= hf
-    rtnGeo  = list()
-    blc = o3d.geometry.TriangleMesh.create_box( _BLOCK_SCALE, _BLOCK_SCALE, _BLOCK_SCALE )
-    blc.transform( objXfrm )
-    blc.paint_uniform_color( _CLR_TABLE[ labelSort[0][0][:3] ] )
-    rtnGeo.append( blc )
     for i in range( 1, min( len(labelSort), len(topCrnrs) ) ):
         prob_i = labelSort[i][1]
         if (prob_i > 0.0):
@@ -92,6 +130,13 @@ def reading_geo( objReading ):
             bloc_i.transform( xfrm_i )
             bloc_i.paint_uniform_color( _CLR_TABLE[ labelSort[i][0][:3] ] )
             rtnGeo.append( bloc_i )
+    scl  = _BLOCK_SCALE * labelSort[0][1]
+    blc = o3d.geometry.TriangleMesh.create_box( scl, scl, scl )
+    for i in range(3):
+        objXfrm[i,3] += hf-(scl/2.0)
+    blc.transform( objXfrm )
+    blc.paint_uniform_color( _CLR_TABLE[ labelSort[0][0][:3] ] )
+    rtnGeo.extend( [blc,] )
     return rtnGeo
 
         

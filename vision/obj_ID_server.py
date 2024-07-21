@@ -34,9 +34,22 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 
 ########## PERCEPTION SETTINGS #####################################################################
 
-_QUERIES     = [ "a photo of a violet block", "a photo of a blue block" , "a photo of a red block"     ,
-                 "a photo of a yellow block", "a photo of a green block", "a photo of a orange block" ]
-_ABBREV_Q    = ["vio", "blu", "red", "ylw", "grn", "orn"]
+_QUERIES = [ 
+    # "a photo of a violet block", 
+    "a photo of a blue block" , 
+    "a photo of a red block"     ,
+    "a photo of a yellow block", 
+    "a photo of a green block", 
+    # "a photo of a orange block",
+]
+_ABBREV_Q = [
+    # "vio", 
+    "blu", 
+    "red", 
+    "ylw", 
+    "grn", 
+    # "orn"
+]
 assert len( _QUERIES ) == len( _ABBREV_Q ), "ERROR: MISMATCH in number of queries and abbreviated queries!"
 _NUM_BLOCKS  = len( _QUERIES )
 _PLOT_BOX    = False
@@ -194,12 +207,16 @@ class Perception_OWLViT:
 
         for _, color, _, _ in cluster:
 
-            # HACK: LESS FUCKING PURPLE AND BLUE
-            if color == 'vio':
-                color_counts[color] += 0.3
-            elif color == 'blu':
-                color_counts[color] += 0.4
+            if 0:
+                # HACK: LESS FUCKING PURPLE AND BLUE
+                if color == 'vio':
+                    color_counts[color] += 0.3
+                elif color == 'blu':
+                    color_counts[color] += 0.4
+                else:
+                    color_counts[color] += 1
             else:
+                # Alt: Just get closer and use fewer blocks
                 color_counts[color] += 1
 
         for key in color_counts.keys():
@@ -370,6 +387,7 @@ class Perception_OWLViT:
 
                 objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
                 objIDstrTemp[f'Object {num + 1}']['Pose']        = cls.get_pcd_pose( cpcd )
+                objIDstrTemp[f'Object {num + 1}']['Count']       = len( clusters[num] )
 
             if cls.visualize_boxes:
                 cls.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
