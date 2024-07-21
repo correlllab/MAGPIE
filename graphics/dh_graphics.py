@@ -10,8 +10,8 @@ Minimum viable motion planning & visualization for Universal Robotics
 ##### Imports #####
 import numpy as np
 import open3d as o3d
-from homog_utils import bases_from_xform, posn_from_xform, arrayify, R_krot, homog_xform
-from dh_mp import FK_DH_chain, dh_link_homog, robot_COM_for_q
+from graphics.homog_utils import bases_from_xform, posn_from_xform, arrayify, R_krot, homog_xform
+from graphics.dh_mp import FK_DH_chain, dh_link_homog, robot_COM_for_q
 
 ##### Constants #####
 _DEFAULT_VEC_COLOR = [255/255, 106/255, 0/255]

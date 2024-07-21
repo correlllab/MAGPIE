@@ -6,12 +6,33 @@ import numpy as np
 import open3d as o3d
 
 ### Local ###
-from dh_mp import UR5_DH
-from dh_graphics import plot_DH_robot
+from graphics.dh_mp import UR5_DH
+from graphics.dh_graphics import plot_DH_robot
+from graphics.homog_utils import homog_xform, R_quat
 sys.path.append( "../" )
-from env_config import ( _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN )
+from env_config import ( _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, _BLOCK_SCALE )
 
 _TABLE_THIC = 0.030
+_CLR_TABLE  = {
+    'red': [1.0, 0.0, 0.0,],
+    'ylw': [1.0, 1.0, 0.0,],
+    'blu': [0.0, 0.0, 1.0,],
+    'grn': [0.0, 1.0, 0.0,],
+    'orn': [1.0, 0.5, 0.0,],
+    'vio': [0.5, 0.0, 1.0,]
+}
+
+
+########## HELPER FUNCTIONS ########################################################################
+
+def zip_dict_sorted_by_decreasing_value( dct ):
+    """ Return a list of (k,v) tuples sorted by decreasing value """
+    keys = list()
+    vals = list()
+    for k, v in dct.items():
+        keys.append(k)
+        vals.append(v)
+    return sorted( zip( keys, vals ), key=lambda x: x[1], reverse=1)
 
 
 
@@ -38,6 +59,46 @@ def UR5_geo( qConfig ):
     return plot_DH_robot( UR5_DH, qConfig, getDrawList=1, suppressTable=1 )
 
 
-def belief_geo( beliefs ):
-    """ Get drawable geometry for the given `beliefs` """
-    pass
+def reading_geo( objReading ):
+    """ Get geo for a single observation """
+    labelSort = zip_dict_sorted_by_decreasing_value( objReading.labels )
+    objPose   = objReading.pose.pose
+    posn      = objPose[:3]
+    ornt      = objPose[3:]
+    hf        = _BLOCK_SCALE/2.0
+    topCrnrs  = [
+        homog_xform( np.eye(3), [-hf+hf,-hf+hf, _BLOCK_SCALE,] ),
+        homog_xform( np.eye(3), [-hf+hf, hf+hf, _BLOCK_SCALE,] ),
+        homog_xform( np.eye(3), [ hf+hf,-hf+hf, _BLOCK_SCALE,] ),
+        homog_xform( np.eye(3), [ hf+hf, hf+hf, _BLOCK_SCALE,] ),
+    ]
+    objXfrm = homog_xform( R_quat( *ornt ), posn )
+    for i in range(3):
+        objXfrm[i,3] -= hf
+    rtnGeo  = list()
+    blc = o3d.geometry.TriangleMesh.create_box( _BLOCK_SCALE, _BLOCK_SCALE, _BLOCK_SCALE )
+    blc.transform( objXfrm )
+    blc.paint_uniform_color( _CLR_TABLE[ labelSort[0][0][:3] ] )
+    rtnGeo.append( blc )
+    for i in range( 1, min( len(labelSort), len(topCrnrs) ) ):
+        prob_i = labelSort[i][1]
+        if (prob_i > 0.0):
+            scal_i  = _BLOCK_SCALE * prob_i
+            xfrm_i = topCrnrs[i-1]
+            for j in range(3):
+                xfrm_i[j,3] -= scal_i/2.0
+            xfrm_i = objXfrm.dot( xfrm_i )
+            bloc_i = o3d.geometry.TriangleMesh.create_box( scal_i, scal_i, scal_i )
+            bloc_i.transform( xfrm_i )
+            bloc_i.paint_uniform_color( _CLR_TABLE[ labelSort[i][0][:3] ] )
+            rtnGeo.append( bloc_i )
+    return rtnGeo
+
+        
+def display_belief_geo( beliefs ):
+    """ Draw geometry for the given `beliefs` """
+    geo = table_and_origin_geo( axesScale = _BLOCK_SCALE*2.0 )
+    for bel in beliefs:
+        geo.extend( reading_geo( bel ) )
+    o3d.visualization.draw_geometries( geo )
+    

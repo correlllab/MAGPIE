@@ -34,8 +34,8 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 
 ########## PERCEPTION SETTINGS #####################################################################
 
-_QUERIES     = [ "a photo of a purple block", "a photo of a blue block" , "a photo of a red block"     ,
-                 "a photo of a yellow block", "a photo of a green block", "a photo of an orange block" ]
+_QUERIES     = [ "a photo of a violet block", "a photo of a blue block" , "a photo of a red block"     ,
+                 "a photo of a yellow block", "a photo of a green block", "a photo of a orange colored block" ]
 _ABBREV_Q    = ["vio", "blu", "red", "ylw", "grn", "orn"]
 assert len( _QUERIES ) == len( _ABBREV_Q ), "ERROR: MISMATCH in number of queries and abbreviated queries!"
 _NUM_BLOCKS  = len( _QUERIES )
@@ -111,21 +111,26 @@ class Perception_OWLViT:
 
     @classmethod
     def get_corrected_gripper_pose( cls ):
-        matx = np.eye(4)
-        matx = matx.dot( cls.tmat_gripper )
-        matx = matx.dot( cls.rotation_matrix )
-        matx = matx.dot( np.asarray( cls.effPose[:] ).reshape( (4,4,) ) )
+        if 0:
+            matx = np.eye(4)
+            matx = matx.dot( cls.tmat_gripper )
+            matx = matx.dot( cls.rotation_matrix )
+            matx = matx.dot( np.asarray( cls.effPose ).reshape( (4,4,) ) )
+        else:
+            matx = np.asarray( cls.effPose ).reshape( (4,4,) )
+            matx = matx.dot( cls.rotation_matrix )
+            matx = matx.dot( cls.tmat_gripper )
         return matx
 
     @classmethod
-    def transform_point_cloud(cls, cpcd):
+    def transform_point_cloud( cls, cpcd ):
         """Transforms the given point cloud to align with the gripper pose."""
-        cpcd.transform( cls.tmat_gripper )
-        cpcd.transform( cls.rotation_matrix )
-        #convert to 4*4
-        cpcd.transform( np.asarray( cls.effPose[:] ).reshape( (4,4,) ) )
-        # cpcd.transform( cls.get_corrected_gripper_pose() )
-        return cpcd
+        # cpcd.transform( cls.tmat_gripper )
+        # cpcd.transform( cls.rotation_matrix )
+        # #convert to 4*4
+        # cpcd.transform( np.asarray( cls.effPose[:] ).reshape( (4,4,) ) )
+        cpcd.transform( cls.get_corrected_gripper_pose() )
+        # return cpcd
     
     @classmethod
     def save_point_cloud(cls, filename, point_cloud):
@@ -188,7 +193,14 @@ class Perception_OWLViT:
         color_counts = {color: 0 for color in _ABBREV_Q}
 
         for _, color, _, _ in cluster:
-            color_counts[color] += 1
+
+            # HACK: LESS FUCKING PURPLE AND BLUE
+            if color == 'vio':
+                color_counts[color] += 0.3
+            elif color == 'blu':
+                color_counts[color] += 0.4
+            else:
+                color_counts[color] += 1
 
         for key in color_counts.keys():
             probabilities[key] = color_counts[key] / total
@@ -344,20 +356,20 @@ class Perception_OWLViT:
                         print(f"Segmentation error: {e}", flush=True, file=sys.stderr)
                     raise e
                 
-                try:
-                    if _VERBOSE:
-                        print( f"\nAbout to transform PCD ...\n", flush=True, file=sys.stderr )
+                # try:
+                #     if _VERBOSE:
+                #         print( f"\nAbout to transform PCD ...\n", flush=True, file=sys.stderr )
 
-                    cpcd = cls.transform_point_cloud( cpcd )
-                    if cls.view_pcd:
-                        cls.visualize_point_cloud( cpcd )
-                except Exception as e:
-                    if _VERBOSE:
-                        print(f"Transformation error: {e}", flush=True, file=sys.stderr)
-                    raise e
+                #     cls.transform_point_cloud( cpcd )
+                #     if cls.view_pcd:
+                #         cls.visualize_point_cloud( cpcd )
+                # except Exception as e:
+                #     if _VERBOSE:
+                #         print(f"Transformation error: {e}", flush=True, file=sys.stderr)
+                #     raise e
 
                 objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
-                objIDstrTemp[f'Object {num + 1}']['Pose']        = cls.get_pcd_pose(cpcd)
+                objIDstrTemp[f'Object {num + 1}']['Pose']        = cls.get_pcd_pose( cpcd )
 
             if cls.visualize_boxes:
                 cls.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
@@ -421,7 +433,7 @@ if __name__ == "__main__":
                 elif (msg['cmnd'] == "SET_VIZ"):
                     vizFlag = bool( msg['data'] )
                 elif (msg['cmnd'] == "POSE_IN"):
-                    effPose = np.array( msg['data'] ).reshape( (4,4,) )
+                    Perception_OWLViT.effPose = np.array( msg['data'] ).reshape( (4,4,) )
                 else:
                     print( f"\nPerception received a POORLY FORMED command!:\n{msg}\n", flush=True, file=sys.stderr )
             else:
@@ -435,7 +447,7 @@ if __name__ == "__main__":
         if vizFlag:
             if _VERBOSE:
                 print( f"\nVision was ENABLED\n", flush=True, file=sys.stderr )
-            Perception_OWLViT.effPose = effPose.copy()
+            # Perception_OWLViT.effPose = effPose.copy()
             data = Perception_OWLViT.build_model()
             if _VERBOSE:
                 print( f"\nAbout to pack data: {data}\n", flush=True, file=sys.stderr )

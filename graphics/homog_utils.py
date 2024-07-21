@@ -3,7 +3,7 @@
 ##### Imports #####
 from random import random
 import numpy as np
-from numpy import sin, cos
+from numpy import sin, cos, arccos, sqrt
 
 ##### Env. Settings #####
 np.set_printoptions( precision=3 )
@@ -171,6 +171,30 @@ def R_krot( k, theta ):
         [ k[1]*k[0]*ver(theta) + k[2]*sin(theta) , k[1]*k[1]*ver(theta) + cos(theta)      , k[1]*k[2]*ver(theta) - k[0]*sin(theta) ] , 
         [ k[2]*k[0]*ver(theta) - k[1]*sin(theta) , k[2]*k[1]*ver(theta) + k[0]*sin(theta) , k[2]*k[2]*ver(theta) + cos(theta)      ] 
     ] )
+
+
+def quat_2_krot( rW, rX, rY, rZ ):
+    """ Convert the quaternion components to Axis-Angle """
+    # Adapted from https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/index.htm
+    theta = 2 * arccos(rW)
+    s     = sqrt(1-rW*rW); # assuming quaternion normalised then w is less than 1, so term always positive.
+    if (s < 0.001): # test to avoid divide by zero, `s` is always positive due to sqrt
+        # if `s` close to zero then direction of axis not important
+        x = 1
+        y = 0
+        z = 0
+    else:   
+        x = rX / s # normalise axis
+        y = rY / s 
+        z = rZ / s 
+    return vec_unit( [x,y,z] ), theta
+
+
+def R_quat( rW, rX, rY, rZ ):
+    """ Convert the quaternion components to a rotation matrix """
+    k, rot = quat_2_krot( rW, rX, rY, rZ )
+    return R_krot( k, rot )
+
 
 
 def shortest_rot_btn_vecs( v1, v2 ):

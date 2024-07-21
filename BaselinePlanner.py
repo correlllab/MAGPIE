@@ -32,6 +32,8 @@ sys.path.append( "./vision/" )
 from vision.interprocess import stdioCommWorker
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
+sys.path.append( "./draw_beliefs/" )
+from graphics.draw_beliefs import display_belief_geo
 
 
 ### PDDLStream ### 
@@ -118,29 +120,40 @@ class VisualCortex:
         } )
 
 
-    def observation_to_readings( self, obs ):
+    def observation_to_readings( self, obs, xform = None ):
         """ Parse the Perception Process output struct """
         rtnBel = []
         ts     = now()
+        if xform is None:
+            xform = np.eye(4)
         for item in obs.values():
             dstrb = {}
             for nam, prb in item['Probability'].items():
                 dstrb[ match_name( nam ) ] = prb
-            objPose = item['Pose'][:3]
-            objPose.extend( [1,0,0,0,] )
+            if len( item['Pose'] ) == 16:
+                objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
+                # HACK: SNAP TO NEAREST BLOCK UNIT
+                # blcZ = int((objPose[2,3] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
+                blcZ = int((objPose[2,3])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
+            else:
+                # HACK: SNAP TO NEAREST BLOCK UNIT
+                # blcZ = int((item['Pose'][2] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
+                blcZ = int((item['Pose'][2])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
             rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
         return rtnBel
 
 
-    def full_scan_noisy( self ):
+    def full_scan_noisy( self, xform = None ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
         if not self.dataQ.empty():
             dataMsgs = self.dataQ.get_nowait()
             if isinstance( dataMsgs, dict ):
-                self.scan = self.observation_to_readings( dataMsgs )
+                self.scan = self.observation_to_readings( dataMsgs, xform )
             # FIXME: CONFIRM THE LAST IN THE LIST IS THE MOST RECENT
             elif isinstance( dataMsgs, list ) and isinstance( dataMsgs[-1], dict ):
-                self.scan = self.observation_to_readings( dataMsgs[-1] )
+                self.scan = self.observation_to_readings( dataMsgs[-1], xform )
             else:
                 print( "`VisualCortex.full_scan_noisy`: BAD BESSAGE!" )
                 pprint( dataMsgs )
@@ -200,11 +213,11 @@ class BaselineTaskPlanner:
         self.robot.stop()
 
 
-    def perceive_scene( self ):
+    def perceive_scene( self, xform = None ):
         """ Integrate one noisy scan into the current beliefs """
         # FIXME: SEND EFFECTOR POSE
         # FIXME: WHAT IF THE ROBOT IS MOVING?
-        self.memory.belief_update( self.world.full_scan_noisy() )
+        self.memory.belief_update( self.world.full_scan_noisy( xform ) )
 
 
     ##### Stream Helpers ##################################################
@@ -457,15 +470,15 @@ class BaselineTaskPlanner:
 
     ##### Task Planning Phases ############################################
 
-    def phase_1_Perceive( self, Nscans = 1 ):
+    def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
 
         # FIXME: VERIFY THAT THE CAMERA XFORM IS CORRECT
-        self.world.set_effector_pose( self.robot.get_cam_pose() )
+        
         sleep( 3 )
         
         for _ in range( Nscans ):
-            self.perceive_scene() # We need at least an initial set of beliefs in order to plan
+            self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
         self.symbols = self.memory.most_likely_objects( N = 1 )
         self.status  = Status.RUNNING
@@ -480,15 +493,33 @@ class BaselineTaskPlanner:
 ########## MAIN ####################################################################################
 if __name__ == "__main__":
 
+
     planner = BaselineTaskPlanner()
+
+    sleep( 10 )
+
+    # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
+    # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
+    # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
+    # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
     
     sleep( 15 )
 
-    planner.phase_1_Perceive()
+    try:
+        camPose = planner.robot.get_cam_pose()
+        # camPose = planner.robot.get_tcp_pose()
+        print( f"\nCamera Pose:\n{camPose}\n" )
+        planner.phase_1_Perceive( xform = camPose )
+        planner.shutdown()
+    except KeyboardInterrupt:
+        planner.shutdown()
+
+
+    display_belief_geo( planner.memory.beliefs )
 
     sleep( 2.5 )
 
-    planner.shutdown()
+    
 
     print( "\n########## PROGRAM END ##########\n" )
         
