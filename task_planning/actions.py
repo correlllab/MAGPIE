@@ -139,7 +139,7 @@ HAND_OBJ_KEY   = "handHas"
 # PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
 #                             [ 1.0,  0.0,  0.0, ],
 #                             [ 0.0,  0.0, -1.0, ]] )
-PROTO_PICK_ROT = np.array( [[ -1.0,  1.0,  0.0, ],
+PROTO_PICK_ROT = np.array( [[ -1.0,  0.0,  0.0, ],
                             [  0.0,  1.0,  0.0, ],
                             [  0.0,  0.0, -1.0, ]] )
 
@@ -241,6 +241,7 @@ _GRASP_OFFSET_Z = 0.110 + 0.120
 
 def grasp_pose_from_obj_pose( rowVec ):
     """ Return the homogeneous coords given [Px,Py,Pz,Ow,Ox,Oy,Oz] """
+    rowVec = extract_row_vec_pose( rowVec )
     if len( rowVec ) == 7:
         posn    = rowVec[0:3]
         rtnPose = np.eye(4)
@@ -286,7 +287,7 @@ class MoveFree( GroundedAction ):
         poseEnd = grasp_pose_from_obj_pose( poseEnd )
 
         if name is None:
-            name = f"Move Free from {poseBgn.pose} --to-> {poseEnd.pose}"
+            name = f"Move Free from {poseBgn} --to-> {poseEnd}"
 
         super().__init__( args, robot, name )
 
@@ -343,7 +344,7 @@ class MoveHolding( GroundedAction ):
         poseBgn, poseEnd, label = args
 
         if name is None:
-            name = f"Move Holding {label} --to-> {poseEnd.pose}"
+            name = f"Move Holding {label} --to-> {poseEnd}"
         super().__init__( args, robot, name )
 
         poseBgn = grasp_pose_from_obj_pose( extract_row_vec_pose( poseBgn ) )

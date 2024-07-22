@@ -92,6 +92,13 @@ def pose_mtrx_to_vec(matrix):
     r32 = matrix[2, 1]
     r33 = matrix[2, 2]
 
+    epsilon  = 0.001 # margin to allow for rounding errors
+    epsilon2 = 0.1 # margin to distinguish between 0 and 180 degrees
+
+    if ((np.abs(r12-r21) < epsilon) and (np.abs(r13-r31) < epsilon) and (np.abs(r23-r32)< epsilon)):
+        # FIXME: START HERE "axisAngleNotes.txt"
+        pass
+
     val = (r11 + r22 + r33 - 1) / 2.0
     while val < -1.0:
         val += 2.0
@@ -291,8 +298,10 @@ def is_rotation_mtrx(R):
     # Checks if a matrix is a valid rotation matrix.
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
+    # print( f"Rt*R = \n{shouldBeIdentity}" )
     I = np.identity(3, dtype=R.dtype)
     n = np.linalg.norm(I - shouldBeIdentity)
+    # print( f"Diff. Mag.: {n}" )
     return n < 1e-5
 
 
