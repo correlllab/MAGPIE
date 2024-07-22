@@ -54,6 +54,7 @@ class Motors:
         Motor2_theta = delta_theta + self.Motor2theta_90
         desiredPosition1 = int(Motor1_theta*1023/(300))
         desiredPosition2 = int(Motor2_theta*1023/(300))
+        print( f"Attempt to set motor positions, 1: {desiredPosition1}, 2: {desiredPosition2}" )
         self.Motor1.set_goal_position(desiredPosition1)
         self.Motor2.set_goal_position(desiredPosition2)
             

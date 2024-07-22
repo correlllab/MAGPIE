@@ -95,6 +95,7 @@ class UR5_Interface:
         self.recv = rtde_receive.RTDEReceiveInterface( self.robotIP, self.freq )
         servoPort = get_USB_port_with_desc( "OpenRB" )
         if servoPort is not None:
+            print( f"Found Dynamixel Port:\n{servoPort}\n" )
             self.gripper =  Motors( servoPort )
             self.gripper.torquelimit( self.torqLim )
         else:

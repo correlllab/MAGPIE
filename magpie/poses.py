@@ -81,7 +81,13 @@ def pose_mtrx_to_vec(matrix):
         raise ValueError(
             "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
         )
+    
+    ##### Position: The Easy Part ################
+    x = matrix[0, -1]
+    y = matrix[1, -1]
+    z = matrix[2, -1]
 
+    ##### Orientation: The Tricky Part ################
     r11 = matrix[0, 0]
     r12 = matrix[0, 1]
     r13 = matrix[0, 2]
@@ -92,34 +98,77 @@ def pose_mtrx_to_vec(matrix):
     r32 = matrix[2, 1]
     r33 = matrix[2, 2]
 
-    epsilon  = 0.001 # margin to allow for rounding errors
-    epsilon2 = 0.1 # margin to distinguish between 0 and 180 degrees
+    # NOTE: THIS IS TO PREVENT FLIPPING FOR HAND-CODED AXIS-ALSIGNED POSES, WHICH SEEMS TO BE COMMON
+    # NOTE: STOP REMOVING THIS PART, **I WILL FIND OUT**
+    # https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToAngle/
+    epsilon  = 1e-4 # margin to allow for rounding errors
+    epsilon2 = 0.1 #- margin to distinguish between 0 and 180 degrees
 
     if ((np.abs(r12-r21) < epsilon) and (np.abs(r13-r31) < epsilon) and (np.abs(r23-r32)< epsilon)):
-        # FIXME: START HERE "axisAngleNotes.txt"
-        pass
+        # Singularity found, First check for identity matrix which must have +1 for all terms, in leading diagonal and zero in other terms
+        if ((np.abs(r12+r21) < epsilon2) and (np.abs(r13+r31) < epsilon2) and (np.abs(r23+r32) < epsilon2) and (np.abs(r11+r22+r33-3.0) < epsilon2)):
+			# this singularity is identity matrix so angle = 0
+            theta = 0.0
+            rv1   = 0.0
+            rv2   = 0.0
+            rv3   = 0.0
+        else:
+            theta = np.pi
+            xx = (r11 + 1.0) / 2.0
+            yy = (r22 + 1.0) / 2.0
+            zz = (r33 + 1.0) / 2.0
+            xy = (r12 + r21) / 4.0
+            xz = (r13 + r31) / 4.0
+            yz = (r23 + r32) / 4.0
+            if ((xx > yy) and (xx > zz)): # m[0][0] is the largest diagonal term
+                if (xx < epsilon):
+                    kx = 0.0
+                    ky = 0.7071
+                    kz = 0.7071
+                else:
+                    kx = np.sqrt( xx )
+                    ky = xy / kx
+                    kz = xz / kx
+            elif (yy > zz): # m[1][1] is the largest diagonal term
+                if (yy < epsilon):
+                    kx = 0.7071
+                    ky = 0.0
+                    kz = 0.7071
+                else:
+                    ky = np.sqrt( yy )
+                    kx = xy / ky
+                    kz = yz / ky
+            else: # m[2][2] is the largest diagonal term so base result on this
+                if (zz < epsilon):
+                    kx = 0.7071
+                    ky = 0.7071
+                    kz = 0.0
+                else:
+                    kz = np.sqrt( zz )
+                    kx = xz / kz
+                    ky = yz / kz
 
-    val = (r11 + r22 + r33 - 1) / 2.0
-    while val < -1.0:
-        val += 2.0
-    while val > 1.0:
-        val -= 2.0
-    theta = np.arccos(val)
+		
+    else:
+        val = (r11 + r22 + r33 - 1) / 2.0
+        while val < -1.0:
+            val += 2.0
+        while val > 1.0:
+            val -= 2.0
+        theta = np.arccos( val )
 
-    if theta == 0.0:
-        theta = 1e-8
-    sth = np.sin(theta)
-    kx = (r32 - r23) / (2 * sth)
-    ky = (r13 - r31) / (2 * sth)
-    kz = (r21 - r12) / (2 * sth)
+        if theta == 0.0:
+            theta = 1e-8
+        sth = np.sin(theta)
+        kx = (r32 - r23) / (2 * sth)
+        ky = (r13 - r31) / (2 * sth)
+        kz = (r21 - r12) / (2 * sth)
 
     rv1 = theta * kx
     rv2 = theta * ky
     rv3 = theta * kz
 
-    x = matrix[0, -1]
-    y = matrix[1, -1]
-    z = matrix[2, -1]
+    
 
     return [float(x), float(y), float(z), float(rv1), float(rv2), float(rv3)]
 

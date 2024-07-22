@@ -132,6 +132,7 @@ class VisualCortex:
             if item['Count'] > 2:
 
                 dstrb = {}
+                blcZ  = 0.0
                 for nam, prb in item['Probability'].items():
                     dstrb[ match_name( nam ) ] = prb
                 if len( item['Pose'] ) == 16:
@@ -145,7 +146,10 @@ class VisualCortex:
                     # blcZ = int((item['Pose'][2] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
                     blcZ = int((item['Pose'][2])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
                     objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
-                rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
+
+                # HACK: REJECT FLOATING GHOST BLOCKS
+                if blcZ < _BLOCK_SCALE*4.0:
+                    rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
         return rtnBel
 
 
@@ -176,6 +180,10 @@ class VisualCortex:
 
 # FIXME: VERIFY THAT THIS IS A SAFE POSE TO BUILD ON
 _trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
+_temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
+                        [-1.190e-04,  1.000e+00, -9.598e-06, -4.811e-01],
+                        [-2.634e-05, -9.601e-06, -1.000e+00,  4.022e-01],
+                        [ 0.000e+00,  0.000e+00,  0.000e+00,  1.000e+00],] )
 
 
 class BaselineTaskPlanner:
@@ -633,15 +641,9 @@ class BaselineTaskPlanner:
                 self.logger.log_event( f"Behavior: {currTip}", str(btr.status) )
             lastTip = currTip
             
-            if _USE_GRAPHICS:
-                self.world.robot.draw( self.world.physicsClient )
-
             if (btr.status == Status.FAILURE):
                 self.status = Status.FAILURE
                 self.logger.log_event( "Action Failure", btr.msg )
-            if self.check_OOB( 10 ):
-                self.status = Status.FAILURE
-                self.logger.log_event( "Object OOB", str( self.world.full_scan_true() ) )
 
         self.logger.log_event( "BT END", str( btr.status ) )
 
@@ -653,6 +655,7 @@ if __name__ == "__main__":
     planner = BaselineTaskPlanner()
 
     print( planner.robot.get_tcp_pose() )
+    planner.robot.moveL( _temp_home )
     # exit()
 
     # sleep( 10 )
@@ -675,7 +678,8 @@ if __name__ == "__main__":
 
         planner.phase_1_Perceive( xform = camPose )
 
-        display_belief_geo( planner.memory.beliefs )
+        if _USE_GRAPHICS:
+            display_belief_geo( planner.memory.beliefs )
 
         planner.phase_2_Conditions()
         planner.phase_3_Plan_Task()
@@ -683,7 +687,7 @@ if __name__ == "__main__":
             planner.phase_4_Execute_Action()
         else:
             print( "\n##### !! NO PLAN !! #####\n" )
-        planner.shutdown()
+        
 
         planner.logger.end_trial( False )
     except KeyboardInterrupt:
@@ -697,4 +701,5 @@ if __name__ == "__main__":
     
 
     print( "\n########## PROGRAM END ##########\n" )
+    planner.shutdown()
         
