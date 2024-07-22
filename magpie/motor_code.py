@@ -1,5 +1,7 @@
 import sys
 sys.path.append("../../")
+from time import sleep
+from traceback import print_exc
 from magpie.ax12 import Ax12
 import math
 class Motors:
@@ -55,8 +57,19 @@ class Motors:
         desiredPosition1 = int(Motor1_theta*1023/(300))
         desiredPosition2 = int(Motor2_theta*1023/(300))
         print( f"Attempt to set motor positions, 1: {desiredPosition1}, 2: {desiredPosition2}" )
-        self.Motor1.set_goal_position(desiredPosition1)
-        self.Motor2.set_goal_position(desiredPosition2)
+        try:
+            self.Motor1.set_goal_position( desiredPosition1 )
+            self.Motor2.set_goal_position( desiredPosition2 )
+        except Exception as e:
+            print( f"Motor Error: {e}, Retry ..." )
+            sleep( 0.25 )
+            try:
+                self.Motor1.set_goal_position( desiredPosition1 )
+                self.Motor2.set_goal_position( desiredPosition2 )
+            except Exception as e:
+                print( f"\n!!! MOTOR FAILURE: {e} !!!\n" )
+                raise e
+
             
     def torquelimit(self, torqueLimit):
         self.Motor1.set_torque_limit(torqueLimit)

@@ -349,10 +349,8 @@ class MoveHolding( GroundedAction ):
 
         poseBgn = grasp_pose_from_obj_pose( extract_row_vec_pose( poseBgn ) )
         poseEnd = grasp_pose_from_obj_pose( extract_row_vec_pose( poseEnd ) )
-        posnBgn = poseBgn[0:3,3]
-        posnEnd = poseEnd[0:3,3]
-        psnMid1 = np.array( posnBgn )
-        psnMid2 = np.array( posnEnd )
+        psnMid1 = np.array( poseBgn[0:3,3] )
+        psnMid2 = np.array( poseEnd[0:3,3] )
         psnMid1[2] = _Z_SAFE
         psnMid2[2] = _Z_SAFE
         # poseMd1 = psnMid1.tolist() + [1,0,0,0]
@@ -370,7 +368,7 @@ class MoveHolding( GroundedAction ):
             # Move_Effector( poseEnd, ctrl = robot ),
             Move_Arm( poseMd1, ctrl = robot ),
             Move_Arm( poseMd2, ctrl = robot ),
-            Move_Arm( grasp_pose_from_obj_pose( poseEnd ), ctrl = robot ),
+            Move_Arm( poseEnd, ctrl = robot ),
         ] )
 
 

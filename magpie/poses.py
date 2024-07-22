@@ -6,7 +6,7 @@ from numpy import sqrt
 from splines.quaternion import Quaternion
 
 import magpie.utils
-from magpie.utils import skew_sym
+from magpie.utils import skew_sym, vec_unit
 
 
 
@@ -57,7 +57,24 @@ def pose_vec_to_mtrx(vec):
     return matrix
 
 
-def pose_mtrx_to_vec(matrix):
+def repair_pose( dodgyHomogPose, getErr = 0 ):
+    """ Attempt to construct a pose that passes the test """
+    # NOTE: This function assumes a 4x4 numpy array
+    bgnPose = np.array( dodgyHomogPose )
+    rtnPose = bgnPose.copy()
+    xBasis  = vec_unit( bgnPose[0:3,0] )
+    yBasis  = vec_unit( bgnPose[0:3,1] )
+    zBasis  = np.cross( xBasis, yBasis )
+    yBasis  = np.cross( zBasis, xBasis )
+    rtnPose[0:3,1] = yBasis
+    rtnPose[0:3,2] = zBasis
+    if getErr:
+        return rtnPose, np.linalg.norm( rtnPose - bgnPose )
+    else:
+        return rtnPose
+
+
+def pose_mtrx_to_vec( matrix ):
     """
     Converts homogeneous transformation matrix to a [translation + rotation] vector.
 
@@ -77,10 +94,14 @@ def pose_mtrx_to_vec(matrix):
         [x, y, z, rX, rY, rZ]
     """
 
-    if not is_rotation_mtrx(matrix[0:3, 0:3]):
-        raise ValueError(
-            "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!"
-        )
+    # Attempt to fix negligible errors, Otherwise complain
+    # NOTE: Computing poses and copying poses from the robot often result in tiny tiny errors that make the checker mad
+    if not is_rotation_mtrx( matrix[0:3, 0:3] ):
+        nuMtx, err = repair_pose( matrix, getErr = 1 )
+        if err > 0.005:
+            raise ValueError( "pose_mtrx_to_vec: Homogeneous matrix contained invalid rotation!\n{matrix}" )
+        else:
+            matrix = nuMtx.copy()
     
     ##### Position: The Easy Part ################
     x = matrix[0, -1]
@@ -350,8 +371,12 @@ def is_rotation_mtrx(R):
     # print( f"Rt*R = \n{shouldBeIdentity}" )
     I = np.identity(3, dtype=R.dtype)
     n = np.linalg.norm(I - shouldBeIdentity)
-    # print( f"Diff. Mag.: {n}" )
-    return n < 1e-5
+    e = 1e-5
+    if n < e:
+        return True
+    else:
+        print( f"Difference from Identity: {n} > {e}" )
+        return False
 
 
 def rotation_mtrx_to_rpy(R):

@@ -15,6 +15,9 @@ import py_trees.console as console
 
 from magpie.poses import pose_error, rotate_pose
 
+_GRIP_WAIT_S = 1.5
+_DUMMYPOSE   = np.eye(4)
+
 
 
 ########## BASE CLASS ##############################################################################
@@ -61,16 +64,16 @@ class BasicBehavior( Behaviour ):
 ########## CONSTANTS & COMPONENTS ##################################################################
 
 ### Init data structs & Keys ###
-builtins._DUMMYPOSE     = np.eye(4)
-builtins.MP2BB = dict()  # Hack the BB object into the built-in namespace
-builtins.SCAN_POSE_KEY  = "scanPoses"
-builtins.HAND_OBJ_KEY   = "handHas"
+# builtins._DUMMYPOSE     = np.eye(4)
+# builtins.MP2BB = dict()  # Hack the BB object into the built-in namespace
+# builtins.SCAN_POSE_KEY  = "scanPoses"
+# builtins.HAND_OBJ_KEY   = "handHas"
 PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
                             [ 1.0,  0.0,  0.0, ],
                             [ 0.0,  0.0, -1.0, ]] )
 
 ### Set important BB items ###
-MP2BB[ SCAN_POSE_KEY ] = dict()
+# MP2BB[ SCAN_POSE_KEY ] = dict()
 
 ########## MOVEMENT BEHAVIORS ######################################################################
 
@@ -161,7 +164,7 @@ class Open_Gripper( BasicBehavior ):
     def __init__( self, name = None, ctrl = None  ):
         """ Set the target """
         super().__init__( name, ctrl )
-        self.wait_s = 0.5
+        self.wait_s = _GRIP_WAIT_S
         
         
     def initialise( self ):
@@ -187,7 +190,7 @@ class Set_Gripper( BasicBehavior ):
         """ Set the target """
         super().__init__( name, ctrl )
         self.width_m = width_m
-        self.wait_s = 0.5
+        self.wait_s = _GRIP_WAIT_S
         
         
     def initialise( self ):
@@ -212,7 +215,7 @@ class Close_Gripper( BasicBehavior ):
     def __init__( self, name = None, ctrl = None  ):
         """ Set the target """
         super().__init__( name, ctrl )
-        self.wait_s = 0.5
+        self.wait_s = _GRIP_WAIT_S
         
         
     def initialise( self ):
@@ -301,7 +304,7 @@ class Pick_at_Pose( Sequence ):
         self.add_child(  Jog_Safe( target, zSAFE = zSAFE, name = "Jog to Grasp Pose", ctrl = ctrl )  )
         # 1. Close the gripper
         if graspWdth_m is None:
-            self.add_child(  Close_Hand( name = "Close", ctrl = ctrl )  )
+            self.add_child(  Close_Gripper( name = "Close", ctrl = ctrl )  )
         else:
             self.add_child(  Set_Gripper( graspWdth_m, name = "Close", ctrl = ctrl )  )
             

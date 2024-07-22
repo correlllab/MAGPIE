@@ -65,7 +65,8 @@ _EXIST_THRESH = 0.05
 ########## MEASUREMENTS ############################################################################
 
 _ACCEPT_POSN_ERR =  0.55*_BLOCK_SCALE # 0.50 # 0.65 # 0.75 # 0.85 # 1.00
-_Z_SAFE          = 10.00*_BLOCK_SCALE
+# _Z_SAFE          = 10.00*_BLOCK_SCALE
+_Z_SAFE          = 0.400
 _MIN_SEP         =  0.40*_BLOCK_SCALE # 0.40 # 0.60 # 0.70 # 0.75
 
 

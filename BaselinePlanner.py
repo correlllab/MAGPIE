@@ -3,7 +3,7 @@
 ##### Imports #####
 
 ### Standard ###
-import sys, subprocess, time, os, pickle
+import sys, subprocess, time, os
 now = time.time
 from queue import Queue
 from time import sleep
@@ -11,6 +11,7 @@ from pprint import pprint
 from random import random
 from copy import deepcopy
 from traceback import print_exc, format_exc
+from datetime import datetime
 
 
 
@@ -24,7 +25,7 @@ from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _N
                          _ACCEPT_POSN_ERR, _MIN_SEP, _POST_N_SPINS, _USE_GRAPHICS, _N_XTRA_SPOTS, )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ObjectReading, ObjPose, extract_row_vec_pose, GraspObj
-from task_planning.utils import ( multiclass_Bayesian_belief_update, get_confusion_matx, get_confused_class_reading, 
+from task_planning.utils import ( get_confusion_matx, get_confused_class_reading, 
                                   DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
 from task_planning.belief import ObjectMemory
@@ -32,6 +33,7 @@ sys.path.append( "./vision/" )
 from vision.interprocess import stdioCommWorker
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
+from magpie.poses import repair_pose
 sys.path.append( "./draw_beliefs/" )
 from graphics.draw_beliefs import display_belief_geo
 
@@ -184,6 +186,10 @@ _temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
                         [-1.190e-04,  1.000e+00, -9.598e-06, -4.811e-01],
                         [-2.634e-05, -9.601e-06, -1.000e+00,  4.022e-01],
                         [ 0.000e+00,  0.000e+00,  0.000e+00,  1.000e+00],] )
+_GOOD_VIEW_POSE = repair_pose( np.array( [[-0.749, -0.513,  0.419, -0.428,],
+                                          [-0.663,  0.591, -0.46 , -0.273,],
+                                          [-0.012, -0.622, -0.783,  0.337,],
+                                          [ 0.   ,  0.   ,  0.   ,  1.   ,],] ) )
 
 
 class BaselineTaskPlanner:
@@ -485,7 +491,7 @@ class BaselineTaskPlanner:
 
     def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
-        
+
         sleep( 3 )
         
         for _ in range( Nscans ):
@@ -648,58 +654,183 @@ class BaselineTaskPlanner:
         self.logger.log_event( "BT END", str( btr.status ) )
 
 
+    def p_fact_match_noisy( self, pred ):
+        """ Search grounded facts for a predicate that matches `pred` """
+        for fact in self.facts:
+            if pred[0] == fact[0]:
+                same = True 
+                for i in range( 1, len( pred ) ):
+                    if type( pred[i] ) != type( fact[i] ):
+                        same = False 
+                        break
+                    elif isinstance( pred[i], str ) and (pred[i] != fact[i]):
+                        same = False
+                        break
+                    elif (pred[i].index != fact[i].index):
+                        same = False
+                        break
+                if same:
+                    return True
+        return False
+
+    
+    def validate_goal_noisy( self, goal ):
+        """ Check if the system believes the goal is met """
+        if goal[0] == 'and':
+            for g in goal[1:]:
+                if not self.p_fact_match_noisy( g ):
+                    return False
+            return True
+        else:
+            raise ValueError( f"Unexpected goal format!: {goal}" )
+
+
+    ##### Task Planner Main Loop ##########################################
+
+    def solve_task( self, maxIter = 100, beginPlanPose = None ):
+        """ Solve the goal """
+        
+        if beginPlanPose is None:
+            beginPlanPose = _GOOD_VIEW_POSE
+
+        i = 0
+
+        print( "\n\n\n##### TASK BEGIN #####\n" )
+
+        self.reset_state()
+        self.set_goal()
+        self.logger.begin_trial()
+
+        indicateSuccess = False
+
+        while (self.status != Status.SUCCESS) and (i < maxIter):
+
+            self.robot.moveL( beginPlanPose )
+            sleep(1)
+
+            print( f"### Iteration {i+1} ###" )
+            
+            i += 1
+
+            ##### Phase 1 ########################
+
+            print( f"Phase 1, {self.status} ..." )
+
+            self.reset_beliefs() # WARNING: REMOVE FOR RESPONSIVE
+            self.reset_state() # - WARNING: REMOVE FOR RESPONSIVE
+
+            camPose = self.robot.get_cam_pose()
+            
+            self.phase_1_Perceive( 1, camPose )
+
+            if _USE_GRAPHICS:
+                display_belief_geo( planner.memory.beliefs )
+
+            ##### Phase 2 ########################
+
+            print( f"Phase 2, {self.status} ..." )
+            self.phase_2_Conditions()
+
+            if self.validate_goal_noisy( self.goal ):
+                indicateSuccess = True
+                self.logger.log_event( "Believe Success", f"Iteration {i}: Noisy facts indicate goal was met!\n{self.facts}" )
+                print( f"!!! Noisy success at iteration {i} !!!" )
+                self.status = Status.SUCCESS
+            else:
+                indicateSuccess = False
+
+            if self.status in (Status.SUCCESS, Status.FAILURE):
+                print( f"LOOP, {self.status} ..." )
+                continue
+
+            ##### Phase 3 ########################
+
+            print( f"Phase 3, {self.status} ..." )
+            self.phase_3_Plan_Task()
+
+            # DEATH MONITOR
+            if self.noSoln >= self.nonLim:
+                self.logger.log_event( "SOLVER BRAINDEATH", f"Iteration {i}: Solver has failed {self.noSoln} times in a row!" )
+                break
+
+            if self.p_failed():
+                print( f"LOOP, {self.status} ..." )
+                continue
+
+            ##### Phase 4 ########################
+
+            print( f"Phase 4, {self.status} ..." )
+            self.phase_4_Execute_Action()
+
+            print()
+
+        self.logger.end_trial(
+            indicateSuccess,
+            {'end_symbols' : list( self.symbols ) }
+        )
+
+        self.logger.save( "data/Baseline" )
+
+        print( f"\n##### PLANNER END with status {self.status} after iteration {i} #####\n\n\n" )
+
+
+
+########## EXPERIMENT HELPER FUNCTIONS #############################################################
+
+def experiment_prep( OWL_init_pause_s = 25.0 ):
+    """ Init system and return a ref to the planner """
+    planner = BaselineTaskPlanner()
+    print( planner.robot.get_tcp_pose() )
+
+    # planner.robot.moveL( _temp_home )
+    planner.robot.moveL( _GOOD_VIEW_POSE )
+
+    planner.robot.open_gripper()
+    sleep( OWL_init_pause_s )
+    return planner
+
+
+
 ########## MAIN ####################################################################################
+_TROUBLESHOOT = 0
+
+
 if __name__ == "__main__":
 
+    dateStr = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
-    planner = BaselineTaskPlanner()
+    if _TROUBLESHOOT:
+        print( f"########## Running Debug Code at {dateStr} ##########" )
 
-    print( planner.robot.get_tcp_pose() )
-    planner.robot.moveL( _temp_home )
-    # exit()
+        print( repair_pose( _GOOD_VIEW_POSE ) )
 
-    # sleep( 10 )
+        rbt = ur5.UR5_Interface()
+        rbt.start()
+        rbt.moveL( repair_pose( _GOOD_VIEW_POSE ) )
+        print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
+        sleep(1)
+        rbt.stop()
 
-    # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
-    # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
-    # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
-    # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
-    
-    sleep( 25 )
+    else:
+        print( f"########## Running Planner at {dateStr} ##########" )
 
-    try:
-        camPose = planner.robot.get_cam_pose()
-        # camPose = planner.robot.get_tcp_pose()
-        # print( f"\nCamera Pose:\n{camPose}\n" )
+        try:
+            planner = experiment_prep( OWL_init_pause_s = 25.0 )
+            planner.solve_task( maxIter = 4 )
+            sleep( 2.5 )
+            planner.shutdown()
 
-        planner.reset_state()
-        planner.set_goal()
-        planner.logger.begin_trial()
+        except KeyboardInterrupt:
+            # User Panic: Attempt to shut down gracefully
+            print( f"\nSystem SHUTDOWN initiated by user!, Planner Status: {planner.status}\n" )
+            planner.shutdown()
 
-        planner.phase_1_Perceive( xform = camPose )
-
-        if _USE_GRAPHICS:
-            display_belief_geo( planner.memory.beliefs )
-
-        planner.phase_2_Conditions()
-        planner.phase_3_Plan_Task()
-        if planner.status != Status.FAILURE:
-            planner.phase_4_Execute_Action()
-        else:
-            print( "\n##### !! NO PLAN !! #####\n" )
-        
-
-        planner.logger.end_trial( False )
-    except KeyboardInterrupt:
-        planner.shutdown()
-
+        except Exception as e:
+            # Bad Thing: Attempt to shut down gracefully
+            print( f"Something BAD happened!: {e}\nPlanner Status: {planner.status}\n" )
+            print_exc()
+            print()
+            planner.shutdown()
 
     
-
-    sleep( 2.5 )
-
-    
-
-    print( "\n########## PROGRAM END ##########\n" )
-    planner.shutdown()
         
