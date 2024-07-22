@@ -293,7 +293,7 @@ def is_rotation_mtrx(R):
     shouldBeIdentity = np.dot(Rt, R)
     I = np.identity(3, dtype=R.dtype)
     n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-6
+    return n < 1e-5
 
 
 def rotation_mtrx_to_rpy(R):

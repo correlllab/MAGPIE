@@ -21,6 +21,7 @@ from env_config import _Z_SAFE
 
 sys.path.append( "../" )
 from magpie.poses import pose_error
+from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper
 
 ##### Constants #####
 
@@ -135,9 +136,12 @@ _DUMMYPOSE     = np.eye(4)
 MP2BB          = dict()  # Hack the BB object into the built-in namespace
 SCAN_POSE_KEY  = "scanPoses"
 HAND_OBJ_KEY   = "handHas"
-PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
-                            [ 1.0,  0.0,  0.0, ],
-                            [ 0.0,  0.0, -1.0, ]] )
+# PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
+#                             [ 1.0,  0.0,  0.0, ],
+#                             [ 0.0,  0.0, -1.0, ]] )
+PROTO_PICK_ROT = np.array( [[ -1.0,  1.0,  0.0, ],
+                            [  0.0,  1.0,  0.0, ],
+                            [  0.0,  0.0, -1.0, ]] )
 
 ### Set important BB items ###
 MP2BB[ SCAN_POSE_KEY ] = dict()
@@ -152,107 +156,6 @@ DEFAULT_TRAN_ERR = 0.010 # 0.002
 DEFAULT_ORNT_ERR = 3*np.pi/180.0
 
 
-
-##### Move_Effector ###################################
-    
-class Move_Effector( BasicBehavior ):
-    """ Move linearly in task space to the designated pose """
-    
-    def __init__( self, pose, name = None, ctrl = None, world = None, linSpeed = None ):
-        """ Set the target """
-        # NOTE: Asynchronous motion is closest to the Behavior Tree paradigm, Avoid blocking!
-        super().__init__( name, ctrl, world )
-        self.pose     = pose
-        self.linSpeed = linSpeed 
-        self.epsilon  = 1e-5
-        
-        
-    def initialise( self ):
-        """ Actually Move """
-        super().initialise()
-        # self.ctrl.goto_pb_posn_ornt( self.posn, self.ornt )
-        if self.linSpeed is not None:
-            self.ctrl.set_step_speed( self.linSpeed )
-        self.ctrl.goto_pose( self.pose )
-        
-        
-    def update( self ):
-        """ Return true if the target reached """
-
-        if self.ctrl.p_moving():
-            self.status = Status.RUNNING
-        else:
-            hmgR = row_vec_to_homog( self.ctrl.get_current_pose() )
-            hmgT = row_vec_to_homog( self.pose )
-            
-            print( hmgR, hmgT )
-
-            [errT, errO] = pose_error( hmgR, hmgT )
-            if (errT <= DEFAULT_TRAN_ERR) and (errO <= DEFAULT_ORNT_ERR):
-                self.status = Status.SUCCESS
-            else:
-                print( self.name, ", POSE ERROR:", [errT, errO] )
-                self.msg = "Move_Arm: POSE ERROR"
-                pass_msg_up( self )
-                self.status = Status.FAILURE
-
-        return self.status
-
-
-
-##### Grasp ###########################################
-    
-class Grasp( BasicBehavior ):
-    """ Close fingers completely """
-    
-    def __init__( self, objName, objPose = None, name = None, ctrl = None, world = None ):
-        """ Set the target """
-        super().__init__( name, ctrl, world )
-        self.target  = objName
-        self.objPose = objPose
-                
-    def initialise( self ):
-        """ Actually Move """
-        super().initialise()
-        if _GRASP_PAUSE:
-            self.world.spin_for( _HAND_WAIT )
-        self.world.robot_grasp_at( self.objPose )
-        if _GRASP_PAUSE:
-            self.world.spin_for( _HAND_WAIT )
-        
-    def update( self ):
-        """ Return true if the target reached """
-        self.status = self.stall( _GRASP_STALL )
-        return self.status
-    
-
-
-##### Ungrasp #########################################
-    
-class Ungrasp( BasicBehavior ):
-    """ Open fingers to max extent """
-    
-    def __init__( self, name = None, ctrl = None, world = None ):
-        """ Set the target """
-        super().__init__( name, ctrl, world )
-        
-        
-    def initialise( self ):
-        """ Actually Move """
-        super().initialise()
-        if _GRASP_PAUSE:
-            self.world.spin_for( _HAND_WAIT )
-            self.world.robot_release_all()
-            self.world.spin_for( 2 )
-        self.world.robot_release_all()
-        if _GRASP_PAUSE:
-            self.world.spin_for( _HAND_WAIT )
-        
-        
-    def update( self ):
-        """ Return true if the target reached """
-        self.status = self.stall( _GRASP_STALL )
-        return self.status
     
 
 
@@ -276,13 +179,13 @@ def display_PDLS_plan( plan ):
 class BT_Runner:
     """ Run a BT with checks """
 
-    def __init__( self, root, world, tickHz = 4.0, limit_s = 20.0 ):
+    def __init__( self, root, tickHz = 4.0, limit_s = 20.0 ):
         """ Set root node and world reference """
         self.root   = root
-        self.world  = world
+        # self.world  = world
         self.status = Status.INVALID
         self.freq   = tickHz
-        self.Nstep  = int( max(1.0, math.ceil((1.0 / tickHz) / world.period)))
+        # self.Nstep  = int( max(1.0, math.ceil((1.0 / tickHz) / world.period)))
         self.msg    = ""
         self.Nlim   = int( limit_s * tickHz )
         self.i      = 0
@@ -290,7 +193,7 @@ class BT_Runner:
 
     def setup_BT_for_running( self ):
         """ Connect the plan to world and robot """
-        connect_BT_to_robot_world( self.root, self.world.robot, self.world )
+        # connect_BT_to_robot_world( self.root, self.world.robot, self.world )
         self.root.setup_with_descendants()
 
 
@@ -308,14 +211,14 @@ class BT_Runner:
         """ Handle external signals to halt BT execution """
         self.status = Status.FAILURE
         self.msg    = msg
-        self.world.robot_release_all()
-        self.world.spin_for( 250 )
+        # self.world.robot_release_all()
+        # self.world.spin_for( 250 )
 
 
     def tick_once( self ):
         """ Run one simulation step """
         ## Let sim run ##
-        self.world.spin_for( self.Nstep )
+        # self.world.spin_for( self.Nstep )
         ## Advance BT ##
         if not self.p_ended():
             self.root.tick_once()
@@ -333,20 +236,41 @@ class BT_Runner:
 
 
 
+########## BLOCKS DOMAIN HELPER FUNCTIONS ##########################################################
+_GRASP_OFFSET_Z = 0.110 + 0.120
+
+def grasp_pose_from_obj_pose( rowVec ):
+    """ Return the homogeneous coords given [Px,Py,Pz,Ow,Ox,Oy,Oz] """
+    if len( rowVec ) == 7:
+        posn    = rowVec[0:3]
+        rtnPose = np.eye(4)
+        rtnPose[0:3,0:3] = PROTO_PICK_ROT
+        rtnPose[0:3,3]   = posn
+        rtnPose[2,3]    += _GRASP_OFFSET_Z
+    elif len( rowVec ) == 4:
+        rtnPose = np.array( rowVec )
+        rtnPose[0:3,0:3] = PROTO_PICK_ROT
+        rtnPose[2,3]    += _GRASP_OFFSET_Z
+    else:
+        print( f"`grasp_pose_from_obj_pose`: UNEXPECTED POSE FORMAT:\n{rowVec}" )
+        rtnPose = None
+    return rtnPose
+
+
+
 ########## BLOCKS DOMAIN BEHAVIOR TREES ############################################################
 
 class GroundedAction( Sequence ):
     """ This is the parent class for all actions available to the planner """
 
-    def __init__( self, args = None, world = None, robot = None, name = "Grounded Sequence" ):
+    def __init__( self, args = None, robot = None, name = "Grounded Sequence" ):
         """ Init BT """
         super().__init__( name = name, memory = True )
         self.args    = args if (args is not None) else list() # Symbols involved in this action
         self.symbols = list() #  Symbol on which this behavior relies
         self.msg     = "" # ---- Message: Reason this action failed -or- OTHER
         self.ctrl    = robot # - Agent that executes
-        self.world   = world  #- Simulation ref
-    
+
     def __repr__( self ):
         """ Get the name, Assume child classes made it sufficiently descriptive """
         return str( self.name )
@@ -355,117 +279,132 @@ class GroundedAction( Sequence ):
 
 class MoveFree( GroundedAction ):
     """ Move the unburdened effector to the given location """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?poseBgn ?poseEnd
         poseBgn, poseEnd = args
+        poseEnd = grasp_pose_from_obj_pose( poseEnd )
 
         if name is None:
             name = f"Move Free from {poseBgn.pose} --to-> {poseEnd.pose}"
 
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
         poseEnd = extract_row_vec_pose( poseEnd )
                 
         self.add_child(
-            Move_Effector( poseEnd, ctrl = robot, world = world )
+            # Move_Effector( poseEnd, ctrl = robot )
+            Move_Arm( poseEnd, ctrl = robot )
         )
 
 
 
 class Pick( GroundedAction ):
     """ Add object to the gripper payload """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?label ?pose ?prevSupport
         label, pose, prevSupport = args
         
         if name is None:
             name = f"Pick {label} at {pose.pose} from {prevSupport}"
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
         self.add_child( 
-            Grasp( label, pose, name = name, ctrl = robot, world = world )
+            # Grasp( label, pose, name = name, ctrl = robot )
+            Close_Gripper( ctrl = robot  )
         )
 
 
 
 class Unstack( GroundedAction ):
     """ Add object to the gripper payload """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?label ?pose ?prevSupport
         label, pose, prevSupport = args
         
         if name is None:
             name = f"Unstack {label} at {pose.pose} from {prevSupport}"
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
         self.add_child( 
-            Grasp( label, pose, name = name, ctrl = robot, world = world )
+            # Grasp( label, pose, name = name, ctrl = robot )
+            Close_Gripper( ctrl = robot  )
         )
 
 
 
 class MoveHolding( GroundedAction ):
     """ Move the burdened effector to the given location """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?poseBgn ?poseEnd ?label
         poseBgn, poseEnd, label = args
 
         if name is None:
             name = f"Move Holding {label} --to-> {poseEnd.pose}"
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
-        poseBgn = extract_row_vec_pose( poseBgn )
-        poseEnd = extract_row_vec_pose( poseEnd )
-        posnBgn = poseBgn[:3]
-        posnEnd = poseEnd[:3]
+        poseBgn = grasp_pose_from_obj_pose( extract_row_vec_pose( poseBgn ) )
+        poseEnd = grasp_pose_from_obj_pose( extract_row_vec_pose( poseEnd ) )
+        posnBgn = poseBgn[0:3,3]
+        posnEnd = poseEnd[0:3,3]
         psnMid1 = np.array( posnBgn )
         psnMid2 = np.array( posnEnd )
         psnMid1[2] = _Z_SAFE
         psnMid2[2] = _Z_SAFE
-        poseMd1 = psnMid1.tolist() + [1,0,0,0]
-        poseMd2 = psnMid2.tolist() + [1,0,0,0]
+        # poseMd1 = psnMid1.tolist() + [1,0,0,0]
+        # poseMd2 = psnMid2.tolist() + [1,0,0,0]
+        poseMd1 = np.eye(4) 
+        poseMd2 = np.eye(4)
+        poseMd1[0:3,0:3] = PROTO_PICK_ROT
+        poseMd2[0:3,0:3] = PROTO_PICK_ROT
+        poseMd1[0:3,3] = psnMid1
+        poseMd2[0:3,3] = psnMid2
     
         self.add_children( [
-            Move_Effector( poseMd1, ctrl = robot, world = world ),
-            Move_Effector( poseMd2, ctrl = robot, world = world ),
-            Move_Effector( poseEnd, ctrl = robot, world = world ),
+            # Move_Effector( poseMd1, ctrl = robot ),
+            # Move_Effector( poseMd2, ctrl = robot ),
+            # Move_Effector( poseEnd, ctrl = robot ),
+            Move_Arm( poseMd1, ctrl = robot ),
+            Move_Arm( poseMd2, ctrl = robot ),
+            Move_Arm( grasp_pose_from_obj_pose( poseEnd ), ctrl = robot ),
         ] )
 
 
 
 class Place( GroundedAction ):
     """ Let go of gripper payload """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?label ?pose ?support
         label, pose, support = args
         
         if name is None:
             name = f"Place {label} at {pose.pose} onto {support}"
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
         self.add_child( 
-            Ungrasp( name = name, ctrl = robot, world = world )
+            # Ungrasp( name = name, ctrl = robot )
+            Open_Gripper( ctrl = robot  )
         )
 
 
 class Stack( GroundedAction ):
     """ Let go of gripper payload """
-    def __init__( self, args, world = None, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None ):
 
         # ?labelUp ?poseUp ?labelDn
         labelUp, poseUp, labelDn = args
         
         if name is None:
             name = f"Stack {labelUp} at {poseUp.pose} onto {labelDn}"
-        super().__init__( args, world, robot, name )
+        super().__init__( args, robot, name )
 
         self.add_child( 
-            Ungrasp( name = name, ctrl = robot, world = world )
+            # Ungrasp( name = name, ctrl = robot )
+            Open_Gripper( ctrl = robot  )
         )
 
 
@@ -498,35 +437,35 @@ class Plan( Sequence ):
 
 ########## PDLS --TO-> BT ##########################################################################
 
-def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, world ):
+def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot ):
     """ Fetch the `i`th item from `pdlsPlan` and parameterize a BT that operates on the `world` """
     actName  = pdlsPlan[i].name
     actArgs  = pdlsPlan[i].args
     btAction = None
     if actName == "move_free":
-        btAction = MoveFree( actArgs, world = world, robot = world.robot )
+        btAction = MoveFree( actArgs, robot = robot )
     elif actName == "pick":
-        btAction = Pick( actArgs, world = world, robot = world.robot )
+        btAction = Pick( actArgs, robot = robot )
     elif actName == "unstack":
-        btAction = Unstack( actArgs, world = world, robot = world.robot )
+        btAction = Unstack( actArgs, robot = robot )
     elif actName == "move_holding":
-        btAction = MoveHolding( actArgs, world = world, robot = world.robot )
+        btAction = MoveHolding( actArgs, robot = robot )
     elif actName == "place":
-        btAction = Place( actArgs, world = world, robot = world.robot )
+        btAction = Place( actArgs, robot = robot )
     elif actName == "stack":
-        btAction = Stack( actArgs, world = world, robot = world.robot )
+        btAction = Stack( actArgs, robot = robot )
     else:
         raise NotImplementedError( f"There is no BT procedure defined for a PDDL action named {actName}!" )
     print( f"Action {i+1}, {actName} --> {btAction.name}, planned!" )
     return btAction
 
 
-def get_BT_plan_until_block_change( pdlsPlan, world ):
+def get_BT_plan_until_block_change( pdlsPlan, robot ):
     """ Translate the PDLS plan to one that can be executed by the robot """
     rtnBTlst = []
     if pdlsPlan is not None:
         for i in range( len( pdlsPlan ) ):
-            btAction = get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, world )
+            btAction = get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot )
             rtnBTlst.append( btAction )
             if btAction.__class__ in ( Place, Stack ):
                 break

@@ -37,7 +37,7 @@ from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 _QUERIES = [ 
     # "a photo of a violet block", 
     "a photo of a blue block" , 
-    "a photo of a red block"     ,
+    # "a photo of a red block"     ,
     "a photo of a yellow block", 
     "a photo of a green block", 
     # "a photo of a orange block",
@@ -45,17 +45,17 @@ _QUERIES = [
 _ABBREV_Q = [
     # "vio", 
     "blu", 
-    "red", 
+    # "red", 
     "ylw", 
     "grn", 
     # "orn"
 ]
-assert len( _QUERIES ) == len( _ABBREV_Q ), "ERROR: MISMATCH in number of queries and abbreviated queries!"
+assert len( _QUERIES ) == len( _ABBREV_Q ), f"ERROR: MISMATCH in number of queries and abbreviated queries!\n{_QUERIES}\n{_ABBREV_Q}\n"
 _NUM_BLOCKS  = len( _QUERIES )
 _PLOT_BOX    = False
 _VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
-_VERBOSE     = 1
+_VERBOSE     = 0
 
 
 

@@ -15,6 +15,8 @@ import py_trees.console as console
 
 from magpie.poses import pose_error, rotate_pose
 
+
+
 ########## BASE CLASS ##############################################################################
 
 class BasicBehavior( Behaviour ):

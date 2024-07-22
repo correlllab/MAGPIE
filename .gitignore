@@ -5,8 +5,12 @@
 */*/*/*/*.pkl
 */*/*/*/*/*.pkl
 
+/temp
+*/temp
+*/temp/*
+*/*/temp/*
+*/*/*/temp/*
 
-*/temp/
 */runs/
 .gitignore~
 */statistics/

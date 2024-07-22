@@ -11,6 +11,8 @@ from open3d.web_visualizer import draw
 import copy
 import time
 
+_VERBOSE = 0
+
 def create_depth_mask_from_mask(mask, orig_depth):
     '''
     @param mask np.array of item mask
@@ -36,7 +38,8 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
     ###
     orig_pcd.depth = depth_m
     # et voila
-    print( "About to `o3d.geometry.PointCloud.create_from_rgbd_image` ...", flush=True, file=sys.stderr )
+    if _VERBOSE:
+        print( "About to `o3d.geometry.PointCloud.create_from_rgbd_image` ...", flush=True, file=sys.stderr )
     cpcd = o3d.geometry.PointCloud.create_from_rgbd_image(
         orig_pcd,
         # rgbd_m_image,
@@ -50,7 +53,8 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
         # FIXME: POSSIBLE REMEDY FOR MULTIPROCESS PROBLEM, https://github.com/isl-org/Open3D/issues/4007
 
         # denoise pcd
-        print( f"About to `cpcd.remove_statistical_outlier` on {cpcd}\nRequired Neighbors: {NB} ...", flush=True, file=sys.stderr )
+        if _VERBOSE:
+            print( f"About to `cpcd.remove_statistical_outlier` on {cpcd}\nRequired Neighbors: {NB} ...", flush=True, file=sys.stderr )
 
         # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.001 )
         # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.002 )
@@ -60,7 +64,8 @@ def crop_and_denoise_pcd(depth_m, orig_pcd, rsc, NB=50):
         # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.05 )
         # cl, ind = cpcd.remove_statistical_outlier( nb_neighbors = NB, std_ratio = 0.10 )
 
-        print( "About to `cpcd.select_by_index` ...", flush=True, file=sys.stderr )
+        if _VERBOSE:
+            print( "About to `cpcd.select_by_index` ...", flush=True, file=sys.stderr )
         inlier_cloud = cpcd.select_by_index( ind )
         # display_inlier_outlier(saved_pcd, ind)
         # displayWorld(inlier_cloud)
@@ -147,7 +152,8 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     @param rgbd_image Open3D RGBD Image
     '''
 
-    print( f"Inside `get_segment` @ {os.getpid()}...", flush=True, file=sys.stderr )
+    if _VERBOSE:
+        print( f"Inside `get_segment` @ {os.getpid()}...", flush=True, file=sys.stderr )
 
     color_copy = copy.deepcopy(rgbd_image.color)
     depth_copy = copy.deepcopy(rgbd_image.depth)
@@ -156,12 +162,14 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
     pcaFrame, tmat = None, None
     start = time.time()
     if type == "box" or type == "box-dbscan":
-        print( f"About to `retrieve_mask_from_image_crop` ...", flush=True, file=sys.stderr )
+        if _VERBOSE:
+            print( f"About to `retrieve_mask_from_image_crop` ...", flush=True, file=sys.stderr )
         dm, rm, imgm = retrieve_mask_from_image_crop(segments[index][0], rgbd_image)
     elif type == "mask":
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
     
-    print( f"About to `crop_and_denoise_pcd` with {dm} ...", flush=True, file=sys.stderr )
+    if _VERBOSE:
+        print( f"About to `crop_and_denoise_pcd` with {dm} ...", flush=True, file=sys.stderr )
 
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
     # cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=10)
@@ -179,16 +187,19 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dbspcd.points = o3d.utility.Vector3dVector(largest_cluster_points)
         dbspcd.colors = o3d.utility.Vector3dVector(largest_cluster_colors)
         cpcd = dbspcd
-    print( f"About to `cpcd.compute_mean_and_covariance` ...", flush=True, file=sys.stderr )
+    if _VERBOSE:
+        print( f"About to `cpcd.compute_mean_and_covariance` ...", flush=True, file=sys.stderr )
     mc = cpcd.compute_mean_and_covariance()
     grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]
     if method == 'iterative':
-        print( f"About to `get_pca_frame` ...", flush=True, file=sys.stderr )
+        if _VERBOSE:
+            print( f"About to `get_pca_frame` ...", flush=True, file=sys.stderr )
         pcaFrame, tmat = get_pca_frame(mc[0], mc[1], scale=viz_scale)
     elif method == 'quat':
         pcaFrame, tmat = get_pca_frame_quat(mc[0], mc[1], scale=viz_scale)
     tmat[:3, 3] = grasp_pose
-    print( f"About to `o3d.geometry.TriangleMesh.create_coordinate_frame` ...", flush=True, file=sys.stderr )
+    if _VERBOSE:
+        print( f"About to `o3d.geometry.TriangleMesh.create_coordinate_frame` ...", flush=True, file=sys.stderr )
     worldFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.075, origin=[0, 0, 0])
     geometries = [cpcd, pcaFrame, worldFrame]
 
@@ -255,7 +266,8 @@ def rotation_matrix_to_align_with_axes(evals, evecs):
         row_min = np.argmin([arr[val][0][i] for i in idc])
         arr[val, idc[0][row_min]] = -100
         ai = np.argmax(arr, axis=0)
-        print(f"modified indices: {ai}")
+        if _VERBOSE:
+            print(f"modified indices: {ai}")
 
     for i in range(len(evecs)):
         r[:, i] = evecs[ai[i]]
@@ -288,12 +300,15 @@ def get_pca_frame(pos, cmat, scale=500.0):
     #     y = -y
     # rot = np.hstack([y, -x, z])
     # flip z-axis if dot product with positive z-axis is negative
-    print(f"z-axis dot product: {np.dot(z.T, np.array([0, 0, 1]))}")
+    if _VERBOSE:
+        print(f"z-axis dot product: {np.dot(z.T, np.array([0, 0, 1]))}")
     if np.dot(z.T, np.array([0, 0, 1])) < 0:
-        print("flipping z axis")
+        if _VERBOSE:
+            print("flipping z axis")
         z = -z
         # adhere to right hand rule
-        print("flipping x-axis")
+        if _VERBOSE:
+            print("flipping x-axis")
         x = -x
 
     # flip y-axis for rhr

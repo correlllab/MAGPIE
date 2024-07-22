@@ -3,7 +3,7 @@
 ##### Imports #####
 
 ### Standard ###
-import sys, subprocess, pickle, time
+import sys, subprocess, time, os, pickle
 now = time.time
 from queue import Queue
 from time import sleep
@@ -129,7 +129,7 @@ class VisualCortex:
         for item in obs.values():
 
             # HACK: FILTER OBJECTS WITH ONLY ONE BB
-            if item['Count'] > 1:
+            if item['Count'] > 2:
 
                 dstrb = {}
                 for nam, prb in item['Probability'].items():
@@ -195,6 +195,7 @@ class BaselineTaskPlanner:
         self.status  = Status.INVALID
         self.task    = None
         self.goal    = tuple()
+        self.grasp   = list()
 
 
     def __init__( self, world = None ):
@@ -328,8 +329,8 @@ class BaselineTaskPlanner:
     def pddlstream_from_problem( self ):
         """ Set up a PDDLStream problem with the UR5 """
 
-        domain_pddl  = read( get_file_path( __file__, 'domain.pddl' ) )
-        stream_pddl  = read( get_file_path( __file__, 'stream.pddl' ) )
+        domain_pddl  = read( get_file_path( __file__, os.path.join( 'task_planning/', 'domain.pddl' ) ) )
+        stream_pddl  = read( get_file_path( __file__, os.path.join( 'task_planning/', 'stream.pddl' ) ) )
         constant_map = {}
         stream_map = {
             ### Symbol Streams ###
@@ -352,10 +353,10 @@ class BaselineTaskPlanner:
 
         self.goal = ( 'and',
             
-            ('GraspObj', 'grnBlock' , _trgtGrn  ), # ; Tower B
-            ('Supported', 'ornBlock', 'grnBlock'), 
-            ('Supported', 'vioBlock', 'ornBlock'),
-            ('Supported', 'ylwBlock', 'vioBlock'),
+            ('GraspObj', 'grnBlock' , _trgtGrn  ), # ; Tower
+            ('Supported', 'ylwBlock', 'grnBlock'), 
+            ('Supported', 'bluBlock', 'ylwBlock'),
+            ('Supported', 'redBlock', 'bluBlock'),
 
             ('HandEmpty',),
         )
@@ -394,11 +395,11 @@ class BaselineTaskPlanner:
         """ Scan the environment for evidence that the task is progressing, using current beliefs """
         rtnFacts = []
         ## Gripper Predicates ##
-        if len( self.world.grasp ):
-            for grasped in self.world.grasp:
-                [hndl,pDif,bOrn,] = grasped
-                labl = self.world.get_handle_name( hndl )
-                rtnFacts.append( ('Holding', labl,) )
+        if len( self.grasp ):
+            for graspedLabel in self.grasp:
+                # [hndl,pDif,bOrn,] = grasped
+                # labl = self.world.get_handle_name( hndl )
+                rtnFacts.append( ('Holding', graspedLabel,) )
         else:
             rtnFacts.append( ('HandEmpty',) )
         ## Obj@Loc Predicates ##
@@ -438,7 +439,7 @@ class BaselineTaskPlanner:
                     ('PoseAbove', self.get_grounded_fact_pose_or_new( sym_i.pose.pose ), 'table',),
                 ] )
         ## Where the robot at? ##
-        robotPose = ObjPose( self.world.robot.get_current_pose() )
+        robotPose = ObjPose( self.robot.get_tcp_pose() )
         rtnFacts.extend([ 
             ('AtPose', robotPose,),
             ('WayPoint', robotPose,),
@@ -476,8 +477,6 @@ class BaselineTaskPlanner:
 
     def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
-
-        # FIXME: VERIFY THAT THE CAMERA XFORM IS CORRECT
         
         sleep( 3 )
         
@@ -493,6 +492,159 @@ class BaselineTaskPlanner:
                 print( f"\t{obj}" )
 
 
+    def allocate_table_swap_space( self, Nspots = _N_XTRA_SPOTS ):
+        """ Find some open poses on the table for performing necessary swaps """
+        rtnFacts  = []
+        freeSpots = []
+        occuSpots = [ np.array( sym.pose.pose ) for sym in self.symbols]
+        while len( freeSpots ) < Nspots:
+            nuPose = pb_posn_ornt_to_row_vec( *rand_table_pose() )
+            print( f"\t\tSample: {nuPose}" )
+            posn    = nuPose[:3]
+            collide = False
+            for spot in occuSpots:
+                symPosn = spot[:3]
+                if diff_norm( posn, symPosn ) < ( _MIN_SEP ):
+                    collide = True
+                    break
+            if not collide:
+                freeSpots.append( ObjPose( nuPose ) )
+                occuSpots.append( nuPose )
+        for objPose in freeSpots:
+            rtnFacts.extend([
+                ('Waypoint', objPose,),
+                ('Free', objPose,),
+                ('PoseAbove', objPose, 'table'),
+            ])
+        return rtnFacts
+                
+
+    def phase_2_Conditions( self ):
+        """ Get the necessary initial state, Check for goals already met """
+        
+        if not self.check_goal_objects( self.goal, self.symbols ):
+            self.logger.log_event( "Required objects missing", str( self.symbols ) )   
+            self.status = Status.FAILURE
+        else:
+            
+            self.facts = [ ('Base', 'table',) ] 
+
+            ## Copy `Waypoint`s present in goals ##
+            for g in self.goal[1:]:
+                if g[0] == 'GraspObj':
+                    self.facts.append( ('Waypoint', g[2],) )
+                    if abs(g[2].pose[2] - _BLOCK_SCALE) < _ACCEPT_POSN_ERR:
+                        self.facts.append( ('PoseAbove', g[2], 'table') )
+
+            ## Ground the Blocks ##
+            for sym in self.symbols:
+                self.facts.append( ('Graspable', sym.label,) )
+
+                # blockPose, p_factDex, p_goalDex = self.get_grounded_pose_or_new( sym.pose.pose )
+                blockPose = self.get_grounded_fact_pose_or_new( sym.pose.pose )
+
+                # print( f"`blockPose`: {blockPose}" )
+                self.facts.append( ('GraspObj', sym.label, blockPose,) )
+                if not self.p_grounded_fact_pose( blockPose ):
+                    self.facts.append( ('Waypoint', blockPose,) )
+
+            ## Fetch Relevant Facts ##
+            self.facts.extend( self.ground_relevant_predicates_noisy() )
+
+            ## Populate Spots for Block Movements ##, 2024-04-25: Injecting this for now, Try a stream later ...
+            self.facts.extend( self.allocate_table_swap_space( _N_XTRA_SPOTS ) )
+
+            if _VERBOSE:
+                print( f"\n### Initial Symbols ###" )
+                for sym in self.facts:
+                    print( f"\t{sym}" )
+                print()
+
+
+    def phase_3_Plan_Task( self ):
+        """ Attempt to solve the symbolic problem """
+
+        self.task = self.pddlstream_from_problem()
+
+        self.logger.log_event( "Begin Solver" )
+
+        # print( dir( self.task ) )
+        if 0:
+            print( f"\nself.task.init\n" )
+            pprint( self.task.init )
+            print( f"\nself.task.goal\n" )
+            pprint( self.task.goal )
+            print( f"\nself.task.domain_pddl\n" )
+            pprint( self.task.domain_pddl )
+            print( f"\nself.task.stream_pddl\n" )
+            pprint( self.task.stream_pddl )
+
+        try:
+            
+            solution = solve( 
+                self.task, 
+                algorithm      = "adaptive", #"focused", #"binding", #"incremental", #"adaptive", 
+                unit_costs     = True, # False, #True, 
+                unit_efforts   = True, # False, #True,
+                reorder        = True,
+                initial_complexity = 2,
+                # max_complexity = 4,
+                # max_failures  = 4,
+                # search_sample_ratio = 1/4
+
+            )
+
+            print( "Solver has completed!\n\n\n" )
+            print_solution( solution )
+            
+        except Exception as ex:
+            self.logger.log_event( "SOLVER FAULT", format_exc() )
+            self.status = Status.FAILURE
+            print_exc()
+            solution = (None, None, None)
+            self.noSoln += 1 # DEATH MONITOR
+
+        plan, cost, evaluations = solution
+
+        if (plan is not None) and len( plan ):
+            display_PDLS_plan( plan )
+            self.currPlan = plan
+            self.action   = get_BT_plan_until_block_change( plan, self.robot )
+            self.noSoln   = 0 # DEATH MONITOR
+        else:
+            self.noSoln += 1 # DEATH MONITOR
+            self.logger.log_event( "NO SOLUTION" )
+            self.status = Status.FAILURE
+
+
+    def phase_4_Execute_Action( self ):
+        """ Attempt to execute the first action in the symbolic plan """
+        
+        btr = BT_Runner( self.action, 50.0, 30.0 )
+        btr.setup_BT_for_running()
+
+        lastTip = None
+        currTip = None
+
+        while not btr.p_ended():
+            
+            currTip = btr.tick_once()
+            if currTip != lastTip:
+                self.logger.log_event( f"Behavior: {currTip}", str(btr.status) )
+            lastTip = currTip
+            
+            if _USE_GRAPHICS:
+                self.world.robot.draw( self.world.physicsClient )
+
+            if (btr.status == Status.FAILURE):
+                self.status = Status.FAILURE
+                self.logger.log_event( "Action Failure", btr.msg )
+            if self.check_OOB( 10 ):
+                self.status = Status.FAILURE
+                self.logger.log_event( "Object OOB", str( self.world.full_scan_true() ) )
+
+        self.logger.log_event( "BT END", str( btr.status ) )
+
 
 ########## MAIN ####################################################################################
 if __name__ == "__main__":
@@ -500,26 +652,45 @@ if __name__ == "__main__":
 
     planner = BaselineTaskPlanner()
 
-    sleep( 10 )
+    print( planner.robot.get_tcp_pose() )
+    # exit()
+
+    # sleep( 10 )
 
     # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
     # planner.world.set_effector_pose( planner.robot.get_cam_pose() )
     # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
     # planner.world.set_effector_pose( planner.robot.get_tcp_pose() )
     
-    sleep( 15 )
+    sleep( 25 )
 
     try:
         camPose = planner.robot.get_cam_pose()
         # camPose = planner.robot.get_tcp_pose()
-        print( f"\nCamera Pose:\n{camPose}\n" )
+        # print( f"\nCamera Pose:\n{camPose}\n" )
+
+        planner.reset_state()
+        planner.set_goal()
+        planner.logger.begin_trial()
+
         planner.phase_1_Perceive( xform = camPose )
+
+        display_belief_geo( planner.memory.beliefs )
+
+        planner.phase_2_Conditions()
+        planner.phase_3_Plan_Task()
+        if planner.status != Status.FAILURE:
+            planner.phase_4_Execute_Action()
+        else:
+            print( "\n##### !! NO PLAN !! #####\n" )
         planner.shutdown()
+
+        planner.logger.end_trial( False )
     except KeyboardInterrupt:
         planner.shutdown()
 
 
-    display_belief_geo( planner.memory.beliefs )
+    
 
     sleep( 2.5 )
 
