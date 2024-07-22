@@ -128,7 +128,7 @@ class VisualCortex:
             xform = np.eye(4)
         for item in obs.values():
 
-            # HACK: FILTER OBJECTS WITH ONLY ONE BB
+            # HACK: FILTER OBJECTS WITH ONLY A FEW BB
             if item['Count'] > 2:
 
                 dstrb = {}
@@ -356,7 +356,7 @@ class BaselineTaskPlanner:
             ('GraspObj', 'grnBlock' , _trgtGrn  ), # ; Tower
             ('Supported', 'ylwBlock', 'grnBlock'), 
             ('Supported', 'bluBlock', 'ylwBlock'),
-            ('Supported', 'redBlock', 'bluBlock'),
+            # ('Supported', 'redBlock', 'bluBlock'),
 
             ('HandEmpty',),
         )
