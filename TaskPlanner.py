@@ -1,3 +1,8 @@
+"""
+TaskPlanner.py
+Contains the Baseline and Responsive Planners described in FIXME: INSERT PAPER REF AND DOI
+Version 2024-07
+"""
 ########## INIT ####################################################################################
 
 ##### Imports #####
