@@ -1,12 +1,21 @@
+########## INIT ####################################################################################
+
+###### Imports ######
+
+### Standard ###
+import atexit, sys
 
 ### Special ###
 import numpy as np
+import open3d as o3d
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
                          _BLOCK_NAMES, _VERBOSE, )
 from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, )
 from task_planning.symbols import GraspObj
+sys.path.append( "../graphics/" )
+from graphics.draw_beliefs import generate_belief_geo
 
 ########## HELPER FUNCTIONS ########################################################################
 
@@ -32,6 +41,15 @@ def extract_class_dist_in_order( obj, order = _BLOCK_NAMES ):
     """ Get the discrete class distribution, in order according to environment variable """
     return np.array( extract_dct_values_in_order( obj.labels, order ) )
 
+def vis_window( geo ):
+    """ Open3D SUUUUUUUUUCKS """
+    # https://github.com/isl-org/Open3D/issues/3489#issuecomment-863704146
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry( geo )
+    ctr = vis.get_view_control()  # Everything good
+    print( f"Opened window: {ctr}" )
+    vis.run()
 
 ########## BELIEFS #################################################################################
 
@@ -41,11 +59,32 @@ class ObjectMemory:
     def reset_beliefs( self ):
         """ Remove all references to the beliefs, then erase the beliefs """
         self.beliefs = []
+        # self.vis.clear_geometries()
 
 
     def __init__( self ):
         """ Set belief containers """
+        # https://github.com/isl-org/Open3D/issues/2006#issuecomment-701340077
+        # self.vis = o3d.visualization.Visualizer()
+        # self.vis.create_window( window_name = "Planner: Current Belief", width = 100, height = 700, visible = True )
         self.reset_beliefs()
+        # atexit.register( self.destroy )
+
+
+    # def destroy( self ):
+    #     """ Close window and cleanup """
+    #     self.vis.destroy_window()
+
+
+    def display_belief_geo( self ):
+        # self.vis.clear_geometries()
+        # self.vis.add_geometry( geo )
+        # self.vis.poll_events()
+        # self.vis.update_renderer()
+        geo = generate_belief_geo( self.beliefs )
+        # o3d.visualization.draw_geometries( geo )
+        vis_window( geo )
+        
 
     
     def accum_evidence_for_belief( self, evidence, belief ):

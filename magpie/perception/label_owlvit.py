@@ -97,6 +97,22 @@ class LabelOWLViT(Label):
         self.preds_plot = predicted_image
         if not show_plot: plt.close(fig)  # Close the figure to prevent displaying it
 
+
+    def reset_prediction_state( self ):
+        self.preds_plot = None
+        self.queries = None
+        self.sorted_indices = None
+        self.sorted_labels = None
+        self.sorted_text_labels = None
+        self.sorted_scores = None
+        self.sorted_boxes = None
+        self.sorted_boxes_coords = None
+        self.sorted_labeled_boxes = None
+        self.sorted_labeled_boxes_coords = None
+        self.sorted = None
+        self.boxes = None
+
+
     def get_preds(self, outputs, target_sizes):
 
         logits = torch.max(outputs["logits"][0], dim=-1)

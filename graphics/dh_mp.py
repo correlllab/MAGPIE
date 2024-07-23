@@ -8,11 +8,12 @@ Minimum viable motion planning & visualization for Universal Robotics
 ########## INIT ####################################################################################
 
 ##### Imports #####
-from random import random
+### Special ###
 import numpy as np
 from numpy import sin, cos, isnan, arctan2, pi, sqrt, arccos, arcsin
-from homog_utils import ( p_point_above_plane, R_z, homog_xform, R_krot, R_x, bases_from_xform, arrayify, SIGN, posn_from_xform, 
-                          maxdex, vec_angle_between, vec_weighted_avg, apply_homog_to_posn_vec )
+### Local ###
+from graphics.homog_utils import ( R_z, R_x, bases_from_xform, arrayify, SIGN, posn_from_xform, vec_angle_between, 
+                                   vec_weighted_avg, apply_homog_to_posn_vec )
 
 ##### Constants #####
 _ZERO_THRESH       = 0.00000001
@@ -20,7 +21,7 @@ _ANGLE_MARGIN      = pi/(180*4)
 _DEFAULT_VEC_COLOR = [255/255, 106/255, 0/255]
 
 ##### Env. Settings #####
-np.set_printoptions( precision=3 )
+np.set_printoptions( precision=4 )
 
 
 

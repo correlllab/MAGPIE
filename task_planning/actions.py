@@ -237,7 +237,7 @@ class BT_Runner:
 
 
 ########## BLOCKS DOMAIN HELPER FUNCTIONS ##########################################################
-_GRASP_OFFSET_Z = 0.110 + 0.120
+_GRASP_OFFSET_Z = 0.110 + 0.110
 
 def grasp_pose_from_obj_pose( rowVec ):
     """ Return the homogeneous coords given [Px,Py,Pz,Ow,Ox,Oy,Oz] """

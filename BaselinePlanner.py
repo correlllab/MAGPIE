@@ -30,12 +30,11 @@ from task_planning.utils import ( get_confusion_matx, get_confused_class_reading
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
 from task_planning.belief import ObjectMemory
 sys.path.append( "./vision/" )
-from vision.interprocess import stdioCommWorker
+from vision.obj_ID_server import Perception_OWLViT
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
 from magpie.poses import repair_pose
-sys.path.append( "./draw_beliefs/" )
-from graphics.draw_beliefs import display_belief_geo
+
 
 
 ### PDDLStream ### 
@@ -91,52 +90,22 @@ class VisualCortex:
         """ Start the Perception Process and the Communication Thread """
         
         # 1. Setup comm `Queue`s
-        self.cmndQ  = Queue() # Commands     to   Perception Process
-        self.dataQ  = Queue() # Segmentation from Perception Process
         self.scan   = list()
         self.tLast  =  0.0
         self.tFresh = 20.0
-
+        self.wait_s = 3.0
+        
          # 2. Start the Perception Process
-        self.percProc = subprocess.Popen(
-            ['python3.9', 'vision/obj_ID_server.py'],
-            stdin  = subprocess.PIPE,
-            stdout = subprocess.PIPE,
-            # stderr = subprocess.PIPE # 2024-07-19: Keep `stderr` open for printing info from the subprocess
-        )
-        sleep( 0.050 )
-        print( f"Process {self.percProc.pid} started with status: {self.percProc.returncode}" )
-        sleep( 1 )
-
-        # 3. Start the Communication Thread
-        self.commThrd = stdioCommWorker( threadUpdateHz, 
-                                         self.cmndQ, self.dataQ, 
-                                         self.percProc, self.percProc.stdin, self.percProc.stdout )
-        self.commThrd.daemon = True
-        self.commThrd.start()
-            
-        sleep( 1 )
+        self.perc = Perception_OWLViT
+        print( f"`VisualCortex.__init__`: Waiting on OWL-ViT to start ..." )
+        self.perc.start_vision()
+        print( f"`VisualCortex.__init__`: OWL-ViT STARTED!" )
 
 
     def stop( self ):
         """ Stop the Perception Process and the Communication Thread """
-        for _ in range( 3 ):
-            self.cmndQ.put_nowait( {
-                'cmnd': "SHUTDOWN",
-                'data': None,
-            } )
-        self.percProc.wait()
-        print( f"Process {self.percProc.pid} ended with status: {self.percProc.returncode}" )
-        self.commThrd.join( timeout = 1 )
+        self.perc.shutdown()
         print( "\n##### `VisualCortex` SHUTDOWN #####\n" )
-
-
-    def set_effector_pose( self, effHomog ):
-        """ Notify the Perception Process of the current effector pose """
-        self.cmndQ.put_nowait( {
-            'cmnd': "POSE_IN",
-            'data': np.array( effHomog ).reshape( (16,) ).tolist(),
-        } )
 
 
     def snap_z_to_nearest_block_unit_above_zero( self, z ):
@@ -179,23 +148,17 @@ class VisualCortex:
 
     def full_scan_noisy( self, xform = None, timeout = 2 ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
-        if not self.dataQ.empty():
-            dataMsgs = self.dataQ.get( timeout = timeout )
-            if isinstance( dataMsgs, dict ):
-                self.scan = self.observation_to_readings( dataMsgs, xform )
-            elif isinstance( dataMsgs, list ) and isinstance( dataMsgs[-1], dict ):
-                self.scan = self.observation_to_readings( dataMsgs[-1], xform )
-            else:
-                print( "`VisualCortex.full_scan_noisy`: BAD BESSAGE!" )
-                pprint( dataMsgs )
-                print()
-                self.scan = list()
-            return deepcopy( self.scan )
-        elif (self.scan is not None):
-            return deepcopy( self.scan )
-        else:
-            print( "`VisualCortex.full_scan_noisy`: NO AVAILABLE OBJECT DATA!" )
-            return list()
+        try:
+            dataMsgs  = self.perc.build_model()
+            if not len(dataMsgs):
+                print( "`VisualCortex.full_scan_noisy`: NO OBJECT DATA!" )
+            self.scan = self.observation_to_readings( dataMsgs, xform )
+            
+        except Exception as e:
+            print( f"`full_scan_noisy`, Scan FAILED: {e}" )
+            self.scan = list()
+
+        return self.scan
         
 
     def fresh_scan_noisy( self, xform = None, timeout = 10.0 ):
@@ -209,7 +172,6 @@ class VisualCortex:
                 break
             else:
                 print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
-            sleep(3)
             scan = self.full_scan_noisy( xform = xform )
         return scan
 
@@ -749,8 +711,8 @@ class BaselineTaskPlanner:
 
         while (self.status != Status.SUCCESS) and (i < maxIter):
 
-            self.robot.moveL( beginPlanPose )
-            sleep(1)
+            self.robot.moveL( beginPlanPose, asynch = False ) # 2024-07-22: MUST WAIT FOR ROBOT TO MOVE
+            # sleep(1)
 
             print( f"### Iteration {i+1} ###" )
             
@@ -769,7 +731,7 @@ class BaselineTaskPlanner:
             self.phase_1_Perceive( 1, camPose )
 
             if _USE_GRAPHICS:
-                display_belief_geo( planner.memory.beliefs )
+                self.memory.display_belief_geo()
 
             ##### Phase 2 ########################
 
@@ -822,7 +784,7 @@ class BaselineTaskPlanner:
 
 ########## EXPERIMENT HELPER FUNCTIONS #############################################################
 
-def experiment_prep( OWL_init_pause_s = 25.0 ):
+def experiment_prep():
     """ Init system and return a ref to the planner """
     planner = BaselineTaskPlanner()
     print( planner.robot.get_tcp_pose() )
@@ -831,7 +793,7 @@ def experiment_prep( OWL_init_pause_s = 25.0 ):
     planner.robot.moveL( _GOOD_VIEW_POSE )
 
     planner.robot.open_gripper()
-    sleep( OWL_init_pause_s )
+    # sleep( OWL_init_pause_s )
     return planner
 
 
@@ -860,10 +822,11 @@ if __name__ == "__main__":
         print( f"########## Running Planner at {dateStr} ##########" )
 
         try:
-            planner = experiment_prep( OWL_init_pause_s = 25.0 )
-            planner.solve_task( maxIter = 4 )
+            planner = experiment_prep( )
+            planner.solve_task( maxIter = 30 )
             sleep( 2.5 )
             planner.shutdown()
+            
 
         except KeyboardInterrupt:
             # User Panic: Attempt to shut down gracefully
@@ -872,10 +835,12 @@ if __name__ == "__main__":
 
         except Exception as e:
             # Bad Thing: Attempt to shut down gracefully
-            print( f"Something BAD happened!: {e}\nPlanner Status: {planner.status}\n" )
+            print( f"Something BAD happened!: {e}" )
             print_exc()
             print()
             planner.shutdown()
+
+    os.system( 'kill %d' % os.getpid() ) 
 
     
         

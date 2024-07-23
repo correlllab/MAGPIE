@@ -66,6 +66,7 @@ def repair_pose( dodgyHomogPose, getErr = 0 ):
     yBasis  = vec_unit( bgnPose[0:3,1] )
     zBasis  = np.cross( xBasis, yBasis )
     yBasis  = np.cross( zBasis, xBasis )
+    rtnPose[0:3,0] = xBasis
     rtnPose[0:3,1] = yBasis
     rtnPose[0:3,2] = zBasis
     if getErr:
@@ -95,7 +96,7 @@ def pose_mtrx_to_vec( matrix ):
     """
 
     # Attempt to fix negligible errors, Otherwise complain
-    # NOTE: Computing poses and copying poses from the robot often result in tiny tiny errors that make the checker mad
+    # NOTE: Computing poses and copying poses from the robot printout often result in tiny tiny errors that make the checker mad
     if not is_rotation_mtrx( matrix[0:3, 0:3] ):
         nuMtx, err = repair_pose( matrix, getErr = 1 )
         if err > 0.005:
@@ -375,7 +376,7 @@ def is_rotation_mtrx(R):
     if n < e:
         return True
     else:
-        print( f"Difference from Identity: {n} > {e}" )
+        # print( f"Difference from Identity: {n} > {e}" )
         return False
 
 

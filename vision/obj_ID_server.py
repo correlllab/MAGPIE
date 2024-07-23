@@ -2,7 +2,7 @@
 
 ##### Imports #####
 ### Standard ###
-import time, logging, ctypes, os, sys, traceback, multiprocessing
+import time, logging, gc, os, sys, traceback, multiprocessing
 now = time.time
 from time import sleep
 from ast import literal_eval
@@ -17,20 +17,14 @@ from open3d.web_visualizer import draw
 import matplotlib.pyplot as plt
 
 ### Local ###
-
-
-
-print( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..', 'magpie')), flush=True, file=sys.stderr )
-# sys.path.append( os.path.join( os.path.dirname( os.path.dirname( __file__ ) ), "magpie" ) )
-# sys.path.append(os.path.abspath('../magpie'))
-# sys.path.append( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..', 'magpie')))
+# print( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..', 'magpie')), flush=True, file=sys.stderr )
 sys.path.append( os.path.normpath( os.path.join( os.path.dirname( os.path.abspath (__file__ ) ), '..' )))
 from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
 from interprocess import set_non_blocking, non_block_read, PBJSON_IO
 
-
+os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
 ########## PERCEPTION SETTINGS #####################################################################
 
@@ -121,6 +115,29 @@ class Perception_OWLViT:
             if _VERBOSE:
                 print( f"\nERROR initializing OWL-ViT: {e}\n", flush=True, file=sys.stderr )
             raise e
+        
+    @classmethod
+    def shutdown( cls ):
+        try:
+            cls.rsc.disconnect()
+            if _VERBOSE:
+                print( f"RealSense camera DISCONNECTED", flush=True, file=sys.stderr )
+        except Exception as e:
+            if _VERBOSE:
+                print( f"\nERROR disconnecting RealSense: {e}\n", flush=True, file=sys.stderr )
+            raise e
+        
+        try:
+            del cls.label_vit 
+            cls.label_vit = None
+            gc.collect()
+            if _VERBOSE:
+                print( f"V-LLM SHUTDOWN", flush=True, file=sys.stderr )
+        except Exception as e:
+            if _VERBOSE:
+                print( f"\nERROR cleaning OWL-ViT: {e}\n", flush=True, file=sys.stderr )
+            raise e
+
 
     @classmethod
     def get_corrected_gripper_pose( cls ):
@@ -175,10 +192,10 @@ class Perception_OWLViT:
         return abs(area / total_area) <= tolerance
 
     @classmethod
-    def bound(cls, query, abbrevq):
+    def bound( cls, query, abbrevq ):
         """Bounds the given query with the OWLViT model."""
         _, rgbd_image = cls.rsc.getPCD()
-        image = np.array(rgbd_image.color)
+        image = np.array( rgbd_image.color )
 
         cls.label_vit.set_threshold(0.005)
         _, _, scores, labels = cls.label_vit.label(image, query, abbrevq, topk=True, plot=False)
@@ -188,6 +205,11 @@ class Perception_OWLViT:
         filtered_scores = []
         filtered_labels = []
         filter_coords = []
+
+        # cls.label_vit.
+
+        # print( type( cls.label_vit.sorted_labeled_boxes_coords ) )
+        # exit()
 
         for i in range(min(20, len(cls.label_vit.sorted_labeled_boxes_coords))):
             if cls.filter_by_area(0.05, cls.label_vit.sorted_labeled_boxes_coords[i][0], image.shape[0] * image.shape[1]):
@@ -320,6 +342,8 @@ class Perception_OWLViT:
     @classmethod
     def build_model(cls):
         """Builds the perception model."""
+
+        cls.label_vit.reset_prediction_state()
 
         print( f"\nInside `build_model`\n", flush=True, file=sys.stderr )
 

@@ -140,10 +140,11 @@ def reading_geo( objReading ):
     return rtnGeo
 
         
-def display_belief_geo( beliefs ):
+def generate_belief_geo( beliefs ):
     """ Draw geometry for the given `beliefs` """
     geo = table_and_origin_geo( axesScale = _BLOCK_SCALE*2.0 )
     for bel in beliefs:
         geo.extend( reading_geo( bel ) )
-    o3d.visualization.draw_geometries( geo )
+    # o3d.visualization.draw_geometries( geo )
+    return geo
     

@@ -20,7 +20,7 @@ _VERBOSE        = True
 
 ########## PYBULLET ################################################################################
 
-_USE_GRAPHICS = True
+_USE_GRAPHICS = False
 _BLOCK_ALPHA  = 1.0
 
 
