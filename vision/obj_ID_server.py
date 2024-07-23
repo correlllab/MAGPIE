@@ -388,6 +388,7 @@ class Perception_OWLViT:
                 objIDstrTemp[f'Object {num + 1}']['Probability'] = cls.calculate_probability_dist(clusters[num])
                 objIDstrTemp[f'Object {num + 1}']['Pose']        = cls.get_pcd_pose( cpcd )
                 objIDstrTemp[f'Object {num + 1}']['Count']       = len( clusters[num] )
+                objIDstrTemp[f'Object {num + 1}']['Time']        = now()
 
             if cls.visualize_boxes:
                 cls.plot_bounding_boxes(image, filtered_scores, filtered_boxes, filtered_labels, topk=False, show_plot=True)
@@ -471,6 +472,7 @@ if __name__ == "__main__":
                 print( f"\nAbout to pack data: {data}\n", flush=True, file=sys.stderr )
             sys.stdout.buffer.write( pbj.pack( data ) )
             sys.stdout.buffer.flush()
+            data = {}
         
 
         ##### Rate Limit #########################

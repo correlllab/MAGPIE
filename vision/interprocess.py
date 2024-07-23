@@ -177,6 +177,8 @@ class stdioCommWorker( threading.Thread ):
             ### Output ###
             ## To Parent ##
             if self.pbj.unpack():
+                if not self.outQ.empty(): # 2024-07-22: ??? Possibly prevent queue backup ???
+                    self.outQ.get_nowait() 
                 msgs = self.pbj.get_all()
                 for msg in msgs:
                     self.outQ.put( msg )

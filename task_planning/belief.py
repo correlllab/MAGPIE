@@ -163,7 +163,7 @@ class ObjectMemory:
             print()
 
 
-    def most_likely_objects( self, N = 1 ):
+    def most_likely_objects( self, N = 1, cleanDupes = 0 ):
         """ Get the `N` most likely combinations of object classes """
 
         def p_unique_labels( objLst ):
@@ -172,6 +172,17 @@ class ObjectMemory:
             if _NULL_NAME in lbls: # WARNING: HACK
                 return False
             return len( lbls ) == len( objLst )
+        
+        def clean_dupes( objLst ):
+            """ Return a version of `objLst` with duplicate objects removed """
+            dctMax = {}
+            for sym in objLst:
+                if not sym.label in dctMax:
+                    dctMax[ sym.label ] = sym
+                elif sym.prob > dctMax[ sym.label ].prob:
+                    dctMax[ sym.label ] = sym
+            return list( dctMax.values() )
+
 
         ## Init ##
         comboList = [ [1.0,[],], ]
@@ -183,7 +194,7 @@ class ObjectMemory:
                     prob_ij = combo_i[0] * prob_j
 
                     # objc_ij = GraspObj( label = label_j, pose = np.array( bel.pose ) )
-                    objc_ij = GraspObj( label = label_j, pose = bel.pose )
+                    objc_ij = GraspObj( label = label_j, pose = bel.pose, prob = prob_j )
                     
                     nuCombos.append( [prob_ij, combo_i[1]+[objc_ij,],] )
             comboList = nuCombos
@@ -192,7 +203,9 @@ class ObjectMemory:
         ## Return top combos ##
         if N == 1:
             for combo in comboList:
-                if p_unique_labels( combo[1] ):
+                if cleanDupes:
+                    return clean_dupes( combo[1] )
+                elif p_unique_labels( combo[1] ):
                     return combo[1]
             return list()
         elif N > 1:

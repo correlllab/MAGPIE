@@ -20,7 +20,7 @@ import numpy as np
 from py_trees.common import Status
 
 ### Local ###
-from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, _BLOCK_NAMES, _VERBOSE, 
+from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _POST_N_SPINS, _USE_GRAPHICS, _N_XTRA_SPOTS, )
 sys.path.append( "./task_planning/" )
@@ -66,6 +66,21 @@ def rand_table_pose():
     ], [0, 0, 0, 1]
 
 
+def p_inside_workspace_bounds( pose ):
+    """ Return True if inside the bounding box, Otherwise return False """
+    if len( pose ) == 4:
+        x = pose[0,3]
+        y = pose[1,3]
+        z = pose[2,3]
+    elif len( pose ) == 7:
+        x = pose[0]
+        y = pose[1]
+        z = pose[2]
+    else:
+        raise ValueError( f"`p_inside_workspace_bounds`: Input was neither homogeneous nor [Px,Py,Pz,Ow,Ox,Oy,Oz]\n{pose}" )        
+    return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
+
+
 
 ########## PERCEPTION CONNECTION ###################################################################
 
@@ -76,9 +91,11 @@ class VisualCortex:
         """ Start the Perception Process and the Communication Thread """
         
         # 1. Setup comm `Queue`s
-        self.cmndQ = Queue() # Commands     to   Perception Process
-        self.dataQ = Queue() # Segmentation from Perception Process
-        self.scan  = list()
+        self.cmndQ  = Queue() # Commands     to   Perception Process
+        self.dataQ  = Queue() # Segmentation from Perception Process
+        self.scan   = list()
+        self.tLast  =  0.0
+        self.tFresh = 20.0
 
          # 2. Start the Perception Process
         self.percProc = subprocess.Popen(
@@ -122,10 +139,16 @@ class VisualCortex:
         } )
 
 
+    def snap_z_to_nearest_block_unit_above_zero( self, z ):
+        """ SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE """
+        zUnit = np.rint( z / _BLOCK_SCALE ) # Quantize to multiple of block unit length
+        zBloc = zUnit * _BLOCK_SCALE
+        return max( zBloc, _BLOCK_SCALE )
+
+
     def observation_to_readings( self, obs, xform = None ):
         """ Parse the Perception Process output struct """
         rtnBel = []
-        ts     = now()
         if xform is None:
             xform = np.eye(4)
         for item in obs.values():
@@ -135,33 +158,31 @@ class VisualCortex:
 
                 dstrb = {}
                 blcZ  = 0.0
+                tScan = item['Time']
                 for nam, prb in item['Probability'].items():
                     dstrb[ match_name( nam ) ] = prb
                 if len( item['Pose'] ) == 16:
                     objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
-                    # HACK: SNAP TO NEAREST BLOCK UNIT
-                    # blcZ = int((objPose[2,3] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
-                    blcZ = int((objPose[2,3])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                    # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
+                    blcZ = self.snap_z_to_nearest_block_unit_above_zero( objPose[2,3] )
                     objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
                 else:
-                    # HACK: SNAP TO NEAREST BLOCK UNIT
-                    # blcZ = int((item['Pose'][2] - _BLOCK_SCALE/2.0)/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE/2.0
-                    blcZ = int((item['Pose'][2])/_BLOCK_SCALE)*_BLOCK_SCALE + _BLOCK_SCALE
+                    # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
+                    blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
                     objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
 
                 # HACK: REJECT FLOATING GHOST BLOCKS
-                if blcZ < _BLOCK_SCALE*4.0:
-                    rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ) ) )
+                if p_inside_workspace_bounds( objPose ):
+                    rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan ) )
         return rtnBel
 
 
-    def full_scan_noisy( self, xform = None ):
+    def full_scan_noisy( self, xform = None, timeout = 2 ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
         if not self.dataQ.empty():
-            dataMsgs = self.dataQ.get_nowait()
+            dataMsgs = self.dataQ.get( timeout = timeout )
             if isinstance( dataMsgs, dict ):
                 self.scan = self.observation_to_readings( dataMsgs, xform )
-            # FIXME: CONFIRM THE LAST IN THE LIST IS THE MOST RECENT
             elif isinstance( dataMsgs, list ) and isinstance( dataMsgs[-1], dict ):
                 self.scan = self.observation_to_readings( dataMsgs[-1], xform )
             else:
@@ -175,12 +196,28 @@ class VisualCortex:
         else:
             print( "`VisualCortex.full_scan_noisy`: NO AVAILABLE OBJECT DATA!" )
             return list()
+        
 
+    def fresh_scan_noisy( self, xform = None, timeout = 10.0 ):
+        """ Wait for fresh observations """
+        scan = self.full_scan_noisy( xform = xform )
+        bgn  = now()
+        while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh):
+            elapsed = now() - bgn
+            if (elapsed > timeout):
+                print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
+                break
+            else:
+                print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
+            sleep(3)
+            scan = self.full_scan_noisy( xform = xform )
+        return scan
 
 
 ########## BASELINE PLANNER ########################################################################
 
-# FIXME: VERIFY THAT THIS IS A SAFE POSE TO BUILD ON
+##### Planning Params #####################################################
+
 _trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
 _temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
                         [-1.190e-04,  1.000e+00, -9.598e-06, -4.811e-01],
@@ -191,6 +228,8 @@ _GOOD_VIEW_POSE = repair_pose( np.array( [[-0.749, -0.513,  0.419, -0.428,],
                                           [-0.012, -0.622, -0.783,  0.337,],
                                           [ 0.   ,  0.   ,  0.   ,  1.   ,],] ) )
 
+
+##### Planner #############################################################
 
 class BaselineTaskPlanner:
     """ Basic task planning loop against which the Method is compared """
@@ -236,7 +275,8 @@ class BaselineTaskPlanner:
         """ Integrate one noisy scan into the current beliefs """
         # FIXME: SEND EFFECTOR POSE
         # FIXME: WHAT IF THE ROBOT IS MOVING?
-        self.memory.belief_update( self.world.full_scan_noisy( xform ) )
+        # self.memory.belief_update( self.world.full_scan_noisy( xform ) )
+        self.memory.belief_update( self.world.fresh_scan_noisy( xform ) )
 
 
     ##### Stream Helpers ##################################################
@@ -492,12 +532,16 @@ class BaselineTaskPlanner:
     def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
 
+        # HACK: FLUSH OUT PREV SCAN?
+        self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
+        self.reset_beliefs()
         sleep( 3 )
         
         for _ in range( Nscans ):
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
-        self.symbols = self.memory.most_likely_objects( N = 1 )
+        # HACK: REMOVE HALLUCINATED OBJECTS WITH LESSER CONFIDENCE
+        self.symbols = self.memory.most_likely_objects( N = 1, cleanDupes = 1 )
         self.status  = Status.RUNNING
 
         if _VERBOSE:
@@ -718,6 +762,7 @@ class BaselineTaskPlanner:
 
             self.reset_beliefs() # WARNING: REMOVE FOR RESPONSIVE
             self.reset_state() # - WARNING: REMOVE FOR RESPONSIVE
+            self.set_goal()
 
             camPose = self.robot.get_cam_pose()
             
