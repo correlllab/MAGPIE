@@ -23,11 +23,33 @@ sys.path.append( "../" )
 from magpie.poses import pose_error
 from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper
 
-##### Constants #####
 
-_HAND_WAIT   = 100
-_GRASP_PAUSE = False
-_GRASP_STALL = 4
+
+########## CONSTANTS & COMPONENTS ##################################################################
+
+### Init data structs & Keys ###
+_DUMMYPOSE     = np.eye(4)
+MP2BB          = dict()  # Hack the BB object into the built-in namespace
+SCAN_POSE_KEY  = "scanPoses"
+HAND_OBJ_KEY   = "handHas"
+# PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
+#                             [ 1.0,  0.0,  0.0, ],
+#                             [ 0.0,  0.0, -1.0, ]] )
+PROTO_PICK_ROT = np.array( [[ -1.0,  0.0,  0.0, ],
+                            [  0.0,  1.0,  0.0, ],
+                            [  0.0,  0.0, -1.0, ]] )
+_GRASP_OFFSET_Z = 0.110 + 0.110 # Link 6 to gripper tip
+TCP_XFORM = np.array([
+    [1, 0, 0, -1.15 / 100     ],
+    [0, 1, 0,  1.3 / 100      ],
+    [0, 0, 1, _GRASP_OFFSET_Z ],
+    [0, 0, 0, 1               ],
+])
+
+### Set important BB items ###
+MP2BB[ SCAN_POSE_KEY ] = dict()
+
+
 
 
 
@@ -129,22 +151,7 @@ class BasicBehavior( Behaviour ):
     
     
     
-########## CONSTANTS & COMPONENTS ##################################################################
 
-### Init data structs & Keys ###
-_DUMMYPOSE     = np.eye(4)
-MP2BB          = dict()  # Hack the BB object into the built-in namespace
-SCAN_POSE_KEY  = "scanPoses"
-HAND_OBJ_KEY   = "handHas"
-# PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
-#                             [ 1.0,  0.0,  0.0, ],
-#                             [ 0.0,  0.0, -1.0, ]] )
-PROTO_PICK_ROT = np.array( [[ -1.0,  0.0,  0.0, ],
-                            [  0.0,  1.0,  0.0, ],
-                            [  0.0,  0.0, -1.0, ]] )
-
-### Set important BB items ###
-MP2BB[ SCAN_POSE_KEY ] = dict()
 
 
 
@@ -237,21 +244,21 @@ class BT_Runner:
 
 
 ########## BLOCKS DOMAIN HELPER FUNCTIONS ##########################################################
-_GRASP_OFFSET_Z = 0.110 + 0.110
+
 
 def grasp_pose_from_obj_pose( rowVec ):
     """ Return the homogeneous coords given [Px,Py,Pz,Ow,Ox,Oy,Oz] """
     rowVec = extract_row_vec_pose( rowVec )
+    offVec = TCP_XFORM[0:3,3]
     if len( rowVec ) == 7:
         posn    = rowVec[0:3]
         rtnPose = np.eye(4)
         rtnPose[0:3,0:3] = PROTO_PICK_ROT
-        rtnPose[0:3,3]   = posn
-        rtnPose[2,3]    += _GRASP_OFFSET_Z
+        rtnPose[0:3,3]   = posn + offVec
     elif len( rowVec ) == 4:
         rtnPose = np.array( rowVec )
         rtnPose[0:3,0:3] = PROTO_PICK_ROT
-        rtnPose[2,3]    += _GRASP_OFFSET_Z
+        rtnPose[0:3,3]  += offVec
     else:
         print( f"`grasp_pose_from_obj_pose`: UNEXPECTED POSE FORMAT:\n{rowVec}" )
         rtnPose = None

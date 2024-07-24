@@ -35,6 +35,10 @@ def zip_dict_sorted_by_decreasing_value( dct ):
     return sorted( zip( keys, vals ), key=lambda x: x[1], reverse=1)
 
 
+########## DRAWING CLASS #########################################################################
+
+class BeliefScene:
+    pass
 
 ########## DRAWING FUNCTIONS #######################################################################
 

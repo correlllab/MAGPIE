@@ -1,7 +1,9 @@
 """
 TaskPlanner.py
+Correll Lab, CU Boulder
 Contains the Baseline and Responsive Planners described in FIXME: INSERT PAPER REF AND DOI
 Version 2024-07
+Contacts: {james.watson-2@colorado.edu,}
 """
 ########## INIT ####################################################################################
 
@@ -87,11 +89,12 @@ def p_inside_workspace_bounds( pose ):
 
 
 ########## PERCEPTION CONNECTION ###################################################################
+_Z_SNAP_BOOST = 0.25 * _BLOCK_SCALE
 
 class VisualCortex:
     """ Mediates communication with the Perception Process """
 
-    def __init__( self, threadUpdateHz = 4.0 ):
+    def __init__( self ):
         """ Start the Perception Process and the Communication Thread """
         
         # 1. Setup comm `Queue`s
@@ -115,7 +118,7 @@ class VisualCortex:
 
     def snap_z_to_nearest_block_unit_above_zero( self, z ):
         """ SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE """
-        zUnit = np.rint( z / _BLOCK_SCALE ) # Quantize to multiple of block unit length
+        zUnit = np.rint( (z+_Z_SNAP_BOOST) / _BLOCK_SCALE ) # Quantize to multiple of block unit length
         zBloc = zUnit * _BLOCK_SCALE
         return max( zBloc, _BLOCK_SCALE )
 
@@ -158,10 +161,16 @@ class VisualCortex:
             if not len(dataMsgs):
                 print( "`VisualCortex.full_scan_noisy`: NO OBJECT DATA!" )
             self.scan = self.observation_to_readings( dataMsgs, xform )
+
+        except KeyboardInterrupt:
+            print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
+            return list()
             
         except Exception as e:
             print( f"`full_scan_noisy`, Scan FAILED: {e}" )
-            self.scan = list()
+            return list()
+
+        
 
         return self.scan
         
@@ -170,14 +179,21 @@ class VisualCortex:
         """ Wait for fresh observations """
         scan = self.full_scan_noisy( xform = xform )
         bgn  = now()
-        while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh):
-            elapsed = now() - bgn
-            if (elapsed > timeout):
-                print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
-                break
-            else:
-                print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
-            scan = self.full_scan_noisy( xform = xform )
+        try:
+            while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh): # and (not self.PANIC):
+                elapsed = now() - bgn
+                if (elapsed > timeout):
+                    print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
+                    break
+                else:
+                    print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
+                scan = self.full_scan_noisy( xform = xform )
+        except KeyboardInterrupt:
+            print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
+            return list()
+        except Exception as e:
+            print( f"`fresh_scan_noisy`, Scan FAILED: {e}" )
+            return list()
         return scan
 
 
@@ -194,6 +210,15 @@ _GOOD_VIEW_POSE = repair_pose( np.array( [[-0.749, -0.513,  0.419, -0.428,],
                                           [-0.663,  0.591, -0.46 , -0.273,],
                                           [-0.012, -0.622, -0.783,  0.337,],
                                           [ 0.   ,  0.   ,  0.   ,  1.   ,],] ) )
+
+_HIGH_VIEW_POSE = repair_pose( np.array( [[-0.709, -0.455,  0.539, -0.51 ],
+                                          [-0.705,  0.442, -0.554, -0.194],
+                                          [ 0.014, -0.773, -0.635,  0.332],
+                                          [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
+
+
+
+
 
 
 ##### Planner #############################################################
@@ -499,16 +524,14 @@ class BaselineTaskPlanner:
     def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
 
-        # HACK: FLUSH OUT PREV SCAN?
         self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
         self.reset_beliefs()
-        sleep( 3 )
         
         for _ in range( Nscans ):
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
         # HACK: REMOVE HALLUCINATED OBJECTS WITH LESSER CONFIDENCE
-        self.symbols = self.memory.most_likely_objects( N = 1, cleanDupes = 1 )
+        self.symbols = self.memory.most_likely_objects( N = 1, cleanDupes = 0, cleanCollision = 0 )
         self.status  = Status.RUNNING
 
         if _VERBOSE:
@@ -702,7 +725,10 @@ class BaselineTaskPlanner:
         """ Solve the goal """
         
         if beginPlanPose is None:
-            beginPlanPose = _GOOD_VIEW_POSE
+            if _BLOCK_SCALE < 0.030:
+                beginPlanPose = _GOOD_VIEW_POSE
+            else:
+                beginPlanPose = _HIGH_VIEW_POSE
 
         i = 0
 
@@ -714,7 +740,7 @@ class BaselineTaskPlanner:
 
         indicateSuccess = False
 
-        while (self.status != Status.SUCCESS) and (i < maxIter):
+        while (self.status != Status.SUCCESS) and (i < maxIter): # and (not self.PANIC):
 
             self.robot.moveL( beginPlanPose, asynch = False ) # 2024-07-22: MUST WAIT FOR ROBOT TO MOVE
             # sleep(1)
@@ -776,10 +802,19 @@ class BaselineTaskPlanner:
 
             print()
 
-        self.logger.end_trial(
-            indicateSuccess,
-            {'end_symbols' : list( self.symbols ) }
-        )
+        if 0: #self.PANIC:
+            print( "\n\nWARNING: User-requested shutdown or other fault!\n\n" )
+            self.logger.end_trial(
+                False,
+                {'PANIC': True, 'end_symbols' : list( self.symbols ), }
+            )
+        else:
+            self.logger.end_trial(
+                indicateSuccess,
+                {'end_symbols' : list( self.symbols ) }
+            )
+
+        
 
         self.logger.save( "data/Baseline" )
 
@@ -789,13 +824,16 @@ class BaselineTaskPlanner:
 
 ########## EXPERIMENT HELPER FUNCTIONS #############################################################
 
-def experiment_prep():
+def experiment_prep( beginPlanPose = None ):
     """ Init system and return a ref to the planner """
     planner = BaselineTaskPlanner()
     print( planner.robot.get_tcp_pose() )
 
-    # planner.robot.moveL( _temp_home )
-    planner.robot.moveL( _GOOD_VIEW_POSE )
+    if beginPlanPose is None:
+        if _BLOCK_SCALE < 0.030:
+            beginPlanPose = _GOOD_VIEW_POSE
+        else:
+            beginPlanPose = _HIGH_VIEW_POSE
 
     planner.robot.open_gripper()
     # sleep( OWL_init_pause_s )
@@ -805,6 +843,7 @@ def experiment_prep():
 
 ########## MAIN ####################################################################################
 _TROUBLESHOOT = 0
+_EXP_BGN_POSE = _HIGH_VIEW_POSE
 
 
 if __name__ == "__main__":
@@ -814,11 +853,11 @@ if __name__ == "__main__":
     if _TROUBLESHOOT:
         print( f"########## Running Debug Code at {dateStr} ##########" )
 
-        print( repair_pose( _GOOD_VIEW_POSE ) )
+        # print( repair_pose( _GOOD_VIEW_POSE ) )
 
         rbt = ur5.UR5_Interface()
         rbt.start()
-        rbt.moveL( repair_pose( _GOOD_VIEW_POSE ) )
+        # rbt.moveL( repair_pose( _GOOD_VIEW_POSE ) )
         print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
         sleep(1)
         rbt.stop()
@@ -827,8 +866,8 @@ if __name__ == "__main__":
         print( f"########## Running Planner at {dateStr} ##########" )
 
         try:
-            planner = experiment_prep( )
-            planner.solve_task( maxIter = 30 )
+            planner = experiment_prep( _EXP_BGN_POSE )
+            planner.solve_task( maxIter = 30, beginPlanPose = _EXP_BGN_POSE )
             sleep( 2.5 )
             planner.shutdown()
             

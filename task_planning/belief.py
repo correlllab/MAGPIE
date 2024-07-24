@@ -4,18 +4,23 @@
 
 ### Standard ###
 import atexit, sys
+from time import sleep
 
 ### Special ###
 import numpy as np
 import open3d as o3d
+import pyglet
+from pyglet.window import Window
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
-                         _BLOCK_NAMES, _VERBOSE, )
+                         _BLOCK_NAMES, _VERBOSE, _MIN_SEP, )
 from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, )
-from task_planning.symbols import GraspObj
+from task_planning.symbols import GraspObj, extract_pose_as_homog
 sys.path.append( "../graphics/" )
 from graphics.draw_beliefs import generate_belief_geo
+sys.path.append( "../magpie/" )
+from magpie.poses import translation_diff
 
 ########## HELPER FUNCTIONS ########################################################################
 
@@ -77,13 +82,15 @@ class ObjectMemory:
 
 
     def display_belief_geo( self ):
+        # win = pyglet.window.Window()
+        # pyglet.app.run()
         # self.vis.clear_geometries()
         # self.vis.add_geometry( geo )
         # self.vis.poll_events()
         # self.vis.update_renderer()
         geo = generate_belief_geo( self.beliefs )
-        # o3d.visualization.draw_geometries( geo )
-        vis_window( geo )
+        o3d.visualization.draw_geometries( geo )
+        # vis_window( geo )
         
 
     
@@ -202,7 +209,7 @@ class ObjectMemory:
             print()
 
 
-    def most_likely_objects( self, N = 1, cleanDupes = 0 ):
+    def most_likely_objects( self, N = 1, cleanDupes = 0, cleanCollision = 0 ):
         """ Get the `N` most likely combinations of object classes """
 
         def p_unique_labels( objLst ):
@@ -221,6 +228,23 @@ class ObjectMemory:
                 elif sym.prob > dctMax[ sym.label ].prob:
                     dctMax[ sym.label ] = sym
             return list( dctMax.values() )
+        
+        def clean_colliding( objLst ):
+            rtnLst = []
+            M = len(objLst)
+            for i, sym_i in enumerate( objLst ):
+                collides = False
+                for j in range( i+1, M ):
+                    sym_j = objLst[j]
+                    pos_i = extract_pose_as_homog( sym_i )
+                    pos_j = extract_pose_as_homog( sym_j )
+                    if translation_diff( pos_i, pos_j ) < _MIN_SEP:
+                        collides = True
+                        if sym_i.prob > sym_j.prob:
+                            rtnLst.append( sym_i )
+                if not collides:
+                    rtnLst.append( sym_i )
+            return rtnLst
 
 
         ## Init ##
@@ -243,7 +267,12 @@ class ObjectMemory:
         if N == 1:
             for combo in comboList:
                 if cleanDupes:
-                    return clean_dupes( combo[1] )
+                    if cleanCollision:
+                        return clean_colliding( clean_dupes( combo[1] ) )
+                    else:
+                        return clean_dupes( combo[1] )
+                elif cleanCollision:
+                    return clean_colliding( combo[1] )
                 elif p_unique_labels( combo[1] ):
                     return combo[1]
             return list()

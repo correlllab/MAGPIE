@@ -7,6 +7,7 @@ from itertools import count
 import numpy as np
 
 from task_planning.utils import NaN_row_vec
+from graphics.homog_utils import R_quat, homog_xform
 from env_config import _NULL_NAME
 
 
@@ -15,12 +16,25 @@ from env_config import _NULL_NAME
 
 def extract_row_vec_pose( obj_or_arr ):
     """ Return only a copy of the row vector representing the 3D pose """
-    if isinstance( obj_or_arr, (list,np.ndarray,) ):
+    if isinstance( obj_or_arr, (list, np.ndarray,) ):
         return np.array( obj_or_arr )
     elif isinstance( obj_or_arr, ObjPose ):
         return np.array( obj_or_arr.pose )
+    elif isinstance( obj_or_arr, (GraspObj, ObjectReading,) ):
+        return np.array( obj_or_arr.pose.pose )
     else:
         return NaN_row_vec()
+    
+
+def extract_pose_as_homog( obj_or_arr ):
+    bgnPose = extract_row_vec_pose( obj_or_arr )
+    if len( bgnPose ) == 4:
+        return bgnPose
+    elif len( bgnPose ) == 7:
+        rtnPosn = bgnPose[:3]
+        rtnOrnt = bgnPose[3:]
+        return homog_xform( R_quat( *rtnOrnt ), rtnPosn )
+
 
 
 

@@ -20,7 +20,7 @@ _VERBOSE        = True
 
 ########## PYBULLET ################################################################################
 
-_USE_GRAPHICS = False
+_USE_GRAPHICS = True
 _BLOCK_ALPHA  = 1.0
 
 
@@ -44,7 +44,10 @@ else:
 _POSE_DIM     = 7
 _ACTUAL_NAMES = _BLOCK_NAMES[:-1]
 _N_CLASSES    = len( _BLOCK_NAMES )
-_BLOCK_SCALE  = 0.025
+
+# _BLOCK_SCALE  = 0.025 # Medium Wooden Blocks
+_BLOCK_SCALE  = 0.040 # 3D Printed Blocks
+
 _MIN_X_OFFSET = -0.380
 _MAX_X_OFFSET = -0.060
 _MIN_Y_OFFSET = -0.614

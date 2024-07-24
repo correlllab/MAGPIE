@@ -30,10 +30,10 @@ os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
 _QUERIES = [ 
     # "a photo of a violet block", 
-    "a photo of a blue block" , 
+    "a photo of a blue block" , # "a photo of a blue block" , 
     # "a photo of a red block"     ,
-    "a photo of a yellow block", 
-    "a photo of a green block", 
+    "a photo of a golden block", # "a photo of a yellow block", 
+    "a photo of a green block", # "a photo of a green block", 
     # "a photo of a orange block",
 ]
 _ABBREV_Q = [
