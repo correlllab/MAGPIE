@@ -41,7 +41,7 @@ def table_and_origin_geo( axesScale = 0.050 ):
     table.transform( np.array(
         [ [1.0, 0.0, 0.0,  _MIN_X_OFFSET ] ,
           [0.0, 1.0, 0.0,  _MIN_Y_OFFSET ] ,
-          [0.0, 0.0, 1.0, -_TABLE_THIC/2.0 ] ,
+          [0.0, 0.0, 1.0, -_TABLE_THIC   ] ,
           [0.0, 0.0, 0.0,  1.0   ] ] 
     ) )
     table.paint_uniform_color( [237/255.0, 139/255.0, 47/255.0] ) # Plywood/Sand color

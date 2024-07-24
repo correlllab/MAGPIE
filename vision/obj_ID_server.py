@@ -47,8 +47,8 @@ _ABBREV_Q = [
 ]
 assert len( _QUERIES ) == len( _ABBREV_Q ), f"ERROR: MISMATCH in number of queries and abbreviated queries!\n{_QUERIES}\n{_ABBREV_Q}\n"
 _NUM_BLOCKS  = len( _QUERIES )
-_PLOT_BOX    = True
-_VIZ_PCD     = True
+_PLOT_BOX    = False
+_VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
 _VERBOSE     = 0
 

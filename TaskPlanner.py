@@ -87,33 +87,50 @@ def p_inside_workspace_bounds( pose ):
     return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
 
 
+def euclidean_distance_between_symbols( sym1, sym2 ):
+    """ Extract pose component from symbols and Return the linear distance between those poses """
+    pose1 = extract_pose_as_homog( sym1 )
+    pose2 = extract_pose_as_homog( sym2 )
+    return translation_diff( pose1, pose2 )
+
+
 def entropy_factor( probs ):
     """ Return a version of Shannon entropy scaled to [0,1] """
     if isinstance( probs, dict ):
-        probs = list( probs.values )
+        probs = list( probs.values() )
     tot = 0.0
     for p in probs:
         tot -= p * np.log(p)
     return tot / np.log( len( probs ) )
 
 
+
 ########## PERCEPTION CONNECTION ###################################################################
-_Z_SNAP_BOOST = 0.25 * _BLOCK_SCALE
+# _Z_SNAP_BOOST = 0.25 * _BLOCK_SCALE
+_Z_SNAP_BOOST = 0.00
 
 class VisualCortex:
     """ Manages incoming observations """
 
+    def reset_state( self ):
+        """ Erase memory components """
+        self.scan   = list()
+        self.memory = list()
+
+
+    def get_last_best_readings( self ):
+        """ Return the readings in which we believe the most """
+        return self.memory[:]
+    
+
     def __init__( self ):
         """ Start OWL-ViT and init object persistence """
         
-        # 1. Setup comm `Queue`s
-        self.scan   = list()
-        self.tLast  =  0.0
-        self.tFresh = 20.0
-        self.wait_s = 3.0
-        self.memory = list()
+        # 1. Setup state
+        self.reset_state()
+        # self.tFresh = 20.0
         
-         # 2. Start the Perception Process
+        # 2. Start Perception
         self.perc = Perception_OWLViT
         print( f"`VisualCortex.__init__`: Waiting on OWL-ViT to start ..." )
         self.perc.start_vision()
@@ -128,9 +145,10 @@ class VisualCortex:
 
     def snap_z_to_nearest_block_unit_above_zero( self, z ):
         """ SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE """
-        zUnit = np.rint( (z+_Z_SNAP_BOOST) / _BLOCK_SCALE ) # Quantize to multiple of block unit length
-        zBloc = zUnit * _BLOCK_SCALE
-        return max( zBloc, _BLOCK_SCALE )
+        zUnit = np.rint( (z-(_BLOCK_SCALE/2.0)+_Z_SNAP_BOOST) / _BLOCK_SCALE ) # Quantize to multiple of block unit length
+        zBloc = (zUnit*_BLOCK_SCALE) + (_BLOCK_SCALE/2.0)
+        return zBloc
+        # return max( zBloc, _BLOCK_SCALE )
 
 
     def observation_to_readings( self, obs, xform = None ):
@@ -160,32 +178,72 @@ class VisualCortex:
     def rectify_readings( self, objReadingList ):
         """ Accept/Reject/Update noisy readings from the system """
 
-        # FIXME: DETERMINE IF THIS SCHEME COVERS OBJECT PERMANENCE FOR OUT OF SHOT OBJECTS
-        
         # 1. For every item of incoming object info
         nuMem = list()
         nuSet = set([])
-        for objR in objReadingList:
-            # 2. Attempt to quantify how much we trust this reading
-            objR.score = (1.0 - entropy_factor( objR.labels )) * objR.count
-            # 3. Search for a collision with existing info
-            conflict = [objR,]
-            for objM in self.memory:
-                pos_R = extract_pose_as_homog( objR )
-                pos_M = extract_pose_as_homog( objM )
-                if translation_diff( pos_R, pos_M ) < _MIN_SEP:
-                    conflict.append( objM )
-            # 4. Sort overlapping indications and add only the top
-            conflict.sort( key = lambda item: item.score, reverse = True )
-            top    = conflict[0]
-            nuHash = id( conflict[0] )
-            if nuHash not in nuSet:
-                nuMem.append( top )
-                nuSet.add( nuHash )
+        rmSet = set([])
+        totLst = objReadingList[:]
+        totLst.extend( self.memory )
+        Ntot = len( totLst )
+        for r, objR in enumerate( totLst ):
+            # HACK: ONLY CONSIDER OBJECTS INSIDE THE WORKSPACE
+            if p_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
+                # 2. Attempt to quantify how much we trust this reading
+                objR.score = (1.0 - entropy_factor( objR.labels )) * objR.count
+                # 3. Search for a collision with existing info
+                conflict = [objR,]
+                for m in range( r+1, Ntot ):
+                    objM = totLst[m]
+                    if euclidean_distance_between_symbols( objR, objM ) < _MIN_SEP:
+                        conflict.append( objM )
+                # 4. Sort overlapping indications and add only the top
+                conflict.sort( key = lambda item: item.score, reverse = True )
+                top    = conflict[0]
+                nuHash = id( conflict[0] )
+                if (nuHash not in nuSet) and (nuHash not in rmSet):
+                    nuMem.append( top )
+                    nuSet.add( nuHash )
+                    rmSet.update( set( [id(elem) for elem in conflict[1:]] ) )
+        # for objM in self.memory:
+        #     memHash = id( objM )
+        #     if (memHash not in rmSet) and (memHash not in nuSet):
+        #         nuMem.append( objM )
         self.memory = nuMem[:]
                     
                     
-    # FIXME, START HERE: SCAN --TO-> CORTEX MEM --TO-> PLANNER MEM
+    def move_reading_from_BT_plan( self, planBT ):
+        """ Infer reading to be updated by the robot action, Then update it """
+        _verbose = True
+        # NOTE: This should run after a BT successfully completes
+        # NOTE: This function exits after the first object move
+        # NOTE: This function assumes that the reading nearest to the beginning of the 
+        updated = False
+        dMin    = 1e9
+        endMin  = None
+        objMtch = None
+        
+        if planBT.status == Status.SUCCESS:
+            for act_i in planBT.children:
+                if "MoveHolding" in act_i.__class__.__name__:
+                    poseBgn, poseEnd, label = act_i.args
+                    for objM in self.memory:
+                        dist_ij = euclidean_distance_between_symbols( objM, poseBgn )
+                        if (dist_ij <= _MIN_SEP) and (dist_ij < dMin) and (label in objM.labels):
+                            dMin    = dist_ij
+                            endMin  = poseEnd
+                            updated = True
+                            objMtch = objM
+                    break
+            if updated:
+                objMtch.pose = endMin
+            else:
+                if _verbose:
+                    print( f"`get_moved_reading_from_BT_plan`: NO update applied by BT {planBT.name}!" )    
+        else:
+            if _verbose:
+                print( f"`get_moved_reading_from_BT_plan`: BT {planBT.name} did NOT complete successfully!" )
+        return updated
+
 
 
     def full_scan_noisy( self, xform = None, timeout = 2 ):
@@ -207,33 +265,36 @@ class VisualCortex:
         return self.scan
         
 
-    def fresh_scan_noisy( self, xform = None, timeout = 10.0 ):
-        """ Wait for fresh observations """
-        scan = self.full_scan_noisy( xform = xform )
-        bgn  = now()
-        try:
-            while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh): # and (not self.PANIC):
-                elapsed = now() - bgn
-                if (elapsed > timeout):
-                    print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
-                    break
-                else:
-                    print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
-                scan = self.full_scan_noisy( xform = xform )
-        except KeyboardInterrupt:
-            print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
-            return list()
-        except Exception as e:
-            print( f"`fresh_scan_noisy`, Scan FAILED: {e}" )
-            return list()
-        return scan
+    # def fresh_scan_noisy( self, xform = None, timeout = 10.0 ):
+    #     """ Wait for fresh observations """
+    #     scan = self.full_scan_noisy( xform = xform )
+    #     bgn  = now()
+    #     try:
+    #         while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh): # and (not self.PANIC):
+    #             elapsed = now() - bgn
+    #             if (elapsed > timeout):
+    #                 print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
+    #                 break
+    #             else:
+    #                 print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
+    #             scan = self.full_scan_noisy( xform = xform )
+    #     except KeyboardInterrupt:
+    #         print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
+    #         return list()
+    #     except Exception as e:
+    #         print( f"`fresh_scan_noisy`, Scan FAILED: {e}" )
+    #         return list()
+    #     return scan
 
 
 ########## BASELINE PLANNER ########################################################################
 
 ##### Planning Params #####################################################
 
-_trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
+# _trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
+_trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 0.5*_BLOCK_SCALE,  1,0,0,0 ] )
+
+
 _temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
                         [-1.190e-04,  1.000e+00, -9.598e-06, -4.811e-01],
                         [-2.634e-05, -9.601e-06, -1.000e+00,  4.022e-01],
@@ -253,7 +314,8 @@ _HIGH_VIEW_POSE = repair_pose( np.array( [[-0.709, -0.455,  0.539, -0.51 ],
 
 ##### Planner #############################################################
 
-class BaselineTaskPlanner:
+# class BaselineTaskPlanner:
+class ResponsiveTaskPlanner:
     """ Basic task planning loop against which the Method is compared """
 
     ##### Init ############################################################
@@ -297,8 +359,9 @@ class BaselineTaskPlanner:
         """ Integrate one noisy scan into the current beliefs """
         # FIXME: SEND EFFECTOR POSE
         # FIXME: WHAT IF THE ROBOT IS MOVING?
-        # self.memory.belief_update( self.world.full_scan_noisy( xform ) )
-        self.memory.belief_update( self.world.fresh_scan_noisy( xform ) )
+        scan = self.world.full_scan_noisy( xform )
+        self.world.rectify_readings( scan )
+        self.memory.belief_update( self.world.get_last_best_readings() )
 
 
     ##### Stream Helpers ##################################################
@@ -501,7 +564,7 @@ class BaselineTaskPlanner:
                     posDn = sym_j.pose
                     xySep = diff_norm( posUp.pose[:2], posDn.pose[:2] )
                     zSep  = posUp.pose[2] - posDn.pose[2] # Signed value
-                    if ((xySep <= 1.5*_BLOCK_SCALE) and (1.65*_BLOCK_SCALE >= zSep >= _BLOCK_SCALE)):
+                    if ((xySep <= 1.65*_BLOCK_SCALE) and (1.65*_BLOCK_SCALE >= zSep >= 0.9*_BLOCK_SCALE)):
                         supDices.add(i)
                         rtnFacts.extend([
                             ('Supported', lblUp, lblDn,),
@@ -717,6 +780,9 @@ class BaselineTaskPlanner:
 
         self.logger.log_event( "BT END", str( btr.status ) )
 
+        print( f"Did the BT move a reading?: {self.world.move_reading_from_BT_plan( self.action )}" )
+        
+
 
     def p_fact_match_noisy( self, pred ):
         """ Search grounded facts for a predicate that matches `pred` """
@@ -854,9 +920,10 @@ class BaselineTaskPlanner:
 
 ########## EXPERIMENT HELPER FUNCTIONS #############################################################
 
-def experiment_prep( beginPlanPose = None ):
+def responsive_experiment_prep( beginPlanPose = None ):
     """ Init system and return a ref to the planner """
-    planner = BaselineTaskPlanner()
+    # planner = BaselineTaskPlanner()
+    planner = ResponsiveTaskPlanner()
     print( planner.robot.get_tcp_pose() )
 
     if beginPlanPose is None:
@@ -896,7 +963,7 @@ if __name__ == "__main__":
         print( f"########## Running Planner at {dateStr} ##########" )
 
         try:
-            planner = experiment_prep( _EXP_BGN_POSE )
+            planner = responsive_experiment_prep( _EXP_BGN_POSE )
             planner.solve_task( maxIter = 30, beginPlanPose = _EXP_BGN_POSE )
             sleep( 2.5 )
             planner.shutdown()
