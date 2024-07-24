@@ -23,6 +23,7 @@ from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
 from interprocess import set_non_blocking, non_block_read, PBJSON_IO
+from env_config import _CLR_TABLE
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
@@ -32,7 +33,7 @@ _QUERIES = [
     # "a photo of a violet block", 
     "a photo of a blue block" , # "a photo of a blue block" , 
     # "a photo of a red block"     ,
-    "a photo of a golden block", # "a photo of a yellow block", 
+    "a photo of a yellow block", # "a photo of a yellow block", 
     "a photo of a green block", # "a photo of a green block", 
     # "a photo of a orange block",
 ]
@@ -46,8 +47,8 @@ _ABBREV_Q = [
 ]
 assert len( _QUERIES ) == len( _ABBREV_Q ), f"ERROR: MISMATCH in number of queries and abbreviated queries!\n{_QUERIES}\n{_ABBREV_Q}\n"
 _NUM_BLOCKS  = len( _QUERIES )
-_PLOT_BOX    = False
-_VIZ_PCD     = False
+_PLOT_BOX    = True
+_VIZ_PCD     = True
 _ID_PERIOD_S = 2.0
 _VERBOSE     = 0
 
@@ -278,7 +279,7 @@ class Perception_OWLViT:
                     f"({idx}): {score:1.2f}",
                     ha="left",
                     va="top",
-                    color=_ABBREV_Q[i],
+                    color=_CLR_TABLE[ _ABBREV_Q[i] ],
                     bbox={
                         "facecolor": "white",
                         "edgecolor": "red",
@@ -422,6 +423,7 @@ class Perception_OWLViT:
 
         except Exception as e:
             print(f"Error building model: {e}", flush=True, file=sys.stderr)
+            traceback.print_exc()
             raise e
         
         except KeyboardInterrupt as e:

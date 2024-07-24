@@ -219,32 +219,32 @@ class ObjectMemory:
                 return False
             return len( lbls ) == len( objLst )
         
-        def clean_dupes( objLst ):
-            """ Return a version of `objLst` with duplicate objects removed """
-            dctMax = {}
-            for sym in objLst:
-                if not sym.label in dctMax:
-                    dctMax[ sym.label ] = sym
-                elif sym.prob > dctMax[ sym.label ].prob:
-                    dctMax[ sym.label ] = sym
-            return list( dctMax.values() )
+        # def clean_dupes( objLst ):
+        #     """ Return a version of `objLst` with duplicate objects removed """
+        #     dctMax = {}
+        #     for sym in objLst:
+        #         if not sym.label in dctMax:
+        #             dctMax[ sym.label ] = sym
+        #         elif sym.prob > dctMax[ sym.label ].prob:
+        #             dctMax[ sym.label ] = sym
+        #     return list( dctMax.values() )
         
-        def clean_colliding( objLst ):
-            rtnLst = []
-            M = len(objLst)
-            for i, sym_i in enumerate( objLst ):
-                collides = False
-                for j in range( i+1, M ):
-                    sym_j = objLst[j]
-                    pos_i = extract_pose_as_homog( sym_i )
-                    pos_j = extract_pose_as_homog( sym_j )
-                    if translation_diff( pos_i, pos_j ) < _MIN_SEP:
-                        collides = True
-                        if sym_i.prob > sym_j.prob:
-                            rtnLst.append( sym_i )
-                if not collides:
-                    rtnLst.append( sym_i )
-            return rtnLst
+        # def clean_colliding( objLst ):
+        #     rtnLst = []
+        #     M = len(objLst)
+        #     for i, sym_i in enumerate( objLst ):
+        #         collides = False
+        #         for j in range( i+1, M ):
+        #             sym_j = objLst[j]
+        #             pos_i = extract_pose_as_homog( sym_i )
+        #             pos_j = extract_pose_as_homog( sym_j )
+        #             if translation_diff( pos_i, pos_j ) < _MIN_SEP:
+        #                 collides = True
+        #                 if sym_i.prob > sym_j.prob:
+        #                     rtnLst.append( sym_i )
+        #         if not collides:
+        #             rtnLst.append( sym_i )
+        #     return rtnLst
 
 
         ## Init ##
@@ -266,14 +266,15 @@ class ObjectMemory:
         ## Return top combos ##
         if N == 1:
             for combo in comboList:
-                if cleanDupes:
-                    if cleanCollision:
-                        return clean_colliding( clean_dupes( combo[1] ) )
-                    else:
-                        return clean_dupes( combo[1] )
-                elif cleanCollision:
-                    return clean_colliding( combo[1] )
-                elif p_unique_labels( combo[1] ):
+                # if cleanDupes:
+                #     if cleanCollision:
+                #         return clean_colliding( clean_dupes( combo[1] ) )
+                #     else:
+                #         return clean_dupes( combo[1] )
+                # elif cleanCollision:
+                #     return clean_colliding( combo[1] )
+                # el
+                if p_unique_labels( combo[1] ):
                     return combo[1]
             return list()
         elif N > 1:

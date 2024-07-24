@@ -84,12 +84,15 @@ class GraspObj:
 class ObjectReading( GraspObj ):
     """ Represents a signal coming from the vision pipeline """
 
-    def __init__( self, labels = None, pose = None, ts = None ):
+    def __init__( self, labels = None, pose = None, ts = None, count = 0 ):
         """ Init distribution and  """
         super().__init__( None, pose )
         self.labels  = labels if (labels is not None) else {} # Current belief in each class
         self.visited = False # -------------------------------- Flag: Was this belief associated with a relevant reading
         self.ts      = ts if (ts is not None) else now() # ---- When was this reading created? [epoch time]
+        self.count   = count # -------------------------------- How many bounding boxes generated this reading
+        self.score   = 0.0 # ---------------------------------- Quality rating for this information
+        self.visit   = False # -------------------------------- Was this reading used as evidence in a belief update?
 
 
     def __repr__( self ):

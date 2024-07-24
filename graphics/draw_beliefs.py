@@ -10,17 +10,9 @@ from graphics.dh_mp import UR5_DH
 from graphics.dh_graphics import plot_DH_robot
 from graphics.homog_utils import homog_xform, R_quat
 sys.path.append( "../" )
-from env_config import ( _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, _BLOCK_SCALE )
+from env_config import ( _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, _BLOCK_SCALE, _CLR_TABLE, )
 
 _TABLE_THIC = 0.030
-_CLR_TABLE  = {
-    'red': [1.0, 0.0, 0.0,],
-    'ylw': [1.0, 1.0, 0.0,],
-    'blu': [0.0, 0.0, 1.0,],
-    'grn': [0.0, 1.0, 0.0,],
-    'orn': [1.0, 0.5, 0.0,],
-    'vio': [0.5, 0.0, 1.0,]
-}
 
 
 ########## HELPER FUNCTIONS ########################################################################

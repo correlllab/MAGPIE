@@ -31,7 +31,7 @@ from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _CONFUSE_PROB, _NULL_NAME, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _POST_N_SPINS, _USE_GRAPHICS, _N_XTRA_SPOTS, )
 sys.path.append( "./task_planning/" )
-from task_planning.symbols import ObjectReading, ObjPose, extract_row_vec_pose, GraspObj
+from task_planning.symbols import ObjectReading, ObjPose, extract_row_vec_pose, extract_pose_as_homog
 from task_planning.utils import ( get_confusion_matx, get_confused_class_reading, 
                                   DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
@@ -40,7 +40,7 @@ sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
-from magpie.poses import repair_pose
+from magpie.poses import repair_pose, translation_diff
 
 
 
@@ -87,21 +87,31 @@ def p_inside_workspace_bounds( pose ):
     return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
 
 
+def entropy_factor( probs ):
+    """ Return a version of Shannon entropy scaled to [0,1] """
+    if isinstance( probs, dict ):
+        probs = list( probs.values )
+    tot = 0.0
+    for p in probs:
+        tot -= p * np.log(p)
+    return tot / np.log( len( probs ) )
+
 
 ########## PERCEPTION CONNECTION ###################################################################
 _Z_SNAP_BOOST = 0.25 * _BLOCK_SCALE
 
 class VisualCortex:
-    """ Mediates communication with the Perception Process """
+    """ Manages incoming observations """
 
     def __init__( self ):
-        """ Start the Perception Process and the Communication Thread """
+        """ Start OWL-ViT and init object persistence """
         
         # 1. Setup comm `Queue`s
         self.scan   = list()
         self.tLast  =  0.0
         self.tFresh = 20.0
         self.wait_s = 3.0
+        self.memory = list()
         
          # 2. Start the Perception Process
         self.perc = Perception_OWLViT
@@ -129,29 +139,53 @@ class VisualCortex:
         if xform is None:
             xform = np.eye(4)
         for item in obs.values():
-
-            # HACK: FILTER OBJECTS WITH ONLY A FEW BB
-            if item['Count'] > 2:
-
-                dstrb = {}
-                blcZ  = 0.0
-                tScan = item['Time']
-                for nam, prb in item['Probability'].items():
-                    dstrb[ match_name( nam ) ] = prb
-                if len( item['Pose'] ) == 16:
-                    objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
-                    # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
-                    blcZ = self.snap_z_to_nearest_block_unit_above_zero( objPose[2,3] )
-                    objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
-                else:
-                    # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
-                    blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
-                    objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
-
-                # HACK: REJECT FLOATING GHOST BLOCKS
-                if p_inside_workspace_bounds( objPose ):
-                    rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan ) )
+            dstrb = {}
+            blcZ  = 0.0
+            tScan = item['Time']
+            for nam, prb in item['Probability'].items():
+                dstrb[ match_name( nam ) ] = prb
+            if len( item['Pose'] ) == 16:
+                objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
+                # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
+                blcZ = self.snap_z_to_nearest_block_unit_above_zero( objPose[2,3] )
+                objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
+            else:
+                # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
+                blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
+                objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
+            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'] ) )
         return rtnBel
+    
+
+    def rectify_readings( self, objReadingList ):
+        """ Accept/Reject/Update noisy readings from the system """
+
+        # FIXME: DETERMINE IF THIS SCHEME COVERS OBJECT PERMANENCE FOR OUT OF SHOT OBJECTS
+        
+        # 1. For every item of incoming object info
+        nuMem = list()
+        nuSet = set([])
+        for objR in objReadingList:
+            # 2. Attempt to quantify how much we trust this reading
+            objR.score = (1.0 - entropy_factor( objR.labels )) * objR.count
+            # 3. Search for a collision with existing info
+            conflict = [objR,]
+            for objM in self.memory:
+                pos_R = extract_pose_as_homog( objR )
+                pos_M = extract_pose_as_homog( objM )
+                if translation_diff( pos_R, pos_M ) < _MIN_SEP:
+                    conflict.append( objM )
+            # 4. Sort overlapping indications and add only the top
+            conflict.sort( key = lambda item: item.score, reverse = True )
+            top    = conflict[0]
+            nuHash = id( conflict[0] )
+            if nuHash not in nuSet:
+                nuMem.append( top )
+                nuSet.add( nuHash )
+        self.memory = nuMem[:]
+                    
+                    
+    # FIXME, START HERE: SCAN --TO-> CORTEX MEM --TO-> PLANNER MEM
 
 
     def full_scan_noisy( self, xform = None, timeout = 2 ):
@@ -169,9 +203,7 @@ class VisualCortex:
         except Exception as e:
             print( f"`full_scan_noisy`, Scan FAILED: {e}" )
             return list()
-
         
-
         return self.scan
         
 
@@ -206,6 +238,7 @@ _temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
                         [-1.190e-04,  1.000e+00, -9.598e-06, -4.811e-01],
                         [-2.634e-05, -9.601e-06, -1.000e+00,  4.022e-01],
                         [ 0.000e+00,  0.000e+00,  0.000e+00,  1.000e+00],] )
+
 _GOOD_VIEW_POSE = repair_pose( np.array( [[-0.749, -0.513,  0.419, -0.428,],
                                           [-0.663,  0.591, -0.46 , -0.273,],
                                           [-0.012, -0.622, -0.783,  0.337,],
@@ -215,9 +248,6 @@ _HIGH_VIEW_POSE = repair_pose( np.array( [[-0.709, -0.455,  0.539, -0.51 ],
                                           [-0.705,  0.442, -0.554, -0.194],
                                           [ 0.014, -0.773, -0.635,  0.332],
                                           [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
-
-
-
 
 
 
