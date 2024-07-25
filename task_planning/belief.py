@@ -83,15 +83,20 @@ class ObjectMemory:
     #     self.vis.destroy_window()
 
 
-    def display_belief_geo( self ):
+    def display_belief_geo( self, beliefList = None ):
         # win = pyglet.window.Window()
         # pyglet.app.run()
         # self.vis.clear_geometries()
         # self.vis.add_geometry( geo )
         # self.vis.poll_events()
         # self.vis.update_renderer()
-        geo = generate_belief_geo( self.beliefs )
+        if beliefList is None:
+            geo = generate_belief_geo( self.beliefs )
+            
+        else:
+            geo = generate_belief_geo( beliefList )
         o3d.visualization.draw_geometries( geo )
+
         # vis_window( geo )
         
     

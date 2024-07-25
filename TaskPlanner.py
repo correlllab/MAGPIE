@@ -181,7 +181,7 @@ class VisualCortex:
                 objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
             # Attempt to quantify how much we trust this reading
             score_i = (1.0 - entropy_factor( dstrb )) * item['Count']
-            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'] ) )
+            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i ) )
         return rtnBel
     
 
@@ -250,10 +250,13 @@ class VisualCortex:
 
 
 
-    def full_scan_noisy( self, xform = None, timeout = 2 ):
+    def full_scan_noisy( self, xform = None, timeout = 2, observations = None ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
         try:
-            dataMsgs = self.perc.build_model()
+            if observations is None:
+                dataMsgs = self.perc.build_model()
+            elif isinstance( observations, list ):
+                dataMsgs = observations[:]
             if not len( dataMsgs ):
                 print( "`VisualCortex.full_scan_noisy`: NO OBJECT DATA!" )
             self.scan = self.observation_to_readings( dataMsgs, xform )
@@ -313,6 +316,15 @@ _HIGH_VIEW_POSE = repair_pose( np.array( [[-0.709, -0.455,  0.539, -0.51 ],
                                           [-0.705,  0.442, -0.554, -0.194],
                                           [ 0.014, -0.773, -0.635,  0.332],
                                           [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
+
+_HIGH_TWO_POSE = repair_pose( np.array( [[-0.351, -0.552,  0.756, -0.552],
+                                         [-0.936,  0.194, -0.293, -0.372],
+                                         [ 0.015, -0.811, -0.585,  0.283],
+                                         [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
+
+
+
+
 
 
 
@@ -944,6 +956,7 @@ def responsive_experiment_prep( beginPlanPose = None ):
 
 ########## MAIN ####################################################################################
 _TROUBLESHOOT = 0
+_VISION_TEST  = 1
 _EXP_BGN_POSE = _HIGH_VIEW_POSE
 
 
@@ -962,6 +975,35 @@ if __name__ == "__main__":
         print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
         sleep(1)
         rbt.stop()
+
+
+    elif _VISION_TEST:
+        print( f"########## Running Vision Pipeline Test at {dateStr} ##########" )
+
+        planner = responsive_experiment_prep( _HIGH_VIEW_POSE )
+        
+        print( f"\nAt Pose 1:\n{_HIGH_VIEW_POSE}\n" )
+        planner.world.perc.capture_image()
+        sleep(1)
+        
+        planner.robot.moveL( _HIGH_TWO_POSE, asynch = False )
+        print( f"\nAt Pose 2:\n{_HIGH_TWO_POSE}\n" )
+        planner.world.perc.capture_image()
+        sleep(1)
+
+        observs = planner.world.perc.merge_and_build_model()
+        xfrmCam = planner.robot.get_cam_pose()
+        planner.world.full_scan_noisy( xfrmCam, observations = observs )
+        planner.memory.display_belief_geo( planner.world.scan )
+
+        planner.world.rectify_readings( copy_readings_as_LKG( planner.world.scan ) )
+        observs = planner.world.get_last_best_readings()
+        planner.world.full_scan_noisy( xfrmCam, observations = observs )
+        planner.memory.display_belief_geo( planner.world.scan )
+
+        sleep( 2.5 )
+        planner.shutdown()
+
 
     else:
         print( f"########## Running Planner at {dateStr} ##########" )
