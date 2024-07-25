@@ -971,8 +971,10 @@ if __name__ == "__main__":
 
         rbt = ur5.UR5_Interface()
         rbt.start()
-        # rbt.moveL( repair_pose( _GOOD_VIEW_POSE ) )
-        print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
+        rbt.moveL( repair_pose( _GOOD_VIEW_POSE ), asynch = False )
+        sleep(5)
+        rbt.moveL( repair_pose( _HIGH_VIEW_POSE ), asynch = False )
+        # print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
         sleep(1)
         rbt.stop()
 
@@ -994,12 +996,14 @@ if __name__ == "__main__":
         observs = planner.world.perc.merge_and_build_model()
         xfrmCam = planner.robot.get_cam_pose()
         planner.world.full_scan_noisy( xfrmCam, observations = observs )
-        planner.memory.display_belief_geo( planner.world.scan )
+        if _USE_GRAPHICS:
+            planner.memory.display_belief_geo( planner.world.scan )
 
         planner.world.rectify_readings( copy_readings_as_LKG( planner.world.scan ) )
         observs = planner.world.get_last_best_readings()
         planner.world.full_scan_noisy( xfrmCam, observations = observs )
-        planner.memory.display_belief_geo( planner.world.scan )
+        if _USE_GRAPHICS:
+            planner.memory.display_belief_geo( planner.world.scan )
 
         sleep( 2.5 )
         planner.shutdown()

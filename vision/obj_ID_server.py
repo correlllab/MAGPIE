@@ -49,7 +49,7 @@ _NUM_BLOCKS  = len( _QUERIES )
 _PLOT_BOX    = False
 _VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
-_VERBOSE     = 0
+_VERBOSE     = 1
 
 
 
@@ -346,8 +346,10 @@ class Perception_OWLViT:
     @classmethod 
     def capture_image(cls):
         try:
-            rgbd_image, _ = cls.rsc.getPCD()
-            cls.captured_data.append(rgbd_image)
+            # rgbd_image, _ = cls.rsc.getPCD()
+            pcd, rgbd_image  = cls.rsc.getPCD()
+            # cls.captured_data.append(rgbd_image)
+            cls.captured_data.append( [pcd, rgbd_image,] )
             return True
         except Exception as e:
             logging.error(f"Error capturing image: {e}")
@@ -356,20 +358,25 @@ class Perception_OWLViT:
     @classmethod  
     def merge_and_build_model(cls):
         try:
-            if not cls.captured_data:
+            if not len( cls.captured_data ):
                 raise ValueError("No captured data to merge.")
 
             merged_pcd = None
-            for data in cls.captured_data:
+
+            for (pcd_i, rgbd_i) in cls.captured_data:
                 if merged_pcd is None:
-                    merged_pcd = data
+                    # merged_pcd = data
+                    merged_pcd = pcd_i
                 else:
-                    merged_pcd += data
+                    merged_pcd += pcd_i
 
             cls.captured_data = []  # Clear captured data after merging
-            return cls.build_model(merged_pcd)
+            if _VERBOSE: 
+                print( f"\nAbout to merge {type(merged_pcd)} {merged_pcd} ... \n" )
+            return cls.build_model( merged_pcd )
         except Exception as e:
-            logging.error(f"Error merging data and building model: {e}")
+            logging.error(f"\nError merging data and building model: {e}\n")
+            traceback.print_exc()
             return {}
         
     @classmethod
