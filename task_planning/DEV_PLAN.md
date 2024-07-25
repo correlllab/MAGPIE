@@ -18,7 +18,7 @@
 * `[Y]` Implement Last-Best-Reading, 2024-07-24: Works as designed
     - `[Y]` Develop trust measure, 2024-07-24: Works as designed
     - `[Y]` `MoveHolding` updates previous trusted measure pose, 2024-07-24: Works as designed
-* `[ ]` Move `ObjectMemory.most_likely_objects` to the planner and adapt to merge the LKG and belief readings in a sane way
+* `[>]` Move `ObjectMemory.most_likely_objects` to the planner and adapt to merge the LKG and belief readings in a sane way
 * `[ ]` Implement Bayesian belief update
 * `[ ]` Test planner
 * `[ ]` Experiments x10
