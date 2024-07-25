@@ -23,7 +23,6 @@ from magpie.perception import pcd
 from magpie import realsense_wrapper as real
 from magpie.perception.label_owlvit import LabelOWLViT
 from interprocess import set_non_blocking, non_block_read, PBJSON_IO
-from env_config import _CLR_TABLE
 
 os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
@@ -31,10 +30,10 @@ os.environ["TOKENIZERS_PARALLELISM"] = "True"
 
 _QUERIES = [ 
     # "a photo of a violet block", 
-    "a photo of a blue block" , # "a photo of a blue block" , 
+    "a photo of a blue block" , 
     # "a photo of a red block"     ,
-    "a photo of a yellow block", # "a photo of a yellow block", 
-    "a photo of a green block", # "a photo of a green block", 
+    "a photo of a yellow block", 
+    "a photo of a green block", 
     # "a photo of a orange block",
 ]
 _ABBREV_Q = [
@@ -51,6 +50,7 @@ _PLOT_BOX    = False
 _VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
 _VERBOSE     = 0
+
 
 
 
@@ -89,6 +89,8 @@ class Perception_OWLViT:
         [0, 0, 1, (309.63-195.0)/1000],
         [0, 0, 0, 1                  ]
     ])
+
+    captured_data = [] ################################################## NEW LIST TO SAVE DATA ACROSS RUNS
 
 
     @classmethod
@@ -279,7 +281,7 @@ class Perception_OWLViT:
                     f"({idx}): {score:1.2f}",
                     ha="left",
                     va="top",
-                    color=_CLR_TABLE[ _ABBREV_Q[i] ],
+                    color=_ABBREV_Q[i],
                     bbox={
                         "facecolor": "white",
                         "edgecolor": "red",
@@ -339,9 +341,48 @@ class Perception_OWLViT:
                 break
 
         return clustered_objects
+    
+    ############################ NEW FUNCTIONS BELOW FOR MULTI POSE DATA CAPTURE #######################################################
+    @classmethod 
+    def capture_image(cls):
+        try:
+            rgbd_image, _ = cls.rsc.getPCD()
+            cls.captured_data.append(rgbd_image)
+            return True
+        except Exception as e:
+            logging.error(f"Error capturing image: {e}")
+            return False
+        
+    @classmethod  
+    def merge_and_build_model(cls):
+        try:
+            if not cls.captured_data:
+                raise ValueError("No captured data to merge.")
+
+            merged_pcd = None
+            for data in cls.captured_data:
+                if merged_pcd is None:
+                    merged_pcd = data
+                else:
+                    merged_pcd += data
+
+            cls.captured_data = []  # Clear captured data after merging
+            return cls.build_model(merged_pcd)
+        except Exception as e:
+            logging.error(f"Error merging data and building model: {e}")
+            return {}
+        
+    @classmethod
+    def capture_and_return_observations(cls):
+        try:
+            rgbd_image, _ = cls.rsc.getPCD()
+            return cls.build_model(rgbd_image)
+        except Exception as e:
+            logging.error(f"Error capturing image and returning observations: {e}")
+            return {}
 
     @classmethod
-    def build_model(cls):
+    def build_model(cls, rgbd_image=None): ###ADDED INPUT 
         """Builds the perception model."""
 
         cls.label_vit.reset_prediction_state()
@@ -353,6 +394,9 @@ class Perception_OWLViT:
 
             for j in range(len(_QUERIES)):
                 rgbd, image, abbrevq, boxes, scores, labels, coords = cls.bound(_QUERIES[j], _ABBREV_Q[j])
+
+                if rgbd_image:    ####### CONDITION TO REPLACE RGBD IF INPUT IS NOT NONE
+                    rgbd = rgbd_image
                 
                 abbrevqs.append(abbrevq)
                 filtered_boxes.append(boxes)
@@ -423,7 +467,6 @@ class Perception_OWLViT:
 
         except Exception as e:
             print(f"Error building model: {e}", flush=True, file=sys.stderr)
-            traceback.print_exc()
             raise e
         
         except KeyboardInterrupt as e:

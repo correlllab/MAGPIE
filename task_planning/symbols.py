@@ -84,15 +84,15 @@ class GraspObj:
 class ObjectReading( GraspObj ):
     """ Represents a signal coming from the vision pipeline """
 
-    def __init__( self, labels = None, pose = None, ts = None, count = 0 ):
+    def __init__( self, labels = None, pose = None, ts = None, count = 0, score = 0.0 ):
         """ Init distribution and  """
         super().__init__( None, pose )
         self.labels  = labels if (labels is not None) else {} # Current belief in each class
         self.visited = False # -------------------------------- Flag: Was this belief associated with a relevant reading
         self.ts      = ts if (ts is not None) else now() # ---- When was this reading created? [epoch time]
-        self.count   = count # -------------------------------- How many bounding boxes generated this reading
-        self.score   = 0.0 # ---------------------------------- Quality rating for this information
-        self.visit   = False # -------------------------------- Was this reading used as evidence in a belief update?
+        self.count   = count # -------------------------------- How many bounding boxes generated this reading?
+        self.score   = score # -------------------------------- Quality rating for this information
+        self.LKG     = False # -------------------------------- Flag: Part of the Last-Known-Good collection?
 
 
     def __repr__( self ):
@@ -102,5 +102,18 @@ class ObjectReading( GraspObj ):
 
     def copy( self ):
         """ Make a copy of this belief """
-        # return ObjectReading( deepcopy( self.labels ), self.pose.copy() )
-        return ObjectReading( deepcopy( self.labels ), self.pose )
+        rtnObj = ObjectReading()
+        rtnObj.labels  = deepcopy( self.labels ) # Current belief in each class
+        rtnObj.visited = False # ----------------- Flag: Was this belief associated with a relevant reading
+        rtnObj.ts      = self.ts # --------------- When was this reading created? [epoch time]
+        rtnObj.count   = self.count # ------------ How many bounding boxes generated this reading?
+        rtnObj.score   = self.score # ------------ Quality rating for this information
+        rtnObj.LKG     = False # ----------------- Flag: Part of the Last-Known-Good collection?
+        return rtnObj
+    
+    
+    def copy_as_LKG( self ):
+        """ Make a copy of this belief for the Last-Known-Good collection """
+        rtnObj = self.copy()
+        rtnObj.LKG = True
+        return rtnObj

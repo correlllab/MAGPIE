@@ -56,6 +56,8 @@ def vis_window( geo ):
     print( f"Opened window: {ctr}" )
     vis.run()
 
+
+
 ########## BELIEFS #################################################################################
 
 class ObjectMemory:
@@ -92,7 +94,6 @@ class ObjectMemory:
         o3d.visualization.draw_geometries( geo )
         # vis_window( geo )
         
-
     
     def accum_evidence_for_belief( self, evidence, belief ):
         """ Use Bayesian multiclass update on `belief`, destructive """
@@ -168,7 +169,7 @@ class ObjectMemory:
     def decay_beliefs( self ):
         """ Destroy beliefs that have accumulated too many negative indications """
         for belief in self.beliefs:
-            if not belief.visited:
+            if (not belief.visited):
                 self.integrate_null( belief )
         self.erase_dead()
         self.unvisit_beliefs()
@@ -188,6 +189,8 @@ class ObjectMemory:
                 self.beliefs.append( objEv.copy() )
         else:
             for objEv in evdncLst:
+                # if not objEv.visitRD:
+                #     objEv.visitRD = True
                 if self.integrate_one_reading( objEv ):
                     cIn += 1
                 else:

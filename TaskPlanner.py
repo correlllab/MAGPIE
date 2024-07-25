@@ -104,6 +104,14 @@ def entropy_factor( probs ):
     return tot / np.log( len( probs ) )
 
 
+def copy_readings_as_LKG( readLst ):
+    """ Return a list of readings intended for the Last-Known-Good collection """
+    rtnLst = list()
+    for r in readLst:
+        rtnLst.append( r.copy_as_LKG() )
+    return rtnLst
+
+
 
 ########## PERCEPTION CONNECTION ###################################################################
 # _Z_SNAP_BOOST = 0.25 * _BLOCK_SCALE
@@ -171,25 +179,25 @@ class VisualCortex:
                 # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
                 blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
                 objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
+            # Attempt to quantify how much we trust this reading
+            score_i = (1.0 - entropy_factor( dstrb )) * item['Count']
             rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'] ) )
         return rtnBel
     
 
     def rectify_readings( self, objReadingList ):
         """ Accept/Reject/Update noisy readings from the system """
-
-        # 1. For every item of incoming object info
         nuMem = list()
         nuSet = set([])
         rmSet = set([])
         totLst = objReadingList[:]
         totLst.extend( self.memory )
         Ntot = len( totLst )
+        # 1. For every item of [incoming object info + previous info]
         for r, objR in enumerate( totLst ):
             # HACK: ONLY CONSIDER OBJECTS INSIDE THE WORKSPACE
             if p_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
-                # 2. Attempt to quantify how much we trust this reading
-                objR.score = (1.0 - entropy_factor( objR.labels )) * objR.count
+                
                 # 3. Search for a collision with existing info
                 conflict = [objR,]
                 for m in range( r+1, Ntot ):
@@ -204,10 +212,6 @@ class VisualCortex:
                     nuMem.append( top )
                     nuSet.add( nuHash )
                     rmSet.update( set( [id(elem) for elem in conflict[1:]] ) )
-        # for objM in self.memory:
-        #     memHash = id( objM )
-        #     if (memHash not in rmSet) and (memHash not in nuSet):
-        #         nuMem.append( objM )
         self.memory = nuMem[:]
                     
                     
@@ -249,14 +253,14 @@ class VisualCortex:
     def full_scan_noisy( self, xform = None, timeout = 2 ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
         try:
-            dataMsgs  = self.perc.build_model()
-            if not len(dataMsgs):
+            dataMsgs = self.perc.build_model()
+            if not len( dataMsgs ):
                 print( "`VisualCortex.full_scan_noisy`: NO OBJECT DATA!" )
             self.scan = self.observation_to_readings( dataMsgs, xform )
 
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as k:
             print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
-            return list()
+            raise k
             
         except Exception as e:
             print( f"`full_scan_noisy`, Scan FAILED: {e}" )
@@ -360,7 +364,7 @@ class ResponsiveTaskPlanner:
         # FIXME: SEND EFFECTOR POSE
         # FIXME: WHAT IF THE ROBOT IS MOVING?
         scan = self.world.full_scan_noisy( xform )
-        self.world.rectify_readings( scan )
+        self.world.rectify_readings( copy_readings_as_LKG( scan ) )
         self.memory.belief_update( self.world.get_last_best_readings() )
 
 
