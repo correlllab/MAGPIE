@@ -3,19 +3,20 @@
 ###### Imports ######
 
 ### Standard ###
-import atexit, sys
+import time, sys
+now = time.time
 from time import sleep
 
 ### Special ###
 import numpy as np
-import open3d as o3d
-from pyglet.window import Window
+
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
                          _BLOCK_NAMES, _VERBOSE, _SCORE_FILTER_EXP, )
 from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, multiclass_Bayesian_belief_update, get_confusion_matx, 
                                   get_confused_class_reading )
+from task_planning.symbols import euclidean_distance_between_symbols
 sys.path.append( "../magpie/" )
 from magpie.poses import translation_diff
 
@@ -43,16 +44,6 @@ def extract_class_dist_in_order( obj, order = _BLOCK_NAMES ):
     """ Get the discrete class distribution, in order according to environment variable """
     return np.array( extract_dct_values_in_order( obj.labels, order ) )
 
-def vis_window( geo ):
-    """ Open3D SUUUUUUUUUCKS """
-    # https://github.com/isl-org/Open3D/issues/3489#issuecomment-863704146
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.add_geometry( geo )
-    ctr = vis.get_view_control()  # Everything good
-    print( f"Opened window: {ctr}" )
-    vis.run()
-
 
 def exp_filter( lastVal, nextVal, rate01 ):
     """ Blend `lastVal` with `nextVal` at the specified `rate` (Exponential Filter) """
@@ -70,26 +61,11 @@ class ObjectMemory:
     def reset_beliefs( self ):
         """ Remove all references to the beliefs, then erase the beliefs """
         self.beliefs = []
-        # self.vis.clear_geometries()
 
 
     def __init__( self ):
         """ Set belief containers """
-        # https://github.com/isl-org/Open3D/issues/2006#issuecomment-701340077
-        # self.vis = o3d.visualization.Visualizer()
-        # self.vis.create_window( window_name = "Planner: Current Belief", width = 100, height = 700, visible = True )
         self.reset_beliefs()
-        # atexit.register( self.destroy )
-
-
-    # def destroy( self ):
-    #     """ Close window and cleanup """
-    #     self.vis.destroy_window()
-
-
-    
-
-        # vis_window( geo )
         
     
     def accum_evidence_for_belief( self, evidence, belief ):
@@ -109,6 +85,7 @@ class ObjectMemory:
     def integrate_one_reading( self, objReading, maxRadius = 3.0*_BLOCK_SCALE ):
         """ Fuse this belief with the current beliefs """
         relevant = False
+        tsNow    = now()
 
         # 1. Determine if this belief provides evidence for an existing belief
         dMin     = 1e6
@@ -124,8 +101,9 @@ class ObjectMemory:
             belBest.visited = True
             self.accum_evidence_for_belief( objReading, belBest )
             # belBest.pose = np.array( objReading.pose ) # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
-            belBest.pose = objReading.pose # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
+            belBest.pose  = objReading.pose # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
             belBest.score = exp_filter( belBest.score, objReading.score, _SCORE_FILTER_EXP )
+            belBest.ts    = tsNow
 
         # 2. If this evidence does not support an existing belief, it is a new belief
         else:
@@ -147,6 +125,7 @@ class ObjectMemory:
             belief.labels[ name ] = updatB[i]
         if avgScore is not None:
             belief.score = exp_filter( belief.score, avgScore, _SCORE_FILTER_EXP )
+        # 2024-07-26: NOT updating the timestamp as NULL evidence should tend to remove a reading from consideration
     
 
     def unvisit_beliefs( self ):
@@ -180,7 +159,7 @@ class ObjectMemory:
         self.unvisit_beliefs()
 
 
-    def belief_update( self, evdncLst ):
+    def belief_update( self, evdncLst, maxRadius = 3.0*_BLOCK_SCALE ):
         """ Gather and aggregate evidence """
 
         ## Integrate Beliefs ##
@@ -196,7 +175,7 @@ class ObjectMemory:
             for objEv in evdncLst:
                 # if not objEv.visitRD:
                 #     objEv.visitRD = True
-                if self.integrate_one_reading( objEv ):
+                if self.integrate_one_reading( objEv, maxRadius = maxRadius ):
                     cIn += 1
                 else:
                     cNu += 1

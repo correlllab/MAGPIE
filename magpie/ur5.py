@@ -124,6 +124,7 @@ class UR5_Interface:
         # return sm.SE3( pose_vector_to_homog_coord( self.recv.getActualTCPPose() ) )
         return pose_vector_to_homog_coord( self.recv.getActualTCPPose() )
 
+
     def getPose(self):
         # Returns the current pose of the last frame as a SE3 Object (4 x 4 Homegenous Transform)
         p = self.recv.getActualTCPPose()
@@ -132,11 +133,13 @@ class UR5_Interface:
         # T_N.plot(name="C")
         return T_N    # T_N is a homogenous transform
 
+
     def poseVectorToMatrix(self, poseVector):
         # Converts poseVector into an SE3 Object (4 x 4 Homegenous Transform)
         # poseVector is a 6 element list of [x, y, z, rX, rY, rZ]
         T_N = sm.SE3(poses.pose_vec_to_mtrx(poseVector))
         return T_N
+
 
     def get_cam_pose( self ):
         """ Returns the current pose of the gripper as a SE3 Object (4 x 4 Homegenous Transform) """
@@ -166,6 +169,7 @@ class UR5_Interface:
             self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose"])
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
 
+
     def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
@@ -183,6 +187,7 @@ class UR5_Interface:
     def stop_recording(self):
         if self.record:
             self.recv.stopFileRecording()
+
 
     def p_moving( self ):
         """ Return True if the robot is in motion, Otherwise return False """

@@ -30,10 +30,10 @@ import open3d as o3d
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
-                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, )
+                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
-                                    extract_pose_as_homog )
+                                    extract_pose_as_homog, euclidean_distance_between_symbols )
 from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
 from task_planning.belief import ObjectMemory
@@ -90,11 +90,7 @@ def p_inside_workspace_bounds( pose ):
     return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
 
 
-def euclidean_distance_between_symbols( sym1, sym2 ):
-    """ Extract pose component from symbols and Return the linear distance between those poses """
-    pose1 = extract_pose_as_homog( sym1 )
-    pose2 = extract_pose_as_homog( sym2 )
-    return translation_diff( pose1, pose2 )
+
 
 
 def entropy_factor( probs ):
@@ -379,7 +375,7 @@ class ResponsiveTaskPlanner:
         scan = self.world.full_scan_noisy( xform )
         # LKG and Belief are updated SEPARATELY and merged LATER as symbols
         self.world.rectify_readings( copy_readings_as_LKG( scan ) )
-        self.memory.belief_update( scan )
+        self.memory.belief_update( scan, maxRadius = _MAX_UPDATE_RAD_M )
 
 
     ##### Stream Helpers ##################################################
@@ -948,6 +944,12 @@ class ResponsiveTaskPlanner:
 
 
     ##### Task Planner Main Loop ##########################################
+
+    def p_belief_dist_OK( self ): 
+        """ Return False if belief change criterion met, Otherwise return True """
+        print( f"\nFIXME: `ResponsiveTaskPlanner.p_belief_dist_OK` HAS NOT BEEN IMPLEMENTED!!!\n", file = sys.stderr )
+        return True
+
 
     def solve_task( self, maxIter = 100, beginPlanPose = None ):
         """ Solve the goal """

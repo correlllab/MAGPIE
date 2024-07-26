@@ -3,8 +3,8 @@
 ##### Imports #####
 
 ### Standard ###
-import math, sys
-from random import random
+import datetime, sys
+from time import sleep
 
 ### Special ###
 import numpy as np
@@ -17,7 +17,7 @@ from py_trees.composites import Sequence
 ### Local ###
 from task_planning.utils import row_vec_to_homog
 from task_planning.symbols import extract_row_vec_pose
-from env_config import _Z_SAFE
+from env_config import _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED
 
 sys.path.append( "../" )
 from magpie.poses import pose_error
@@ -32,9 +32,6 @@ _DUMMYPOSE     = np.eye(4)
 MP2BB          = dict()  # Hack the BB object into the built-in namespace
 SCAN_POSE_KEY  = "scanPoses"
 HAND_OBJ_KEY   = "handHas"
-# PROTO_PICK_ROT = np.array( [[ 0.0,  1.0,  0.0, ],
-#                             [ 1.0,  0.0,  0.0, ],
-#                             [ 0.0,  0.0, -1.0, ]] )
 PROTO_PICK_ROT = np.array( [[ -1.0,  0.0,  0.0, ],
                             [  0.0,  1.0,  0.0, ],
                             [  0.0,  0.0, -1.0, ]] )
@@ -77,41 +74,23 @@ def connect_BT_to_robot( bt, robot ):
             connect_BT_to_robot( child, robot )
 
 
-def connect_BT_to_world( bt, world ):
-    """ Assign `world` environment to `bt` and recursively to all nodes below """
-    if hasattr( bt, 'world' ):
-        bt.world = world
-    if len( bt.children ):
-        for child in bt.children:
-            connect_BT_to_world( child, world )
-
-
-def connect_BT_to_robot_world( bt, robot, world ):
-    """ Set both controller and environment for this behavior and all children """
-    connect_BT_to_robot( bt, robot )
-    connect_BT_to_world( bt, world )
-
-
 
 ########## BASE CLASS ##############################################################################
 
 class BasicBehavior( Behaviour ):
     """ Abstract class for repetitive housekeeping """
     
-    def __init__( self, name = None, ctrl = None, world = None ):
+    def __init__( self, name = None, ctrl = None ):
         """ Set name to the child class name unless otherwise specified """
         if name is None:
             super().__init__( name = str( self.__class__.__name__  ) )
         else:
             super().__init__( name = name )
         self.ctrl  = ctrl
-        self.world = world
         self.msg   = ""
         self.logger.debug( f"[{self.name}::__init__()]" )
         if self.ctrl is None:
             self.logger.warning( f"{self.name} is NOT conntected to a robot controller!" )
-        if self.world is None:
-            self.logger.warning( f"{self.name} is NOT conntected to a world object!" )
         self.count = 0
         
 
@@ -187,20 +166,17 @@ class BT_Runner:
     """ Run a BT with checks """
 
     def __init__( self, root, tickHz = 4.0, limit_s = 20.0 ):
-        """ Set root node and world reference """
+        """ Set root node reference and running parameters """
         self.root   = root
-        # self.world  = world
         self.status = Status.INVALID
         self.freq   = tickHz
-        # self.Nstep  = int( max(1.0, math.ceil((1.0 / tickHz) / world.period)))
         self.msg    = ""
         self.Nlim   = int( limit_s * tickHz )
         self.i      = 0
 
 
     def setup_BT_for_running( self ):
-        """ Connect the plan to world and robot """
-        # connect_BT_to_robot_world( self.root, self.world.robot, self.world )
+        """ Prep BT for running """
         self.root.setup_with_descendants()
 
 
@@ -218,14 +194,10 @@ class BT_Runner:
         """ Handle external signals to halt BT execution """
         self.status = Status.FAILURE
         self.msg    = msg
-        # self.world.robot_release_all()
-        # self.world.spin_for( 250 )
 
 
     def tick_once( self ):
         """ Run one simulation step """
-        ## Let sim run ##
-        # self.world.spin_for( self.Nstep )
         ## Advance BT ##
         if not self.p_ended():
             self.root.tick_once()
@@ -298,11 +270,10 @@ class MoveFree( GroundedAction ):
 
         super().__init__( args, robot, name )
 
-        poseEnd = extract_row_vec_pose( poseEnd )
+        self.poseEnd = extract_row_vec_pose( poseEnd )
                 
         self.add_child(
-            # Move_Effector( poseEnd, ctrl = robot )
-            Move_Arm( poseEnd, ctrl = robot )
+            Move_Arm( self.poseEnd, ctrl = robot, linSpeed = _ROBOT_FREE_SPEED )
         )
 
 
@@ -319,7 +290,6 @@ class Pick( GroundedAction ):
         super().__init__( args, robot, name )
 
         self.add_child( 
-            # Grasp( label, pose, name = name, ctrl = robot )
             Close_Gripper( ctrl = robot  )
         )
 
@@ -337,7 +307,6 @@ class Unstack( GroundedAction ):
         super().__init__( args, robot, name )
 
         self.add_child( 
-            # Grasp( label, pose, name = name, ctrl = robot )
             Close_Gripper( ctrl = robot  )
         )
 
@@ -360,8 +329,6 @@ class MoveHolding( GroundedAction ):
         psnMid2 = np.array( poseEnd[0:3,3] )
         psnMid1[2] = _Z_SAFE
         psnMid2[2] = _Z_SAFE
-        # poseMd1 = psnMid1.tolist() + [1,0,0,0]
-        # poseMd2 = psnMid2.tolist() + [1,0,0,0]
         poseMd1 = np.eye(4) 
         poseMd2 = np.eye(4)
         poseMd1[0:3,0:3] = PROTO_PICK_ROT
@@ -370,12 +337,9 @@ class MoveHolding( GroundedAction ):
         poseMd2[0:3,3] = psnMid2
     
         self.add_children( [
-            # Move_Effector( poseMd1, ctrl = robot ),
-            # Move_Effector( poseMd2, ctrl = robot ),
-            # Move_Effector( poseEnd, ctrl = robot ),
-            Move_Arm( poseMd1, ctrl = robot ),
-            Move_Arm( poseMd2, ctrl = robot ),
-            Move_Arm( poseEnd, ctrl = robot ),
+            Move_Arm( poseMd1, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
+            Move_Arm( poseMd2, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
+            Move_Arm( poseEnd, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
         ] )
 
 
@@ -392,7 +356,6 @@ class Place( GroundedAction ):
         super().__init__( args, robot, name )
 
         self.add_child( 
-            # Ungrasp( name = name, ctrl = robot )
             Open_Gripper( ctrl = robot  )
         )
 
@@ -409,10 +372,106 @@ class Stack( GroundedAction ):
         super().__init__( args, robot, name )
 
         self.add_child( 
-            # Ungrasp( name = name, ctrl = robot )
             Open_Gripper( ctrl = robot  )
         )
 
+
+########## RESPONSIVE PLANNER BEHAVIOR TREES #######################################################
+
+
+class PerceiveScene( BasicBehavior ):
+    """ Ask the Perception Pipeline to get a reading """
+
+    def __init__( self, args, robot = None, name = None, planner = None ):
+
+        assert planner is not None, "`PerceiveScene` REQUIRES a planner reference!"
+        self.planner = planner
+        self.args    = args
+        
+        if name is None:
+            name = f"PerceiveScene with planner {type(planner)}"
+        super().__init__(  name = name, ctrl = robot )
+
+
+    def initialise( self ):
+        """ Actually Move """
+        super().initialise()
+        if self.ctrl.p_moving():
+            print( f"\n WARN: `PerceiveScene.initialise`: Robot was MOVING at init time: {datetime.now().strftime("%H:%M:%S")}!\n" )
+        # self.ctrl.moveL( self.pose, self.linSpeed, self.linAccel, self.asynch )
+
+
+    def update( self ):
+        """ Return true if the target reached """
+        if self.ctrl.p_moving():
+            print( f"\n`PerceiveScene.initialise`: Robot was MOVING at UPDATE time: {datetime.now().strftime("%H:%M:%S")}!\n" )
+            self.status = Status.FAILURE
+        else:
+            camPose = self.ctrl.get_cam_pose()
+            self.planner.phase_1_Perceive( 1, camPose )
+            sleep( 0.25 )
+            if self.planner.p_belief_dist_OK():
+                self.status = Status.SUCCESS
+            else:
+                self.status = Status.FAILURE
+        return self.status
+
+
+
+
+
+class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
+    """ Get a replacement sequence for `MoveFree` that stops for perception at the appropriate times """
+
+    def __init__( self, mfBT, planner, sensePeriod_s, name = None ):
+
+        targetP = mfBT.poseEnd.copy()
+        
+        if name is None:
+            name = f"`Interleaved_MoveFree_and_Perceive`, args: {mfBT.args}"
+        super().__init__( mfBT.args, mfBT.robot, name )
+
+        # Init #
+        self.distMax = _ROBOT_FREE_SPEED * sensePeriod_s
+        self.zSAFE = max( _Z_SAFE, targetP[2,3] ) # Eliminate (some) silly vertical movements
+        
+        # Poses to be Modified at Ticktime #
+        self.targetP = targetP
+        self.pose1up = _DUMMYPOSE.copy()
+        self.pose2up = _DUMMYPOSE.copy()
+        
+        # Empty sequences to be built at RUNTIME #
+        self.moveUp = Sequence( "Leg 1", memory = True )
+        self.moveJg = Sequence( "Leg 2", memory = True )
+        self.mvTrgt = Sequence( "Leg 3", memory = True )
+        
+        # 0. WARNING: Start with a sensing action
+        self.add_child( PerceiveScene( mfBT.args, robot = mfBT.robot, name = "PerceiveScene 1", planner = planner ) )
+        # 1. Move direcly up from the starting pose
+        self.add_child( self.moveUp )
+        # 2. Translate to above the target
+        self.add_child( self.moveJg )
+        # 3. Move to the target pose
+        self.add_child( self.mvTrgt )
+
+
+    def initialise( self ):
+        """
+        ( Ticked first time ) or ( ticked not RUNNING ):
+        Generate child sequences with respect to intermittent sensing requirement
+        """
+        # 1. Fetch pose NOW
+        nowPose = self.ctrl.get_tcp_pose()
+        
+        # 2. Compute intermediate poses
+        self.pose1up = nowPose.copy()
+        self.pose1up[2, 3] = self.zSAFE
+
+        self.pose2up = self.targetP.copy()
+        self.pose2up[2, 3] = self.zSAFE
+
+        # 3. Construct child sequences
+        # FIXME: START HERE
 
 
 ########## PLANS ###################################################################################
@@ -425,7 +484,6 @@ class Plan( Sequence ):
         super().__init__( name = "PDDLStream Plan", memory = True )
         self.msg    = "" # --------------- Message: Reason this plan failed -or- OTHER
         self.ctrl   = None
-        self.world  = None
     
     def __len__( self ):
         """ Return the number of children """
@@ -444,7 +502,7 @@ class Plan( Sequence ):
 ########## PDLS --TO-> BT ##########################################################################
 
 def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot ):
-    """ Fetch the `i`th item from `pdlsPlan` and parameterize a BT that operates on the `world` """
+    """ Fetch the `i`th item from `pdlsPlan` and parameterize a BT that operates on the environment """
     actName  = pdlsPlan[i].name
     actArgs  = pdlsPlan[i].args
     btAction = None

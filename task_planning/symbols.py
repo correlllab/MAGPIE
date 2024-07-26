@@ -1,13 +1,19 @@
 ########## INIT ####################################################################################
+
+##### Imports #####
+### Standard ###
 import time
 now = time.time
 from copy import deepcopy
 from itertools import count
 
+### Special ###
 import numpy as np
 
+### Local ###
 from task_planning.utils import NaN_row_vec
 from graphics.homog_utils import R_quat, homog_xform
+from magpie.poses import translation_diff
 from env_config import _NULL_NAME
 
 
@@ -27,6 +33,7 @@ def extract_row_vec_pose( obj_or_arr ):
     
 
 def extract_pose_as_homog( obj_or_arr ):
+    """ Return only a copy of the homogeneous coordinates of the 3D pose """
     bgnPose = extract_row_vec_pose( obj_or_arr )
     if len( bgnPose ) == 4:
         return bgnPose
@@ -34,8 +41,19 @@ def extract_pose_as_homog( obj_or_arr ):
         rtnPosn = bgnPose[:3]
         rtnOrnt = bgnPose[3:]
         return homog_xform( R_quat( *rtnOrnt ), rtnPosn )
+    
+
+def extract_position( obj_or_arr ):
+    """ Return only a copy of the position vector of the 3D pose """
+    pose = extract_pose_as_homog( obj_or_arr )
+    return pose[0:3,3]
 
 
+def euclidean_distance_between_symbols( sym1, sym2 ):
+    """ Extract pose component from symbols and Return the linear distance between those poses """
+    pose1 = extract_pose_as_homog( sym1 )
+    pose2 = extract_pose_as_homog( sym2 )
+    return translation_diff( pose1, pose2 )
 
 
 ########## COMPONENTS ##############################################################################
@@ -59,7 +77,7 @@ class ObjPose:
     
     def __repr__( self ):
         """ Text representation """
-        return f"<ObjPose {self.index}, Vec: {self.pose} >"
+        return f"<ObjPose {self.index}, Vec: {extract_position( self.pose )} >"
     
 
 
@@ -78,7 +96,7 @@ class GraspObj:
 
     def __repr__( self ):
         """ Text representation of noisy reading """
-        return f"<GraspObj {self.index} @ {self.pose}, Class: {str(self.label)}>"
+        return f"<GraspObj {self.index} @ {extract_position( self.pose )}, Class: {str(self.label)}>"
 
 
 
@@ -98,7 +116,12 @@ class ObjectReading( GraspObj ):
 
     def __repr__( self ):
         """ Text representation of noisy reading """
-        return f"<ObjectReading @ {self.pose}, Dist: {str(self.labels)}>"
+        cleanDict = {}
+        objAge    = now() - self.ts
+        for k, v in self.labels.items():
+            if v > 0.0:
+                cleanDict[k] = v
+        return f"<ObjectReading @ {extract_position( self.pose )}, Dist: {str(cleanDict)}, Score: {self.score}, Age: {objAge} >"
     
 
     def copy( self ):

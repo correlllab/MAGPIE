@@ -19,13 +19,23 @@
     - `[Y]` Develop trust measure, 2024-07-24: Works as designed
     - `[Y]` `MoveHolding` updates previous trusted measure pose, 2024-07-24: Works as designed
 * `[Y]` Move `ObjectMemory.most_likely_objects` to the planner and adapt to merge the LKG and belief readings in a sane way, 2024-07-24: Needs testing
-* `[ ]` Add periodic updates to all `MoveFree` behaviors
-    - `[ ]` Lower movement speed so that updates *actually* occur during execution
-* `[>]` Test Bayesian belief update
-    - `[ ]` Check that there is a distance limit on evidence application
-    - `[ ]` Check that belief timestamp is updated when the belief is updated
+* `[Y]` Adapt Bayesian belief update to current planner, 2024-07-26: Changes make sense, but TESTING REQUIRED
+    - `[Y]` Add time and quality info to the `ObjectReading` string `__rep__`, 2024-07-26: This will help with troubleshooting
+    - `[Y]` Check that there is a distance limit on evidence application, 2024-07-26: This is now an environment variable
+    - `[Y]` Check that belief timestamp is updated when the belief is updated, 2024-07-26: Timestamp now updates, but not for NULL evidence
+        * 2024-07-26: NOT updating the timestamp for NULL evidence, as it should tend to remove a reading from consideration
+    
+* `[>]` Add periodic updates to all `MoveFree` behaviors
+    - `[Y]` Lower robot movement speed so that updates *actually* occur during execution, 2024-07-26: Halved the default speed to 0.125
+    - `[>]` Segment moves into alternating move and sense actions
     - `[ ]` Add the distribution change criterion back into the planner 
-    - `[ ]` Add time and quality info to the `ObjectReading` string `__rep__`
+* `[ ]` Test planner
+
+* `[!]` Determine whether objects outside of the camera frustrum are getting unfairly NULL updates!
+
 * `[ ]` Determine experimental confusion matrix
+    - `[ ]` Q: How many trials?
+    - `{ }` Q: Is it possible to automate part of this?
+
 * `[ ]` Test planner
 * `[ ]` Experiments x10
