@@ -14,11 +14,9 @@ from pyglet.window import Window
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
-                         _BLOCK_NAMES, _VERBOSE, _MIN_SEP, )
-from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, )
-from task_planning.symbols import GraspObj, extract_pose_as_homog
-sys.path.append( "../graphics/" )
-from graphics.draw_beliefs import generate_belief_geo
+                         _BLOCK_NAMES, _VERBOSE, _SCORE_FILTER_EXP, )
+from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, multiclass_Bayesian_belief_update, get_confusion_matx, 
+                                  get_confused_class_reading )
 sys.path.append( "../magpie/" )
 from magpie.poses import translation_diff
 
@@ -57,8 +55,15 @@ def vis_window( geo ):
     vis.run()
 
 
+def exp_filter( lastVal, nextVal, rate01 ):
+    """ Blend `lastVal` with `nextVal` at the specified `rate` (Exponential Filter) """
+    assert 0.0 <= rate01 <= 1.0, f"Exponential filter rate must be on [0,1], Got {rate01}"
+    return (nextVal * rate01) + (lastVal * (1.0 - rate01))
+
+
 
 ########## BELIEFS #################################################################################
+
 
 class ObjectMemory:
     """ Attempt to maintain recent and constistent object beliefs based on readings from the vision system """
@@ -83,19 +88,7 @@ class ObjectMemory:
     #     self.vis.destroy_window()
 
 
-    def display_belief_geo( self, beliefList = None ):
-        # win = pyglet.window.Window()
-        # pyglet.app.run()
-        # self.vis.clear_geometries()
-        # self.vis.add_geometry( geo )
-        # self.vis.poll_events()
-        # self.vis.update_renderer()
-        if beliefList is None:
-            geo = generate_belief_geo( self.beliefs )
-            
-        else:
-            geo = generate_belief_geo( beliefList )
-        o3d.visualization.draw_geometries( geo )
+    
 
         # vis_window( geo )
         
@@ -133,6 +126,7 @@ class ObjectMemory:
             self.accum_evidence_for_belief( objReading, belBest )
             # belBest.pose = np.array( objReading.pose ) # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
             belBest.pose = objReading.pose # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
+            belBest.score = exp_filter( belBest.score, objReading.score, _SCORE_FILTER_EXP )
 
         # 2. If this evidence does not support an existing belief, it is a new belief
         else:
@@ -142,7 +136,7 @@ class ObjectMemory:
         return relevant
     
 
-    def integrate_null( self, belief ):
+    def integrate_null( self, belief, avgScore = None ):
         """ Accrue a non-observation """
         labels = get_confused_class_reading( _NULL_NAME, _CONFUSE_PROB, _BLOCK_NAMES )
         cnfMtx = get_confusion_matx( _N_CLASSES, _CONFUSE_PROB )
@@ -152,6 +146,8 @@ class ObjectMemory:
         belief.labels = {}
         for i, name in enumerate( _BLOCK_NAMES ):
             belief.labels[ name ] = updatB[i]
+        if avgScore is not None:
+            belief.score = exp_filter( belief.score, avgScore, _SCORE_FILTER_EXP )
     
 
     def unvisit_beliefs( self ):
@@ -173,9 +169,14 @@ class ObjectMemory:
 
     def decay_beliefs( self ):
         """ Destroy beliefs that have accumulated too many negative indications """
+        vstScores = list()
+        for belief in self.beliefs:
+            if belief.visited:
+                vstScores.append( belief.score )
+        nuScore = np.mean( vstScores )
         for belief in self.beliefs:
             if (not belief.visited):
-                self.integrate_null( belief )
+                self.integrate_null( belief, avgScore = nuScore )
         self.erase_dead()
         self.unvisit_beliefs()
 
@@ -217,78 +218,4 @@ class ObjectMemory:
             print()
 
 
-    def most_likely_objects( self, N = 1, cleanDupes = 0, cleanCollision = 0 ):
-        """ Get the `N` most likely combinations of object classes """
-
-        def p_unique_labels( objLst ):
-            """ Return true if there are as many classes as there are objects """
-            lbls = set([sym.label for sym in objLst])
-            if _NULL_NAME in lbls: # WARNING: HACK
-                return False
-            return len( lbls ) == len( objLst )
-        
-        # def clean_dupes( objLst ):
-        #     """ Return a version of `objLst` with duplicate objects removed """
-        #     dctMax = {}
-        #     for sym in objLst:
-        #         if not sym.label in dctMax:
-        #             dctMax[ sym.label ] = sym
-        #         elif sym.prob > dctMax[ sym.label ].prob:
-        #             dctMax[ sym.label ] = sym
-        #     return list( dctMax.values() )
-        
-        # def clean_colliding( objLst ):
-        #     rtnLst = []
-        #     M = len(objLst)
-        #     for i, sym_i in enumerate( objLst ):
-        #         collides = False
-        #         for j in range( i+1, M ):
-        #             sym_j = objLst[j]
-        #             pos_i = extract_pose_as_homog( sym_i )
-        #             pos_j = extract_pose_as_homog( sym_j )
-        #             if translation_diff( pos_i, pos_j ) < _MIN_SEP:
-        #                 collides = True
-        #                 if sym_i.prob > sym_j.prob:
-        #                     rtnLst.append( sym_i )
-        #         if not collides:
-        #             rtnLst.append( sym_i )
-        #     return rtnLst
-
-
-        ## Init ##
-        comboList = [ [1.0,[],], ]
-        ## Generate all class combinations with joint probabilities ##
-        for bel in self.beliefs:
-            nuCombos = []
-            for combo_i in comboList:
-                for label_j, prob_j in bel.labels.items():
-                    prob_ij = combo_i[0] * prob_j
-
-                    # objc_ij = GraspObj( label = label_j, pose = np.array( bel.pose ) )
-                    objc_ij = GraspObj( label = label_j, pose = bel.pose, prob = prob_j )
-                    
-                    nuCombos.append( [prob_ij, combo_i[1]+[objc_ij,],] )
-            comboList = nuCombos
-        ## Sort all class combinations with decreasing probabilities ##
-        comboList.sort( key = (lambda x: x[0]), reverse = True )
-        ## Return top combos ##
-        if N == 1:
-            for combo in comboList:
-                # if cleanDupes:
-                #     if cleanCollision:
-                #         return clean_colliding( clean_dupes( combo[1] ) )
-                #     else:
-                #         return clean_dupes( combo[1] )
-                # elif cleanCollision:
-                #     return clean_colliding( combo[1] )
-                # el
-                if p_unique_labels( combo[1] ):
-                    return combo[1]
-            return list()
-        elif N > 1:
-            rtnCombos = []
-            for i in range(N):
-                rtnCombos.append( comboList[i][1] )
-            return rtnCombos
-        else:
-            return list()
+    

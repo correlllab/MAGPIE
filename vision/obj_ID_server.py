@@ -49,7 +49,7 @@ _NUM_BLOCKS  = len( _QUERIES )
 _PLOT_BOX    = False
 _VIZ_PCD     = False
 _ID_PERIOD_S = 2.0
-_VERBOSE     = 1
+_VERBOSE     = 0
 
 
 

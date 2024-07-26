@@ -73,6 +73,13 @@ _NULL_THRESH  = 0.75
 _EXIST_THRESH = 0.05
 
 
+########## OBJECT PERMANENCE #######################################################################
+
+_SCORE_FILTER_EXP  =   0.75 # During a belief update, accept the new score at this rate
+_SCORE_DECAY_TAU_S =  10.0 # Score time constant, for freshness 
+_OBJ_TIMEOUT_S     = 120.0 # Readings older than this are not considered
+
+
 
 ########## MEASUREMENTS ############################################################################
 

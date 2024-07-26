@@ -67,12 +67,13 @@ class GraspObj:
     """ The concept of a named object at a pose """
     num = count()
 
-    def __init__( self, label = None, pose = None, prob = None ):
+    def __init__( self, label = None, pose = None, prob = None, score = None ):
         """ Set components used by planners """
         self.label = label if (label is not None) else _NULL_NAME
         self.pose  = pose if (pose is not None) else ObjPose( [0,0,0,1,0,0,0] )
         self.index = next( self.num )
         self.prob  = prob if (prob is not None) else 0.0 # 2024-07-22: This is for sorting dupes in the planner and is NOT used by PDDLStream
+        self.score = score if (score is not None) else 0.0 # 2024-07-25: This is for sorting dupes in the planner and is NOT used by PDDLStream
 
 
     def __repr__( self ):

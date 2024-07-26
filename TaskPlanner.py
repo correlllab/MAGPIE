@@ -10,7 +10,7 @@ Contacts: {james.watson-2@colorado.edu,}
 ##### Imports #####
 
 ### Standard ###
-import sys, subprocess, time, os
+import sys, time, os
 now = time.time
 from queue import Queue
 from time import sleep
@@ -27,17 +27,19 @@ import numpy as np
 from py_trees.common import Status
 
 ### Local ###
-from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, _BLOCK_NAMES, _VERBOSE, 
+from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
-                         _ACCEPT_POSN_ERR, _MIN_SEP, _POST_N_SPINS, _USE_GRAPHICS, _N_XTRA_SPOTS, )
+                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, )
 sys.path.append( "./task_planning/" )
-from task_planning.symbols import ObjectReading, ObjPose, extract_row_vec_pose, extract_pose_as_homog
-from task_planning.utils import ( get_confusion_matx, get_confused_class_reading, 
-                                  DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
+from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
+                                    extract_pose_as_homog )
+from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
 from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
 from task_planning.belief import ObjectMemory
 sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
+sys.path.append( "./graphics/" )
+from graphics.draw_beliefs import generate_belief_geo
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
 from magpie.poses import repair_pose, translation_diff
@@ -109,6 +111,14 @@ def copy_readings_as_LKG( readLst ):
     rtnLst = list()
     for r in readLst:
         rtnLst.append( r.copy_as_LKG() )
+    return rtnLst
+
+
+def copy_readings( readLst ):
+    """ Return a list of readings intended for the Last-Known-Good collection """
+    rtnLst = list()
+    for r in readLst:
+        rtnLst.append( r.copy() )
     return rtnLst
 
 
@@ -185,34 +195,43 @@ class VisualCortex:
         return rtnBel
     
 
-    def rectify_readings( self, objReadingList ):
+    def rectify_readings( self, objReadingList, suppressStorage = False, useTimeout = True ):
         """ Accept/Reject/Update noisy readings from the system """
+        tCurr = now()
         nuMem = list()
         nuSet = set([])
         rmSet = set([])
         totLst = objReadingList[:]
-        totLst.extend( self.memory )
+        if not suppressStorage:
+            totLst.extend( self.memory )
         Ntot = len( totLst )
         # 1. For every item of [incoming object info + previous info]
         for r, objR in enumerate( totLst ):
+            
             # HACK: ONLY CONSIDER OBJECTS INSIDE THE WORKSPACE
-            if p_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
-                
-                # 3. Search for a collision with existing info
-                conflict = [objR,]
-                for m in range( r+1, Ntot ):
-                    objM = totLst[m]
-                    if euclidean_distance_between_symbols( objR, objM ) < _MIN_SEP:
-                        conflict.append( objM )
-                # 4. Sort overlapping indications and add only the top
-                conflict.sort( key = lambda item: item.score, reverse = True )
-                top    = conflict[0]
-                nuHash = id( conflict[0] )
-                if (nuHash not in nuSet) and (nuHash not in rmSet):
-                    nuMem.append( top )
-                    nuSet.add( nuHash )
-                    rmSet.update( set( [id(elem) for elem in conflict[1:]] ) )
-        self.memory = nuMem[:]
+            if not p_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
+                continue
+
+            if (useTimeout and ((tCurr - objR.ts) > _OBJ_TIMEOUT_S)):
+                continue
+
+            # 3. Search for a collision with existing info
+            conflict = [objR,]
+            for m in range( r+1, Ntot ):
+                objM = totLst[m]
+                if euclidean_distance_between_symbols( objR, objM ) < _MIN_SEP:
+                    conflict.append( objM )
+            # 4. Sort overlapping indications and add only the top
+            conflict.sort( key = lambda item: item.score, reverse = True )
+            top    = conflict[0]
+            nuHash = id( conflict[0] )
+            if (nuHash not in nuSet) and (nuHash not in rmSet):
+                nuMem.append( top )
+                nuSet.add( nuHash )
+                rmSet.update( set( [id(elem) for elem in conflict[1:]] ) )
+        if not suppressStorage:
+            self.memory = nuMem[:]
+        return nuMem
                     
                     
     def move_reading_from_BT_plan( self, planBT ):
@@ -250,7 +269,7 @@ class VisualCortex:
 
 
 
-    def full_scan_noisy( self, xform = None, timeout = 2, observations = None ):
+    def full_scan_noisy( self, xform = None, observations = None ):
         """ Find all of the ROYGBV blocks based on output of Perception Process """
         try:
             if observations is None:
@@ -271,27 +290,6 @@ class VisualCortex:
         
         return self.scan
         
-
-    # def fresh_scan_noisy( self, xform = None, timeout = 10.0 ):
-    #     """ Wait for fresh observations """
-    #     scan = self.full_scan_noisy( xform = xform )
-    #     bgn  = now()
-    #     try:
-    #         while (not len( scan )) or ((scan[0].ts - self.tLast) < self.tFresh): # and (not self.PANIC):
-    #             elapsed = now() - bgn
-    #             if (elapsed > timeout):
-    #                 print( f"`fresh_scan_noisy`: TIMEOUT at {elapsed} seconds!" )
-    #                 break
-    #             else:
-    #                 print( f"`fresh_scan_noisy`: Waited {elapsed} seconds for a fresh scan ..." )
-    #             scan = self.full_scan_noisy( xform = xform )
-    #     except KeyboardInterrupt:
-    #         print( "`fresh_scan_noisy`: USER REQUESTED SHUTDOWN" )
-    #         return list()
-    #     except Exception as e:
-    #         print( f"`fresh_scan_noisy`, Scan FAILED: {e}" )
-    #         return list()
-    #     return scan
 
 
 ########## BASELINE PLANNER ########################################################################
@@ -339,16 +337,17 @@ class ResponsiveTaskPlanner:
     def reset_beliefs( self ):
         """ Erase belief memory """
         self.memory  = ObjectMemory() # Distributions over objects
-        self.symbols = []
-        self.facts   = list()
+        self.beliefs = list() # ------- List of consistent indications
+        self.symbols = list() # ------- Determinized beliefs
+        self.facts   = list() # ------- Grounded predicates
 
 
     def reset_state( self ):
         """ Erase problem state """
-        self.status  = Status.INVALID
-        self.task    = None
-        self.goal    = tuple()
-        self.grasp   = list()
+        self.status = Status.INVALID # Running status
+        self.task   = None # --------- Current task definition
+        self.goal   = tuple() # ------ Current goal specification
+        self.grasp  = list() # ------- ? NOT USED ?
 
 
     def __init__( self, world = None ):
@@ -373,11 +372,10 @@ class ResponsiveTaskPlanner:
 
     def perceive_scene( self, xform = None ):
         """ Integrate one noisy scan into the current beliefs """
-        # FIXME: SEND EFFECTOR POSE
-        # FIXME: WHAT IF THE ROBOT IS MOVING?
         scan = self.world.full_scan_noisy( xform )
+        # LKG and Belief are updated SEPARATELY and merged LATER as symbols
         self.world.rectify_readings( copy_readings_as_LKG( scan ) )
-        self.memory.belief_update( self.world.get_last_best_readings() )
+        self.memory.belief_update( scan )
 
 
     ##### Stream Helpers ##################################################
@@ -526,6 +524,119 @@ class ResponsiveTaskPlanner:
         return (self.status == Status.FAILURE)
     
 
+    ##### Object Permanence ###############################################
+
+    def merge_and_reconcile_object_memories( self, tau = _SCORE_DECAY_TAU_S ):
+        """ Calculate a consistent object state from LKG Memory and Beliefs """
+        mrgLst  = list()
+        tCurr   = now()
+        totLst  = copy_readings( self.memory.beliefs[:] )
+        LKGmem  = copy_readings( self.world.get_last_best_readings() )
+        totLst.extend( LKGmem )
+        
+        # Filter and Decay stale readings
+        for r in totLst:
+            if ((tCurr - r.ts) <= _OBJ_TIMEOUT_S):
+                r.score = np.exp( -(tCurr - r.ts) / tau ) * r.score
+                mrgLst.append( r )
+        
+        # Enforce consistency and return
+        return self.world.rectify_readings( mrgLst, suppressStorage = True )
+        
+
+    def most_likely_objects( self, objList, method = "unique-non-null" ):
+        """ Get the `N` most likely combinations of object classes """
+
+        ### Combination Generator ###
+
+        def gen_combos( objs ):
+            ## Init ##
+            comboList = [ [1.0,[],], ]
+            ## Generate all class combinations with joint probabilities ##
+            for bel in objs:
+                nuCombos = []
+                for combo_i in comboList:
+                    for label_j, prob_j in bel.labels.items():
+                        prob_ij = combo_i[0] * prob_j
+
+                        # objc_ij = GraspObj( label = label_j, pose = np.array( bel.pose ) )
+                        objc_ij = GraspObj( label = label_j, pose = bel.pose, prob = prob_j, score = bel.score )
+                        
+                        nuCombos.append( [prob_ij, combo_i[1]+[objc_ij,],] )
+                comboList = nuCombos
+            ## Sort all class combinations with decreasing probabilities ##
+            comboList.sort( key = (lambda x: x[0]), reverse = True )
+            return comboList
+
+        ### Filtering Methods ###
+
+        def p_unique_labels( objs ):
+            """ Return true if there are as many classes as there are objects """
+            lbls = set([sym.label for sym in objs])
+            return len( lbls ) == len( objs )
+        
+        def p_unique_non_null_labels( objs ):
+            """ Return true if there are as many classes as there are objects """
+            lbls = set([sym.label for sym in objs])
+            if _NULL_NAME in lbls: 
+                return False
+            return len( lbls ) == len( objs )
+        
+        def clean_dupes_prob( objLst ):
+            """ Return a version of `objLst` with duplicate objects removed """
+            dctMax = {}
+            for sym in objLst:
+                if not sym.label in dctMax:
+                    dctMax[ sym.label ] = sym
+                elif sym.prob > dctMax[ sym.label ].prob:
+                    dctMax[ sym.label ] = sym
+            return list( dctMax.values() )
+        
+        def clean_dupes_score( objLst ):
+            """ Return a version of `objLst` with duplicate objects removed """
+            dctMax = {}
+            for sym in objLst:
+                if not sym.label in dctMax:
+                    dctMax[ sym.label ] = sym
+                elif sym.score > dctMax[ sym.label ].score:
+                    dctMax[ sym.label ] = sym
+            return list( dctMax.values() )
+
+        ### Apply the chosen Filtering Method to all possible combinations ###
+
+        totCombos  = gen_combos( objList )
+        rtnSymbols = list()
+
+        if (method == "unique"):
+            for combo in totCombos:
+                if p_unique_labels( combo[1] ):
+                    rtnSymbols = combo[1]
+                    break
+        elif (method == "unique-non-null"):
+            for combo in totCombos:
+                if p_unique_non_null_labels( combo[1] ):
+                    rtnSymbols = combo[1]
+                    break
+        elif (method == "clean-dupes"):
+            rtnSymbols = clean_dupes_prob( totCombos[0][1] )
+        elif (method == "clean-dupes-score"):
+            rtnSymbols = clean_dupes_score( totCombos[0][1] )
+        else:
+            raise ValueError( f"`ResponsiveTaskPlanner.most_likely_objects`: Filtering method \"{method}\" is NOT recognized!" )
+        
+        ### Return all non-null symbols ###
+        return [sym for sym in rtnSymbols if sym.label != _NULL_NAME]
+    
+    def display_belief_geo( self, beliefList = None ):
+        
+        if beliefList is None:
+            geo = generate_belief_geo( self.beliefs )
+        else:
+            geo = generate_belief_geo( beliefList )
+        o3d.visualization.draw_geometries( geo )
+
+
+
     ##### Noisy Task Monitoring ###########################################
 
     def get_sampled_block( self, label ):
@@ -633,14 +744,11 @@ class ResponsiveTaskPlanner:
     def phase_1_Perceive( self, Nscans = 1, xform = None ):
         """ Take in evidence and form beliefs """
 
-        self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
-        self.reset_beliefs()
-        
         for _ in range( Nscans ):
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
-        # HACK: REMOVE HALLUCINATED OBJECTS WITH LESSER CONFIDENCE
-        self.symbols = self.memory.most_likely_objects( N = 1, cleanDupes = 0, cleanCollision = 0 )
+        self.beliefs = self.merge_and_reconcile_object_memories()
+        self.symbols = self.most_likely_objects( self.beliefs )
         self.status  = Status.RUNNING
 
         if _VERBOSE:
@@ -874,7 +982,7 @@ class ResponsiveTaskPlanner:
             self.phase_1_Perceive( 1, camPose )
 
             if _USE_GRAPHICS:
-                self.memory.display_belief_geo()
+                self.display_belief_geo()
 
             ##### Phase 2 ########################
 
@@ -956,7 +1064,7 @@ def responsive_experiment_prep( beginPlanPose = None ):
 
 ########## MAIN ####################################################################################
 _TROUBLESHOOT = 0
-_VISION_TEST  = 1
+_VISION_TEST  = 0
 _EXP_BGN_POSE = _HIGH_VIEW_POSE
 
 
