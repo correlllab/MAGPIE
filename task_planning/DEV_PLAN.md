@@ -19,8 +19,13 @@
     - `[Y]` Develop trust measure, 2024-07-24: Works as designed
     - `[Y]` `MoveHolding` updates previous trusted measure pose, 2024-07-24: Works as designed
 * `[Y]` Move `ObjectMemory.most_likely_objects` to the planner and adapt to merge the LKG and belief readings in a sane way, 2024-07-24: Needs testing
+* `[ ]` Add periodic updates to all `MoveFree` behaviors
+    - `[ ]` Lower movement speed so that updates *actually* occur during execution
 * `[>]` Test Bayesian belief update
     - `[ ]` Check that there is a distance limit on evidence application
+    - `[ ]` Check that belief timestamp is updated when the belief is updated
+    - `[ ]` Add the distribution change criterion back into the planner 
     - `[ ]` Add time and quality info to the `ObjectReading` string `__rep__`
+* `[ ]` Determine experimental confusion matrix
 * `[ ]` Test planner
 * `[ ]` Experiments x10
