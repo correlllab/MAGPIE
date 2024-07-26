@@ -15,12 +15,11 @@ from py_trees.common import Status
 from py_trees.composites import Sequence
 
 ### Local ###
-from task_planning.utils import row_vec_to_homog
 from task_planning.symbols import extract_row_vec_pose
 from env_config import _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED
 
 sys.path.append( "../" )
-from magpie.poses import pose_error
+from magpie.poses import translation_diff, vec_unit
 from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper
 
 
@@ -376,6 +375,23 @@ class Stack( GroundedAction ):
         )
 
 
+
+########## RESPONSIVE BT HELPER FUNCTIONS ##########################################################
+
+
+def linear_direction_from_A_to_B( poseA, poseB ):
+    """ Return the linear direction vector that points from `poseA` --to-> `poseB` """
+    return vec_unit( np.subtract( poseB[0:3,3], poseA[0:3,3] ) )
+
+
+def translate_pose_along_direction( pose, direction, distance ):
+    """ Translate `pose` along `direction` by magnitude `distance` """
+    rtnPose = np.array( pose )
+    rtnPose[0:3,3] += np.multiply( direction, distance )
+    return rtnPose
+
+
+
 ########## RESPONSIVE PLANNER BEHAVIOR TREES #######################################################
 
 
@@ -418,12 +434,10 @@ class PerceiveScene( BasicBehavior ):
 
 
 
-
-
 class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
     """ Get a replacement sequence for `MoveFree` that stops for perception at the appropriate times """
 
-    def __init__( self, mfBT, planner, sensePeriod_s, name = None ):
+    def __init__( self, mfBT, planner, sensePeriod_s, name = None, initSenseStep = True ):
 
         targetP = mfBT.poseEnd.copy()
         
@@ -432,8 +446,9 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         super().__init__( mfBT.args, mfBT.robot, name )
 
         # Init #
+        self.planner = planner
         self.distMax = _ROBOT_FREE_SPEED * sensePeriod_s
-        self.zSAFE = max( _Z_SAFE, targetP[2,3] ) # Eliminate (some) silly vertical movements
+        self.zSAFE   = max( _Z_SAFE, targetP[2,3] ) # Eliminate (some) silly vertical movements
         
         # Poses to be Modified at Ticktime #
         self.targetP = targetP
@@ -445,8 +460,9 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.moveJg = Sequence( "Leg 2", memory = True )
         self.mvTrgt = Sequence( "Leg 3", memory = True )
         
-        # 0. WARNING: Start with a sensing action
-        self.add_child( PerceiveScene( mfBT.args, robot = mfBT.robot, name = "PerceiveScene 1", planner = planner ) )
+        # 0. Optional: Start with a sensing action
+        if initSenseStep:
+            self.add_child( PerceiveScene( mfBT.args, robot = mfBT.robot, name = "PerceiveScene 1", planner = planner ) )
         # 1. Move direcly up from the starting pose
         self.add_child( self.moveUp )
         # 2. Translate to above the target
@@ -470,8 +486,69 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.pose2up = self.targetP.copy()
         self.pose2up[2, 3] = self.zSAFE
 
-        # 3. Construct child sequences
-        # FIXME: START HERE
+        # 3. Construct child sequences && Set them up
+        accumDist = 0.0
+
+        # WARNING: D.R.Y. VIOLATION!, 3X SIMILAR CODE
+
+        # A. Move direcly up from the starting pose
+        leg1dist = translation_diff( nowPose, self.pose1up )
+        leg1dir  = linear_direction_from_A_to_B( nowPose, self.pose1up )
+        if leg1dist < self.distMax:
+            accumDist += leg1dist
+        else:
+            lastPose = nowPose.copy()
+            while accumDist < leg1dist:
+                remnDist = translation_diff( lastPose, self.pose1up )
+                stepDist = min( self.distMax, remnDist )
+                stepPose = translate_pose_along_direction( lastPose, leg1dir, stepDist )
+                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
+                accumDist += stepDist
+                lastPose  = stepPose
+                if (not (stepDist < self.distMax)):
+                    self.moveUp.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
+        self.moveUp.setup_with_descendants()
+        
+        # B. Translate to above the target
+        leg2dist = translation_diff( self.pose1up, self.pose2up )
+        leg2dir  = linear_direction_from_A_to_B( self.pose1up, self.pose2up )
+        if (accumDist + leg2dist) < self.distMax:
+            accumDist += leg2dist
+        else:
+            lastPose = self.pose1up.copy()
+            trgtPose = self.pose2up.copy()
+            moveDir  = leg2dir
+            while accumDist < (leg1dist + leg2dist):
+                remnDist = translation_diff( lastPose, trgtPose )
+                stepDist = min( self.distMax, remnDist )
+                stepPose = translate_pose_along_direction( lastPose, moveDir, stepDist )
+                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
+                accumDist += stepDist
+                lastPose  = stepPose
+                if (not (stepDist < self.distMax)):
+                    self.moveJg.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
+        self.moveJg.setup_with_descendants()
+        
+        # C. Move to the target pose
+        leg3dist = translation_diff( self.pose2up, self.targetP )
+        leg3dir  = linear_direction_from_A_to_B( self.pose2up, self.targetP )
+        if (accumDist + leg3dist) < self.distMax:
+            accumDist += leg3dist
+        else:
+            lastPose = self.pose2up.copy()
+            trgtPose = self.targetP.copy()
+            moveDir  = leg3dir
+            while accumDist < (leg1dist + leg2dist + leg3dir):
+                remnDist = translation_diff( lastPose, trgtPose )
+                stepDist = min( self.distMax, remnDist )
+                stepPose = translate_pose_along_direction( lastPose, moveDir, stepDist )
+                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
+                accumDist += stepDist
+                lastPose  = stepPose
+                if (not (stepDist < self.distMax)):
+                    self.mvTrgt.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
+        self.mvTrgt.setup_with_descendants()
+        
 
 
 ########## PLANS ###################################################################################
