@@ -20,5 +20,7 @@
     - `[Y]` `MoveHolding` updates previous trusted measure pose, 2024-07-24: Works as designed
 * `[Y]` Move `ObjectMemory.most_likely_objects` to the planner and adapt to merge the LKG and belief readings in a sane way, 2024-07-24: Needs testing
 * `[>]` Test Bayesian belief update
+    - `[ ]` Check that there is a distance limit on evidence application
+    - `[ ]` Add time and quality info to the `ObjectReading` string `__rep__`
 * `[ ]` Test planner
 * `[ ]` Experiments x10

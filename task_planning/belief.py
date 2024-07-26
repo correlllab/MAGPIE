@@ -9,7 +9,6 @@ from time import sleep
 ### Special ###
 import numpy as np
 import open3d as o3d
-import pyglet
 from pyglet.window import Window
 
 ### Local ###

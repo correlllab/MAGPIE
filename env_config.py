@@ -35,16 +35,21 @@ _CLR_TABLE  = {
 
 ########## OBJECTS #################################################################################
 
-_NULL_NAME      = "NOTHING"
-_ONLY_RED       = False
-_ONLY_PRIMARY   = False
-_ONLY_SECONDARY = False
+_NULL_NAME       = "NOTHING"
+
+_ONLY_RED        = False
+_ONLY_PRIMARY    = False
+_ONLY_SECONDARY  = False
+_ONLY_EXPERIMENT = True
+
 if _ONLY_RED:
     _BLOCK_NAMES  = ['redBlock', _NULL_NAME]
 elif _ONLY_PRIMARY:
     _BLOCK_NAMES  = ['redBlock', 'ylwBlock', 'bluBlock', _NULL_NAME,]
 elif _ONLY_SECONDARY:
     _BLOCK_NAMES  = ['grnBlock', 'ornBlock', 'vioBlock', _NULL_NAME,]
+elif _ONLY_EXPERIMENT:
+    _BLOCK_NAMES  = ['grnBlock', 'bluBlock', 'ylwBlock', _NULL_NAME,]
 else:
     _BLOCK_NAMES  = ['redBlock', 'ylwBlock', 'bluBlock', 'grnBlock', 'ornBlock', 'vioBlock', _NULL_NAME,]
 
@@ -63,7 +68,13 @@ _MAX_Y_OFFSET = -0.290 + 0.050
 _MAX_Z_BOUND  = _BLOCK_SCALE*4.0
 _X_WRK_SPAN = _MAX_X_OFFSET - _MIN_X_OFFSET
 _Y_WRK_SPAN = _MAX_Y_OFFSET - _MIN_Y_OFFSET
+
+
+
+########## SIMULATION ##############################################################################
+
 _ROBOT_SPEED  = _BLOCK_SCALE / 20.0
+
 
 
 ########## BELIEFS #################################################################################

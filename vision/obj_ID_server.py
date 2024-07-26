@@ -474,11 +474,12 @@ class Perception_OWLViT:
 
         except Exception as e:
             print(f"Error building model: {e}", flush=True, file=sys.stderr)
+            traceback.print_exc()
             raise e
         
         except KeyboardInterrupt as e:
-            print( f"Program was stopped by user: {e}", flush=True, file=sys.stderr )
-            traceback.print_exc()
+            print( f"\n`build_model` was stopped by user: {e}\n", flush=True, file=sys.stderr )
+            raise e
 
 
 

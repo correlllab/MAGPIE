@@ -105,6 +105,7 @@ class ObjectReading( GraspObj ):
         """ Make a copy of this belief """
         rtnObj = ObjectReading()
         rtnObj.labels  = deepcopy( self.labels ) # Current belief in each class
+        rtnObj.pose    = self.pose
         rtnObj.visited = False # ----------------- Flag: Was this belief associated with a relevant reading
         rtnObj.ts      = self.ts # --------------- When was this reading created? [epoch time]
         rtnObj.count   = self.count # ------------ How many bounding boxes generated this reading?

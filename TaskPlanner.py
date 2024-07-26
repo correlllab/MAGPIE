@@ -25,6 +25,7 @@ from datetime import datetime
 ### Special ###
 import numpy as np
 from py_trees.common import Status
+import open3d as o3d
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
@@ -101,8 +102,11 @@ def entropy_factor( probs ):
     if isinstance( probs, dict ):
         probs = list( probs.values() )
     tot = 0.0
+    # N   = 0
     for p in probs:
-        tot -= p * np.log(p)
+        if p > 0.0:
+            tot -= p * np.log(p)
+            # N   += 1
     return tot / np.log( len( probs ) )
 
 
@@ -625,7 +629,9 @@ class ResponsiveTaskPlanner:
             raise ValueError( f"`ResponsiveTaskPlanner.most_likely_objects`: Filtering method \"{method}\" is NOT recognized!" )
         
         ### Return all non-null symbols ###
-        return [sym for sym in rtnSymbols if sym.label != _NULL_NAME]
+        rtnLst = [sym for sym in rtnSymbols if sym.label != _NULL_NAME]
+        print( f"\nDeterminized {len(rtnLst)} objects!\n" )
+        return rtnLst
     
     def display_belief_geo( self, beliefList = None ):
         
@@ -748,13 +754,15 @@ class ResponsiveTaskPlanner:
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
         self.beliefs = self.merge_and_reconcile_object_memories()
-        self.symbols = self.most_likely_objects( self.beliefs )
+        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes" )
         self.status  = Status.RUNNING
 
         if _VERBOSE:
             print( f"\nStarting Objects:" )
             for obj in self.symbols:
                 print( f"\t{obj}" )
+            if not len( self.symbols ):
+                print( f"\tNO OBJECTS DETERMINIZED" )
 
 
     def allocate_table_swap_space( self, Nspots = _N_XTRA_SPOTS ):
