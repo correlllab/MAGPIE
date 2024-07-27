@@ -12,19 +12,17 @@ import numpy as np
 
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _NULL_THRESH, 
-                         _BLOCK_NAMES, _VERBOSE, _SCORE_FILTER_EXP, )
+                         _BLOCK_NAMES, _VERBOSE, _SCORE_FILTER_EXP, _OBJ_TIMEOUT_S, _NULL_EVIDENCE,
+                         _DEF_NULL_SCORE, )
 from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, multiclass_Bayesian_belief_update, get_confusion_matx, 
                                   get_confused_class_reading )
 from task_planning.symbols import euclidean_distance_between_symbols
 sys.path.append( "../magpie/" )
 from magpie.poses import translation_diff
 
+
+
 ########## HELPER FUNCTIONS ########################################################################
-
-def d_between_obj_poses( obj1, obj2 ):
-    """ Calculate the translation between poses in the same frame """
-    return np.linalg.norm( np.subtract( obj1.pose[:3], obj2.pose[:3] ) )
-
 
 def extract_class_dist_in_order( obj, order = _BLOCK_NAMES ):
     """ Get the discrete class distribution, in order according to environment variable """
@@ -137,7 +135,7 @@ class ObjectMemory:
         """ Erase all beliefs and cached symbols that no longer have relevancy """
         retain = []
         for belief in self.beliefs:
-            if belief.labels[ _NULL_NAME ] < _NULL_THRESH:
+            if (belief.labels[ _NULL_NAME ] < _NULL_THRESH) and ((now() - belief.ts) <= _OBJ_TIMEOUT_S):
                 retain.append( belief )
             elif _VERBOSE:
                 print( f"{str(belief)} DESTROYED!" )
@@ -150,7 +148,10 @@ class ObjectMemory:
         for belief in self.beliefs:
             if belief.visited:
                 vstScores.append( belief.score )
-        nuScore = np.mean( vstScores )
+        if len( vstScores ):
+            nuScore = np.mean( vstScores )
+        else:
+            nuScore = _DEF_NULL_SCORE
         for belief in self.beliefs:
             if (not belief.visited):
                 self.integrate_null( belief, avgScore = nuScore )
@@ -179,7 +180,8 @@ class ObjectMemory:
                 else:
                     cNu += 1
             ## Decay Irrelevant Beliefs ##
-            self.decay_beliefs()
+            if _NULL_EVIDENCE:
+                self.decay_beliefs()
 
         if _VERBOSE:
             if (cNu or cIn):

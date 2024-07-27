@@ -11,7 +11,6 @@ from itertools import count
 import numpy as np
 
 ### Local ###
-from task_planning.utils import NaN_row_vec
 from graphics.homog_utils import R_quat, homog_xform
 from magpie.poses import translation_diff
 from env_config import _NULL_NAME
@@ -20,7 +19,7 @@ from env_config import _NULL_NAME
 
 ########## HELPER FUNCTIONS ########################################################################
 
-def extract_row_vec_pose( obj_or_arr ):
+def extract_np_array_pose( obj_or_arr ):
     """ Return only a copy of the row vector representing the 3D pose """
     if isinstance( obj_or_arr, (list, np.ndarray,) ):
         return np.array( obj_or_arr )
@@ -29,12 +28,12 @@ def extract_row_vec_pose( obj_or_arr ):
     elif isinstance( obj_or_arr, (GraspObj, ObjectReading,) ):
         return np.array( obj_or_arr.pose.pose )
     else:
-        return NaN_row_vec()
+        return None
     
 
 def extract_pose_as_homog( obj_or_arr ):
     """ Return only a copy of the homogeneous coordinates of the 3D pose """
-    bgnPose = extract_row_vec_pose( obj_or_arr )
+    bgnPose = extract_np_array_pose( obj_or_arr )
     if len( bgnPose ) == 4:
         return bgnPose
     elif len( bgnPose ) == 7:
@@ -64,7 +63,7 @@ class ObjPose:
     num = count()
 
     def __init__( self, pose = None ):
-        self.pose  = np.array( pose ) if isinstance(pose, (list,np.ndarray,)) else np.array([0,0,0,1,0,0,0])
+        self.pose  = extract_pose_as_homog( pose ) if (pose is not None) else extract_pose_as_homog( [0,0,0,1,0,0,0] )
         self.index = next( self.num )
 
     def row_vec( self ):
@@ -96,7 +95,7 @@ class GraspObj:
 
     def __repr__( self ):
         """ Text representation of noisy reading """
-        return f"<GraspObj {self.index} @ {extract_position( self.pose )}, Class: {str(self.label)}>"
+        return f"<GraspObj {self.index} @ {extract_position( self.pose )}, Class: {str(self.label)}, Score: {str(self.score)}>"
 
 
 

@@ -35,7 +35,8 @@ from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_N
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
-from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
+from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm,
+                                  breakpoint, )
 from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
                                     Interleaved_MoveFree_and_PerceiveScene, MoveFree, )
 from task_planning.belief import ObjectMemory
@@ -45,7 +46,7 @@ sys.path.append( "./graphics/" )
 from graphics.draw_beliefs import generate_belief_geo
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
-from magpie.poses import repair_pose, translation_diff
+from magpie.poses import repair_pose
 
 
 
@@ -70,11 +71,14 @@ def match_name( shortName ):
 
 def rand_table_pose():
     """ Return a random pose in the direct viscinity if the robot """
-    return [ 
-        _MIN_X_OFFSET + (_MAX_X_OFFSET-_MIN_X_OFFSET)*random(), 
-        _MIN_Y_OFFSET + (_MAX_Y_OFFSET-_MIN_Y_OFFSET)*random(), 
-        _BLOCK_SCALE 
-    ], [0, 0, 0, 1]
+    rtnPose = np.eye(4)
+    rtnPose[0:3,3] = [ 
+        _MIN_X_OFFSET + _X_WRK_SPAN*random(), 
+        _MIN_Y_OFFSET + _Y_WRK_SPAN*random(), 
+        _BLOCK_SCALE,
+    ]
+    return rtnPose
+    
 
 
 def p_inside_workspace_bounds( pose ):
@@ -90,9 +94,6 @@ def p_inside_workspace_bounds( pose ):
     else:
         raise ValueError( f"`p_inside_workspace_bounds`: Input was neither homogeneous nor [Px,Py,Pz,Ow,Ox,Oy,Oz]\n{pose}" )        
     return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
-
-
-
 
 
 def entropy_factor( probs ):
@@ -165,8 +166,9 @@ class VisualCortex:
 
     def snap_z_to_nearest_block_unit_above_zero( self, z ):
         """ SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE """
-        zUnit = np.rint( (z-(_BLOCK_SCALE/2.0)+_Z_SNAP_BOOST) / _BLOCK_SCALE ) # Quantize to multiple of block unit length
-        zBloc = (zUnit*_BLOCK_SCALE) + (_BLOCK_SCALE/2.0)
+        sHalf = (_BLOCK_SCALE/2.0)
+        zUnit = np.rint( (z-sHalf+_Z_SNAP_BOOST) / _BLOCK_SCALE ) # Quantize to multiple of block unit length
+        zBloc = max( (zUnit*_BLOCK_SCALE)+sHalf, sHalf )
         return zBloc
         # return max( zBloc, _BLOCK_SCALE )
 
@@ -391,19 +393,19 @@ class ResponsiveTaskPlanner:
 
     ##### Stream Helpers ##################################################
 
-    def get_grounded_pose_or_new( self, rowVec ):
-        """ If there is a `Waypoint` approx. to `rowVec`, then return it, Else create new `ObjPose` """
+    def get_grounded_pose_or_new( self, homog ):
+        """ If there is a `Waypoint` approx. to `homog`, then return it, Else create new `ObjPose` """
         for fact in self.facts:
-            if fact[0] == 'Waypoint' and (diff_norm( rowVec[:3], fact[1].pose[:3] ) <= _ACCEPT_POSN_ERR):
+            if fact[0] == 'Waypoint' and ( euclidean_distance_between_symbols( homog, fact[1] ) <= _ACCEPT_POSN_ERR):
                 return fact[1]
-        return ObjPose( rowVec )
+        return ObjPose( homog )
 
 
     def p_grounded_fact_pose( self, poseOrObj ):
         """ Does this exist as a `Waypoint`? """
-        rowVec = extract_row_vec_pose( poseOrObj )
+        homog = extract_pose_as_homog( poseOrObj )
         for fact in self.facts:
-            if fact[0] == 'Waypoint' and (diff_norm( rowVec[:3], fact[1].pose[:3] ) <= _ACCEPT_POSN_ERR):
+            if fact[0] == 'Waypoint' and ( euclidean_distance_between_symbols( homog, fact[1] ) <= _ACCEPT_POSN_ERR):
                 return True
         return False
     
@@ -423,8 +425,8 @@ class ResponsiveTaskPlanner:
 
             for sym in self.symbols:
                 if sym.label == objcName:
-                    upPose = sym.pose.pose.copy()
-                    upPose[2] += _BLOCK_SCALE
+                    upPose = extract_pose_as_homog( sym )
+                    upPose[2,3] += _BLOCK_SCALE
 
                     rtnPose = self.get_grounded_fact_pose_or_new( upPose )
                     print( f"FOUND a pose {rtnPose} supported by {objcName}!" )
@@ -452,11 +454,8 @@ class ResponsiveTaskPlanner:
             while not placed:
                 testPose  = rand_table_pose()
                 print( f"\t\tSample: {testPose}" )
-                posn , _  = row_vec_to_pb_posn_ornt( testPose )
-                collide   = False
                 for sym in self.symbols:
-                    symPosn, _ = row_vec_to_pb_posn_ornt( sym.pose.pose )
-                    if diff_norm( posn, symPosn ) < ( _MIN_SEP ):
+                    if euclidean_distance_between_symbols( testPose, sym ) < ( _MIN_SEP ):
                         collide = True
                         break
                 if not collide:
@@ -474,12 +473,10 @@ class ResponsiveTaskPlanner:
             print( f"\nEvaluate PLACEMENT test with args: {args}\n" )
             # ?pose
             chkPose   = args[0]
-            posn , _  = row_vec_to_pb_posn_ornt( chkPose.pose )
             print( f"Symbols: {self.symbols}" )
 
             for sym in self.symbols:
-                symPosn, _ = row_vec_to_pb_posn_ornt( sym.pose.pose )
-                if diff_norm( posn, symPosn ) < ( _MIN_SEP ):
+                if euclidean_distance_between_symbols( chkPose, sym ) < ( _MIN_SEP ):
                     print( f"PLACEMENT test FAILURE\n" )
                     return False
             print( f"PLACEMENT test SUCCESS\n" )
@@ -548,7 +545,11 @@ class ResponsiveTaskPlanner:
         # Filter and Decay stale readings
         for r in totLst:
             if ((tCurr - r.ts) <= _OBJ_TIMEOUT_S):
-                r.score = np.exp( -(tCurr - r.ts) / tau ) * r.score
+                score_r = np.exp( -(tCurr - r.ts) / tau ) * r.score
+                if isnan( score_r ):
+                    print( f"\nWARN: Got a NaN score with count {r.count}, distribution {r.labels}, and age {tCurr - r.ts}\n" )
+                    score_r = 0.0
+                r.score = score_r
                 mrgLst.append( r )
         
         # Enforce consistency and return
@@ -570,7 +571,6 @@ class ResponsiveTaskPlanner:
                     for label_j, prob_j in bel.labels.items():
                         prob_ij = combo_i[0] * prob_j
 
-                        # objc_ij = GraspObj( label = label_j, pose = np.array( bel.pose ) )
                         objc_ij = GraspObj( label = label_j, pose = bel.pose, prob = prob_j, score = bel.score )
                         
                         nuCombos.append( [prob_ij, combo_i[1]+[objc_ij,],] )
@@ -660,14 +660,14 @@ class ResponsiveTaskPlanner:
         return None
     
 
-    def get_grounded_fact_pose_or_new( self, rowVec ):
-        """ If there is a `Waypoint` approx. to `rowVec`, then return it, Else create new `ObjPose` """ 
+    def get_grounded_fact_pose_or_new( self, homog ):
+        """ If there is a `Waypoint` approx. to `homog`, then return it, Else create new `ObjPose` """ 
         for fact in self.facts:
-            if fact[0] == 'Waypoint' and (diff_norm( rowVec[:3], fact[1].pose[:3] ) <= _ACCEPT_POSN_ERR):
+            if fact[0] == 'Waypoint' and (euclidean_distance_between_symbols( homog, fact[1] ) <= _ACCEPT_POSN_ERR):
                 return fact[1]
-            if fact[0] == 'GraspObj' and (diff_norm( rowVec[:3], fact[2].pose[:3] ) <= _ACCEPT_POSN_ERR):
+            if fact[0] == 'GraspObj' and (euclidean_distance_between_symbols( homog, fact[2] ) <= _ACCEPT_POSN_ERR):
                 return fact[2]
-        return ObjPose( rowVec )
+        return ObjPose( homog )
     
     
     def ground_relevant_predicates_noisy( self ):
@@ -688,7 +688,7 @@ class ResponsiveTaskPlanner:
                 pLbl = g[1]
                 pPos = g[2]
                 tObj = self.get_sampled_block( pLbl )
-                if (tObj is not None) and (diff_norm( pPos.pose[:3], tObj.pose.pose[:3] ) <= _ACCEPT_POSN_ERR):
+                if (tObj is not None) and (euclidean_distance_between_symbols( pPos, tObj ) <= _ACCEPT_POSN_ERR):
                     rtnFacts.append( g ) # Position goal met
         # B. No need to ground the rest
 
@@ -700,22 +700,22 @@ class ResponsiveTaskPlanner:
                 if i != j:
                     lblUp = sym_i.label
                     lblDn = sym_j.label
-                    posUp = sym_i.pose
-                    posDn = sym_j.pose
-                    xySep = diff_norm( posUp.pose[:2], posDn.pose[:2] )
-                    zSep  = posUp.pose[2] - posDn.pose[2] # Signed value
+                    posUp = extract_pose_as_homog( sym_i )
+                    posDn = extract_pose_as_homog( sym_j )
+                    xySep = diff_norm( posUp[0:2,3], posDn[0:2,3] )
+                    zSep  = posUp[2,3] - posDn[2,3] # Signed value
                     if ((xySep <= 1.65*_BLOCK_SCALE) and (1.65*_BLOCK_SCALE >= zSep >= 0.9*_BLOCK_SCALE)):
                         supDices.add(i)
                         rtnFacts.extend([
                             ('Supported', lblUp, lblDn,),
                             ('Blocked', lblDn,),
-                            ('PoseAbove', self.get_grounded_fact_pose_or_new( posUp.pose ), lblDn,),
+                            ('PoseAbove', self.get_grounded_fact_pose_or_new( posUp ), lblDn,),
                         ])
         for i, sym_i in enumerate( self.symbols ):
             if i not in supDices:
                 rtnFacts.extend( [
                     ('Supported', sym_i.label, 'table',),
-                    ('PoseAbove', self.get_grounded_fact_pose_or_new( sym_i.pose.pose ), 'table',),
+                    ('PoseAbove', self.get_grounded_fact_pose_or_new( sym_i ), 'table',),
                 ] )
         ## Where the robot at? ##
         robotPose = ObjPose( self.robot.get_tcp_pose() )
@@ -776,15 +776,13 @@ class ResponsiveTaskPlanner:
         """ Find some open poses on the table for performing necessary swaps """
         rtnFacts  = []
         freeSpots = []
-        occuSpots = [ np.array( sym.pose.pose ) for sym in self.symbols]
+        occuSpots = [ extract_pose_as_homog( sym ) for sym in self.symbols]
         while len( freeSpots ) < Nspots:
-            nuPose = pb_posn_ornt_to_row_vec( *rand_table_pose() )
+            nuPose = rand_table_pose()
             print( f"\t\tSample: {nuPose}" )
-            posn    = nuPose[:3]
             collide = False
             for spot in occuSpots:
-                symPosn = spot[:3]
-                if diff_norm( posn, symPosn ) < ( _MIN_SEP ):
+                if euclidean_distance_between_symbols( spot, nuPose ) < ( _MIN_SEP ):
                     collide = True
                     break
             if not collide:
@@ -813,15 +811,14 @@ class ResponsiveTaskPlanner:
             for g in self.goal[1:]:
                 if g[0] == 'GraspObj':
                     self.facts.append( ('Waypoint', g[2],) )
-                    if abs(g[2].pose[2] - _BLOCK_SCALE) < _ACCEPT_POSN_ERR:
+                    if abs( extract_pose_as_homog(g[2])[2,3] - _BLOCK_SCALE) < _ACCEPT_POSN_ERR:
                         self.facts.append( ('PoseAbove', g[2], 'table') )
 
             ## Ground the Blocks ##
             for sym in self.symbols:
                 self.facts.append( ('Graspable', sym.label,) )
 
-                # blockPose, p_factDex, p_goalDex = self.get_grounded_pose_or_new( sym.pose.pose )
-                blockPose = self.get_grounded_fact_pose_or_new( sym.pose.pose )
+                blockPose = self.get_grounded_fact_pose_or_new( sym )
 
                 # print( f"`blockPose`: {blockPose}" )
                 self.facts.append( ('GraspObj', sym.label, blockPose,) )
@@ -1188,6 +1185,8 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             # User Panic: Attempt to shut down gracefully
             print( f"\nSystem SHUTDOWN initiated by user!, Planner Status: {planner.status}\n" )
+            print_exc()
+            print()
             planner.shutdown()
 
         except Exception as e:

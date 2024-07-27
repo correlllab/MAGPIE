@@ -73,11 +73,12 @@ _Y_WRK_SPAN = _MAX_Y_OFFSET - _MIN_Y_OFFSET
 
 ########## ROBOT ###################################################################################
 
-_ROBOT_FREE_SPEED  =  0.125
-_ROBOT_HOLD_SPEED  =  0.125
-_MOVE_COOLDOWN_S   =  0.5
-_BT_UPDATE_HZ      = 10.0
-_BT_ACT_TIMEOUT_S  = 20.0
+_ROBOT_FREE_SPEED   =  0.125
+_ROBOT_HOLD_SPEED   =  0.125
+_MOVE_COOLDOWN_S    =  0.5
+_BT_UPDATE_HZ       = 10.0
+_BT_ACT_TIMEOUT_S   = 20.0
+_MIN_CAM_PCD_DIST_M = 0.075 + _BLOCK_SCALE
 
 
 
@@ -87,14 +88,16 @@ _CONFUSE_PROB     = 0.025 # 0.05 # 0.001 # 0.001 # 0.025 # 0.05
 _NULL_THRESH      = 0.75
 _EXIST_THRESH     = 0.05
 _MAX_UPDATE_RAD_M = 2.0*_BLOCK_SCALE
+_NULL_EVIDENCE    = True
 
 
 ########## OBJECT PERMANENCE #######################################################################
 
 _SCORE_FILTER_EXP  =   0.75 # During a belief update, accept the new score at this rate
-_SCORE_DECAY_TAU_S =  10.0 # Score time constant, for freshness 
+_SCORE_DECAY_TAU_S =  20.0 # Score time constant, for freshness 
 _OBJ_TIMEOUT_S     = 120.0 # Readings older than this are not considered
-_UPDATE_PERIOD_S   = 4.0 # Number of seconds between belief updates
+_UPDATE_PERIOD_S   =   8.0 # Number of seconds between belief updates
+_DEF_NULL_SCORE    =   0.75 # Default null score if there was no comparison
 
 
 
