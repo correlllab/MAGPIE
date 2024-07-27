@@ -30,12 +30,13 @@ import open3d as o3d
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
-                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M )
+                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S, )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
 from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm, )
-from task_planning.actions import display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner
+from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
+                                    Interleaved_MoveFree_and_PerceiveScene, MoveFree, )
 from task_planning.belief import ObjectMemory
 sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
@@ -909,6 +910,23 @@ class ResponsiveTaskPlanner:
         self.logger.log_event( "BT END", str( btr.status ) )
 
         print( f"Did the BT move a reading?: {self.world.move_reading_from_BT_plan( self.action )}" )
+
+
+    def phase_5_Return_Home( self, goPose ):
+        """ Get ready for next iteration while updating beliefs """
+        btAction = Interleaved_MoveFree_and_PerceiveScene( 
+            MoveFree( [None, ObjPose( goPose )], robot = self.robot ), 
+            self, 
+            _UPDATE_PERIOD_S, 
+            initSenseStep = True 
+        )
+        btr = BT_Runner( btAction, 50.0, 30.0 )
+        btr.setup_BT_for_running()
+
+        while not btr.p_ended():
+            btr.tick_once()
+
+        print( f"\nRobot returned to \n{goPose}\n" )
         
 
 
@@ -964,15 +982,19 @@ class ResponsiveTaskPlanner:
 
         print( "\n\n\n##### TASK BEGIN #####\n" )
 
-        self.reset_state()
+        self.reset_beliefs() 
+        self.reset_state() 
         self.set_goal()
         self.logger.begin_trial()
 
         indicateSuccess = False
+        t5              = now()
+
+        self.robot.moveL( beginPlanPose, asynch = False ) # 2024-07-22: MUST WAIT FOR ROBOT TO MOVE
 
         while (self.status != Status.SUCCESS) and (i < maxIter): # and (not self.PANIC):
 
-            self.robot.moveL( beginPlanPose, asynch = False ) # 2024-07-22: MUST WAIT FOR ROBOT TO MOVE
+            
             # sleep(1)
 
             print( f"### Iteration {i+1} ###" )
@@ -983,14 +1005,16 @@ class ResponsiveTaskPlanner:
 
             print( f"Phase 1, {self.status} ..." )
 
-            self.reset_beliefs() # WARNING: REMOVE FOR RESPONSIVE
-            self.reset_state() # - WARNING: REMOVE FOR RESPONSIVE
             self.set_goal()
 
             camPose = self.robot.get_cam_pose()
+
+            expBgn = now()
+            if (expBgn - t5) < _UPDATE_PERIOD_S:
+                sleep( _UPDATE_PERIOD_S - (expBgn - t5) )
             
             self.phase_1_Perceive( 1, camPose )
-
+            
             if _USE_GRAPHICS:
                 self.display_belief_geo()
 
@@ -1028,7 +1052,18 @@ class ResponsiveTaskPlanner:
             ##### Phase 4 ########################
 
             print( f"Phase 4, {self.status} ..." )
+            t4 = now()
+            if (t4 - expBgn) < _UPDATE_PERIOD_S:
+                sleep( _UPDATE_PERIOD_S - (t4 - expBgn) )
             self.phase_4_Execute_Action()
+
+            ##### Phase 5 ########################
+
+            print( f"Phase 5, {self.status} ..." )
+            t5 = now()
+            if (t5 - t4) < _UPDATE_PERIOD_S:
+                sleep( _UPDATE_PERIOD_S - (t5 - t4) )
+            self.phase_5_Return_Home( beginPlanPose )
 
             print()
 

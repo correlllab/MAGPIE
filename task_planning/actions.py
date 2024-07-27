@@ -442,7 +442,8 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         targetP = mfBT.poseEnd.copy()
         
         if name is None:
-            name = f"`Interleaved_MoveFree_and_Perceive`, args: {mfBT.args}"
+            # name = f"`Interleaved_MoveFree_and_Perceive`, args: {mfBT.args}"
+            name = f"Interleaved_MoveFree_and_Perceive, {mfBT.name}"
         super().__init__( mfBT.args, mfBT.robot, name )
 
         # Init #
@@ -488,67 +489,47 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
 
         # 3. Construct child sequences && Set them up
         accumDist = 0.0
+        targtDist = 0.0
+        modloDist = 0.0
+        senseNum  = 1
+        dstPoses  = [ self.pose1up, self.pose2up, self.targetP ]
+        seqMoves  = [ self.moveUp , self.moveJg , self.mvTrgt  ]
+        lastPose  = nowPose.copy()
 
-        # WARNING: D.R.Y. VIOLATION!, 3X SIMILAR CODE
+        # A. For every waypoint in this jog action, do
+        for i in range( len(dstPoses) ):
 
-        # A. Move direcly up from the starting pose
-        leg1dist = translation_diff( nowPose, self.pose1up )
-        leg1dir  = linear_direction_from_A_to_B( nowPose, self.pose1up )
-        if leg1dist < self.distMax:
-            accumDist += leg1dist
-        else:
-            lastPose = nowPose.copy()
-            while accumDist < leg1dist:
-                remnDist = translation_diff( lastPose, self.pose1up )
-                stepDist = min( self.distMax, remnDist )
-                stepPose = translate_pose_along_direction( lastPose, leg1dir, stepDist )
-                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
-                accumDist += stepDist
-                lastPose  = stepPose
-                if (not (stepDist < self.distMax)):
-                    self.moveUp.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
-        self.moveUp.setup_with_descendants()
-        
-        # B. Translate to above the target
-        leg2dist = translation_diff( self.pose1up, self.pose2up )
-        leg2dir  = linear_direction_from_A_to_B( self.pose1up, self.pose2up )
-        if (accumDist + leg2dist) < self.distMax:
-            accumDist += leg2dist
-        else:
-            lastPose = self.pose1up.copy()
-            trgtPose = self.pose2up.copy()
-            moveDir  = leg2dir
-            while accumDist < (leg1dist + leg2dist):
-                remnDist = translation_diff( lastPose, trgtPose )
-                stepDist = min( self.distMax, remnDist )
-                stepPose = translate_pose_along_direction( lastPose, moveDir, stepDist )
-                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
-                accumDist += stepDist
-                lastPose  = stepPose
-                if (not (stepDist < self.distMax)):
-                    self.moveJg.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
-        self.moveJg.setup_with_descendants()
-        
-        # C. Move to the target pose
-        leg3dist = translation_diff( self.pose2up, self.targetP )
-        leg3dir  = linear_direction_from_A_to_B( self.pose2up, self.targetP )
-        if (accumDist + leg3dist) < self.distMax:
-            accumDist += leg3dist
-        else:
-            lastPose = self.pose2up.copy()
-            trgtPose = self.targetP.copy()
-            moveDir  = leg3dir
-            while accumDist < (leg1dist + leg2dist + leg3dir):
-                remnDist = translation_diff( lastPose, trgtPose )
-                stepDist = min( self.distMax, remnDist )
-                stepPose = translate_pose_along_direction( lastPose, moveDir, stepDist )
-                self.moveUp.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
-                accumDist += stepDist
-                lastPose  = stepPose
-                if (not (stepDist < self.distMax)):
-                    self.mvTrgt.add_child(  PerceiveScene( self.args, self.ctrl, planner = self.planner )  )
-        self.mvTrgt.setup_with_descendants()
-        
+            # B. Compute leg parameters
+            dstPose_i = dstPoses[i]
+            seqMove_i = seqMoves[i]
+            legDist_i = translation_diff( lastPose, dstPose_i )
+            legDirV_i = linear_direction_from_A_to_B( lastPose, dstPose_i )
+            targtDist += legDist_i
+
+            # C. While traversing this leg, do
+            while accumDist < targtDist:
+
+                # D. Calc remaining distance and Step distance
+                remnDist = translation_diff( lastPose, dstPose_i )
+                stepDist = min( [modloDist, remnDist, self.distMax,] )
+                # E. If step, then Move Action
+                if stepDist > 0.005:
+                    stepPose = translate_pose_along_direction( lastPose, legDirV_i, stepDist )
+                    seqMove_i.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
+                    modloDist -= stepDist
+                    accumDist += stepDist
+                # F. Else Sense Action
+                else:
+                    seqMove_i.add_child(  
+                        PerceiveScene( self.args, 
+                                    self.ctrl, 
+                                    name = f"PerceiveScene {senseNum}", planner = self.planner )  
+                    )
+                    modloDist = self.distMax
+                        
+            # G. Prep sequence
+            seqMove_i.setup_with_descendants()
+
 
 
 ########## PLANS ###################################################################################
@@ -578,13 +559,18 @@ class Plan( Sequence ):
 
 ########## PDLS --TO-> BT ##########################################################################
 
-def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot ):
+def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot, planner, sensePeriod_s ):
     """ Fetch the `i`th item from `pdlsPlan` and parameterize a BT that operates on the environment """
     actName  = pdlsPlan[i].name
     actArgs  = pdlsPlan[i].args
     btAction = None
     if actName == "move_free":
-        btAction = MoveFree( actArgs, robot = robot )
+        btAction = Interleaved_MoveFree_and_PerceiveScene( 
+            MoveFree( actArgs, robot = robot ), 
+            planner, 
+            sensePeriod_s, 
+            initSenseStep = True 
+        )
     elif actName == "pick":
         btAction = Pick( actArgs, robot = robot )
     elif actName == "unstack":
