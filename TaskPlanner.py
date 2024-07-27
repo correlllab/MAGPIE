@@ -12,13 +12,13 @@ Contacts: {james.watson-2@colorado.edu,}
 ### Standard ###
 import sys, time, os
 now = time.time
-from queue import Queue
 from time import sleep
 from pprint import pprint
 from random import random
 from copy import deepcopy
 from traceback import print_exc, format_exc
 from datetime import datetime
+from math import isnan
 
 
 
@@ -30,7 +30,8 @@ import open3d as o3d
 ### Local ###
 from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
-                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S, )
+                         _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S,
+                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
@@ -179,8 +180,12 @@ class VisualCortex:
             dstrb = {}
             blcZ  = 0.0
             tScan = item['Time']
+
             for nam, prb in item['Probability'].items():
                 dstrb[ match_name( nam ) ] = prb
+            if _NULL_NAME not in dstrb:
+                dstrb[ _NULL_NAME ] = 0.0
+
             if len( item['Pose'] ) == 16:
                 objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
                 # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
@@ -190,8 +195,13 @@ class VisualCortex:
                 # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
                 blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
                 objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
+            
             # Attempt to quantify how much we trust this reading
             score_i = (1.0 - entropy_factor( dstrb )) * item['Count']
+            if isnan( score_i ):
+                print( f"\nWARN: Got a NaN score with count {item['Count']} and distribution {dstrb}\n" )
+                score_i = 0.0
+
             rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i ) )
         return rtnBel
     
@@ -879,7 +889,7 @@ class ResponsiveTaskPlanner:
         if (plan is not None) and len( plan ):
             display_PDLS_plan( plan )
             self.currPlan = plan
-            self.action   = get_BT_plan_until_block_change( plan, self.robot )
+            self.action   = get_BT_plan_until_block_change( plan, self, _UPDATE_PERIOD_S )
             self.noSoln   = 0 # DEATH MONITOR
         else:
             self.noSoln += 1 # DEATH MONITOR
@@ -890,7 +900,7 @@ class ResponsiveTaskPlanner:
     def phase_4_Execute_Action( self ):
         """ Attempt to execute the first action in the symbolic plan """
         
-        btr = BT_Runner( self.action, 50.0, 30.0 )
+        btr = BT_Runner( self.action, _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S )
         btr.setup_BT_for_running()
 
         lastTip = None
@@ -907,6 +917,8 @@ class ResponsiveTaskPlanner:
                 self.status = Status.FAILURE
                 self.logger.log_event( "Action Failure", btr.msg )
 
+            btr.per_sleep()
+
         self.logger.log_event( "BT END", str( btr.status ) )
 
         print( f"Did the BT move a reading?: {self.world.move_reading_from_BT_plan( self.action )}" )
@@ -920,11 +932,12 @@ class ResponsiveTaskPlanner:
             _UPDATE_PERIOD_S, 
             initSenseStep = True 
         )
-        btr = BT_Runner( btAction, 50.0, 30.0 )
+        btr = BT_Runner( btAction, _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S )
         btr.setup_BT_for_running()
 
         while not btr.p_ended():
             btr.tick_once()
+            btr.per_sleep()
 
         print( f"\nRobot returned to \n{goPose}\n" )
         

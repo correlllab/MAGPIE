@@ -121,7 +121,7 @@ class ObjectReading( GraspObj ):
         for k, v in self.labels.items():
             if v > 0.0:
                 cleanDict[k] = v
-        return f"<ObjectReading @ {extract_position( self.pose )}, Dist: {str(cleanDict)}, Score: {self.score}, Age: {objAge} >"
+        return f"<ObjectReading @ {extract_position( self.pose )}, Dist: {str(cleanDict)}, Score: {self.score:.4f}, Age: {objAge:.2f} >"
     
 
     def copy( self ):

@@ -3,8 +3,10 @@
 ##### Imports #####
 
 ### Standard ###
-import datetime, sys
+import sys, time
+now = time.time
 from time import sleep
+from datetime import datetime
 
 ### Special ###
 import numpy as np
@@ -16,7 +18,7 @@ from py_trees.composites import Sequence
 
 ### Local ###
 from task_planning.symbols import extract_row_vec_pose
-from env_config import _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED
+from env_config import _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED, _MOVE_COOLDOWN_S
 
 sys.path.append( "../" )
 from magpie.poses import translation_diff, vec_unit
@@ -169,9 +171,11 @@ class BT_Runner:
         self.root   = root
         self.status = Status.INVALID
         self.freq   = tickHz
+        self.period = 1.0 / tickHz
         self.msg    = ""
         self.Nlim   = int( limit_s * tickHz )
         self.i      = 0
+        self.tLast  = now()
 
 
     def setup_BT_for_running( self ):
@@ -193,6 +197,16 @@ class BT_Runner:
         """ Handle external signals to halt BT execution """
         self.status = Status.FAILURE
         self.msg    = msg
+
+
+    def per_sleep( self ):
+        """ Sleep for the remainder of the period """
+        # NOTE: Run this AFTER BT and associated work have finished
+        tNow = now()
+        elap = (tNow - self.tLast)
+        if (elap < self.period):
+            sleep( self.period - elap )
+        self.tLast = now()
 
 
     def tick_once( self ):
@@ -401,8 +415,9 @@ class PerceiveScene( BasicBehavior ):
     def __init__( self, args, robot = None, name = None, planner = None ):
 
         assert planner is not None, "`PerceiveScene` REQUIRES a planner reference!"
-        self.planner = planner
-        self.args    = args
+        self.planner  = planner
+        self.args     = args
+        self.needCool = False
         
         if name is None:
             name = f"PerceiveScene with planner {type(planner)}"
@@ -413,14 +428,21 @@ class PerceiveScene( BasicBehavior ):
         """ Actually Move """
         super().initialise()
         if self.ctrl.p_moving():
-            print( f"\n WARN: `PerceiveScene.initialise`: Robot was MOVING at init time: {datetime.now().strftime("%H:%M:%S")}!\n" )
+            timeStr = datetime.now().strftime("%H:%M:%S")
+            print( f"\n WARN: `PerceiveScene.initialise`: Robot was MOVING at init time: {timeStr}!\n" )
+            self.needCool = True
+        else:
+            self.needCool = False
         # self.ctrl.moveL( self.pose, self.linSpeed, self.linAccel, self.asynch )
 
 
     def update( self ):
         """ Return true if the target reached """
+        if self.needCool:
+            sleep( _MOVE_COOLDOWN_S )
         if self.ctrl.p_moving():
-            print( f"\n`PerceiveScene.initialise`: Robot was MOVING at UPDATE time: {datetime.now().strftime("%H:%M:%S")}!\n" )
+            timeStr = datetime.now().strftime("%H:%M:%S")
+            print( f"\n`PerceiveScene.initialise`: Robot was MOVING at UPDATE time: {timeStr}!\n" )
             self.status = Status.FAILURE
         else:
             camPose = self.ctrl.get_cam_pose()
@@ -438,13 +460,14 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
     """ Get a replacement sequence for `MoveFree` that stops for perception at the appropriate times """
 
     def __init__( self, mfBT, planner, sensePeriod_s, name = None, initSenseStep = True ):
+        self._VERBOSE = True
 
         targetP = mfBT.poseEnd.copy()
         
         if name is None:
             # name = f"`Interleaved_MoveFree_and_Perceive`, args: {mfBT.args}"
             name = f"Interleaved_MoveFree_and_Perceive, {mfBT.name}"
-        super().__init__( mfBT.args, mfBT.robot, name )
+        super().__init__( mfBT.args, mfBT.ctrl, name )
 
         # Init #
         self.planner = planner
@@ -463,7 +486,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         
         # 0. Optional: Start with a sensing action
         if initSenseStep:
-            self.add_child( PerceiveScene( mfBT.args, robot = mfBT.robot, name = "PerceiveScene 1", planner = planner ) )
+            self.add_child( PerceiveScene( mfBT.args, robot = mfBT.ctrl, name = "PerceiveScene 1", planner = planner ) )
         # 1. Move direcly up from the starting pose
         self.add_child( self.moveUp )
         # 2. Translate to above the target
@@ -487,14 +510,31 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.pose2up = self.targetP.copy()
         self.pose2up[2, 3] = self.zSAFE
 
+        if self._VERBOSE:
+            print( "\n##### Interleaved_MoveFree_and_PerceiveScene #####" )
+            print( "Begin:" )
+            print( nowPose )
+            print( "WP 1:" )
+            print( self.pose1up )
+            print( "WP 2:" )
+            print( self.pose2up )
+            print( "End:" )
+            print( self.targetP )
+            print( "##### Construct Intermittent Paths ... #####\n" )
+
+
         # 3. Construct child sequences && Set them up
         accumDist = 0.0
         targtDist = 0.0
         modloDist = 0.0
         senseNum  = 1
+        moveNum   = 0
         dstPoses  = [ self.pose1up, self.pose2up, self.targetP ]
         seqMoves  = [ self.moveUp , self.moveJg , self.mvTrgt  ]
         lastPose  = nowPose.copy()
+
+        if self._VERBOSE:
+            print( "\n##### Interleaved_MoveFree_and_PerceiveScene: Interleaved Motion #####" )
 
         # A. For every waypoint in this jog action, do
         for i in range( len(dstPoses) ):
@@ -515,9 +555,17 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
                 # E. If step, then Move Action
                 if stepDist > 0.005:
                     stepPose = translate_pose_along_direction( lastPose, legDirV_i, stepDist )
+                    stepPose[0:3,0:3] = dstPose_i[0:3,0:3]
+
                     seqMove_i.add_child(  Move_Arm( stepPose, ctrl = self.ctrl, linSpeed = _ROBOT_FREE_SPEED )  )
+                    moveNum += 1
+                    if self._VERBOSE:
+                        print( f"WP {moveNum}:" )
+                        print( stepPose )
+
                     modloDist -= stepDist
                     accumDist += stepDist
+                    lastPose  = stepPose
                 # F. Else Sense Action
                 else:
                     seqMove_i.add_child(  
@@ -529,6 +577,9 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
                         
             # G. Prep sequence
             seqMove_i.setup_with_descendants()
+
+        if self._VERBOSE:
+            print( f"##### Constructed {moveNum} motions! #####\n" )
 
 
 
@@ -587,12 +638,12 @@ def get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot, planner, sensePeriod_s
     return btAction
 
 
-def get_BT_plan_until_block_change( pdlsPlan, robot ):
+def get_BT_plan_until_block_change( pdlsPlan, planner, sensePeriod_s ):
     """ Translate the PDLS plan to one that can be executed by the robot """
     rtnBTlst = []
     if pdlsPlan is not None:
         for i in range( len( pdlsPlan ) ):
-            btAction = get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, robot )
+            btAction = get_ith_BT_action_from_PDLS_plan( pdlsPlan, i, planner.robot, planner, sensePeriod_s )
             rtnBTlst.append( btAction )
             if btAction.__class__ in ( Place, Stack ):
                 break

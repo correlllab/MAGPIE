@@ -5,7 +5,6 @@
 ### Standard ###
 import time, sys
 now = time.time
-from time import sleep
 
 ### Special ###
 import numpy as np
@@ -91,7 +90,7 @@ class ObjectMemory:
         dMin     = 1e6
         belBest  = None
         for belief in self.beliefs:
-            d = d_between_obj_poses( objReading, belief )
+            d = euclidean_distance_between_symbols( objReading, belief )
             if (d < maxRadius) and (d < dMin):
                 dMin     = d
                 belBest  = belief

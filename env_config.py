@@ -73,8 +73,11 @@ _Y_WRK_SPAN = _MAX_Y_OFFSET - _MIN_Y_OFFSET
 
 ########## ROBOT ###################################################################################
 
-_ROBOT_FREE_SPEED  = 0.125
-_ROBOT_HOLD_SPEED  = 0.125
+_ROBOT_FREE_SPEED  =  0.125
+_ROBOT_HOLD_SPEED  =  0.125
+_MOVE_COOLDOWN_S   =  0.5
+_BT_UPDATE_HZ      = 10.0
+_BT_ACT_TIMEOUT_S  = 20.0
 
 
 
