@@ -272,11 +272,12 @@ class GroundedAction( Sequence ):
 
 class MoveFree( GroundedAction ):
     """ Move the unburdened effector to the given location """
-    def __init__( self, args, robot = None, name = None ):
+    def __init__( self, args, robot = None, name = None, suppressGrasp = False ):
 
         # ?poseBgn ?poseEnd
         poseBgn, poseEnd = args
-        poseEnd = grasp_pose_from_obj_pose( poseEnd )
+        if not suppressGrasp:
+            poseEnd = grasp_pose_from_obj_pose( poseEnd )
 
         if name is None:
             name = f"Move Free from {poseBgn} --to-> {poseEnd}"
@@ -459,7 +460,7 @@ class PerceiveScene( BasicBehavior ):
 class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
     """ Get a replacement sequence for `MoveFree` that stops for perception at the appropriate times """
 
-    def __init__( self, mfBT, planner, sensePeriod_s, name = None, initSenseStep = True ):
+    def __init__( self, mfBT, planner, sensePeriod_s, name = None, initSenseStep = True, suppressGrasp = False ):
         self._VERBOSE = True
 
         targetP = mfBT.poseEnd.copy()

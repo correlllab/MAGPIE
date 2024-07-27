@@ -927,7 +927,7 @@ class ResponsiveTaskPlanner:
     def phase_5_Return_Home( self, goPose ):
         """ Get ready for next iteration while updating beliefs """
         btAction = Interleaved_MoveFree_and_PerceiveScene( 
-            MoveFree( [None, ObjPose( goPose )], robot = self.robot ), 
+            MoveFree( [None, ObjPose( goPose )], robot = self.robot, suppressGrasp = True ), 
             self, 
             _UPDATE_PERIOD_S, 
             initSenseStep = True 
