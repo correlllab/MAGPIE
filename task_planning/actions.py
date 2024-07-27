@@ -22,6 +22,7 @@ from env_config import ( _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED, _MOVE_CO
 sys.path.append( "../" )
 from magpie.poses import translation_diff, vec_unit
 from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper
+from task_planning.symbols import extract_pose_as_homog
 
 
 
@@ -128,10 +129,6 @@ class BasicBehavior( Behaviour ):
         self.count += 1
         return rtnStat
     
-    
-    
-
-
 
 
 ########## BASIC BEHAVIORS #########################################################################
@@ -141,8 +138,6 @@ LIBBT_TS_S       = 0.25
 DEFAULT_TRAN_ERR = 0.010 # 0.002
 DEFAULT_ORNT_ERR = 3*np.pi/180.0
 
-
-    
 
 
 ########## HELPER FUNCTIONS ########################################################################
@@ -230,22 +225,12 @@ class BT_Runner:
 ########## BLOCKS DOMAIN HELPER FUNCTIONS ##########################################################
 
 
-def grasp_pose_from_obj_pose( rowVec ):
+def grasp_pose_from_obj_pose( anyPose ):
     """ Return the homogeneous coords given [Px,Py,Pz,Ow,Ox,Oy,Oz] """
-    rowVec = extract_( rowVec )
+    rtnPose = extract_pose_as_homog( anyPose )
     offVec = TCP_XFORM[0:3,3]
-    if len( rowVec ) == 7:
-        posn    = rowVec[0:3]
-        rtnPose = np.eye(4)
-        rtnPose[0:3,0:3] = PROTO_PICK_ROT
-        rtnPose[0:3,3]   = posn + offVec
-    elif len( rowVec ) == 4:
-        rtnPose = np.array( rowVec )
-        rtnPose[0:3,0:3] = PROTO_PICK_ROT
-        rtnPose[0:3,3]  += offVec
-    else:
-        print( f"`grasp_pose_from_obj_pose`: UNEXPECTED POSE FORMAT:\n{rowVec}" )
-        rtnPose = None
+    rtnPose[0:3,0:3] = PROTO_PICK_ROT
+    rtnPose[0:3,3]  += offVec
     return rtnPose
 
 
@@ -309,7 +294,7 @@ class MoveFree( GroundedAction ):
 
         super().__init__( args, robot, name )
 
-        self.poseEnd = extract_row_vec_pose( poseEnd )
+        self.poseEnd = extract_pose_as_homog( poseEnd )
                 
         self.add_child(
             Move_Arm( self.poseEnd, ctrl = robot, linSpeed = _ROBOT_FREE_SPEED )
@@ -362,8 +347,8 @@ class MoveHolding( GroundedAction ):
             name = f"Move Holding {label} --to-> {poseEnd}"
         super().__init__( args, robot, name )
 
-        poseBgn = grasp_pose_from_obj_pose( extract_row_vec_pose( poseBgn ) )
-        poseEnd = grasp_pose_from_obj_pose( extract_row_vec_pose( poseEnd ) )
+        poseBgn = grasp_pose_from_obj_pose( extract_pose_as_homog( poseBgn ) )
+        poseEnd = grasp_pose_from_obj_pose( extract_pose_as_homog( poseEnd ) )
         psnMid1 = np.array( poseBgn[0:3,3] )
         psnMid2 = np.array( poseEnd[0:3,3] )
         psnMid1[2] = _Z_SAFE

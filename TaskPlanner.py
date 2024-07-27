@@ -33,10 +33,9 @@ from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_N
                          _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S,
                          _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, )
 sys.path.append( "./task_planning/" )
-from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_row_vec_pose, extract_pose_as_homog, 
+from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_pose_as_homog, 
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
-from task_planning.utils import ( DataLogger, pb_posn_ornt_to_row_vec, row_vec_to_pb_posn_ornt, diff_norm,
-                                  breakpoint, )
+from task_planning.utils import ( DataLogger, diff_norm, breakpoint, )
 from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
                                     Interleaved_MoveFree_and_PerceiveScene, MoveFree, )
 from task_planning.belief import ObjectMemory
@@ -47,7 +46,6 @@ from graphics.draw_beliefs import generate_belief_geo
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
 from magpie.poses import repair_pose
-
 
 
 ### PDDLStream ### 
@@ -272,6 +270,10 @@ class VisualCortex:
                     break
             if updated:
                 objMtch.pose = endMin
+                objMtch.ts   = now() # 2024-07-27: THIS IS EXTREMELY IMPORTANT ELSE THIS READING DIES --> BAD BELIEFS
+                # 2024-07-27: NEED TO DO SOME DEEP THINKING ABOUT THE FRESHNESS OF RELEVANT FACTS
+                if _verbose:
+                    print( f"`get_moved_reading_from_BT_plan`: BT {planBT.name} updated {objMtch}!" )  
             else:
                 if _verbose:
                     print( f"`get_moved_reading_from_BT_plan`: NO update applied by BT {planBT.name}!" )    
@@ -761,7 +763,7 @@ class ResponsiveTaskPlanner:
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
         self.beliefs = self.merge_and_reconcile_object_memories()
-        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes" )
+        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes-score" ) # clean-dupes
         self.status  = Status.RUNNING
 
         if _VERBOSE:
