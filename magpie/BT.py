@@ -230,6 +230,27 @@ class Close_Gripper( BasicBehavior ):
         self.status = Status.SUCCESS
         return self.status
     
+
+##### Gripper_Aperture_OK ##################################
+
+class Gripper_Aperture_OK( BasicBehavior ):
+    """ Return SUCCESS if gripper separation (both, [m]) is within margin of target """
+    
+    def __init__( self, width_m, margin_m = None, name = None, ctrl = None  ):
+        """ Set the target """
+        super().__init__( name, ctrl )
+        self.width  = width_m
+        self.margin = margin_m if (margin_m is not None) else (width_m * 0.25)
+
+    def update( self ):
+        """ Return true if the target maintained """
+        # print( f"\nGripper Sep: {self.ctrl.get_gripper_sep()}\n" )
+        if np.abs( self.ctrl.get_gripper_sep() - self.width ) <= self.margin:
+            self.status = Status.SUCCESS
+        else:
+            self.status = Status.FAILURE
+        return self.status
+    
     
 ##### Jog_Safe ###################################
 

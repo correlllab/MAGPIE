@@ -11,6 +11,7 @@ import threading
 import itertools
 
 class Gripper:
+    
     def __init__(self, servoport = '/dev/ttyACM0'):
         # e.g 'COM3' windows or '/dev/ttyUSB0' for Linux, '/dev/ttyACM0'
         # sets baudrate and opens com port

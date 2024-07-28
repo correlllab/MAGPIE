@@ -210,6 +210,11 @@ class UR5_Interface:
         self.set_gripper( self.gripClos_m )
 
 
+    def get_gripper_sep( self ):
+        """ Return the separation between the gripper fingers in [m] """
+        return self.gripper.get_aperture() / 1000.0
+
+
     def align_tcp( self, lock_roll = False, lock_pitch = False, lock_yaw = False ):
         """
         Alignes the gripper with the nearest rotational axis (principle cartesian axes).

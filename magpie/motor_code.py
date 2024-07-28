@@ -79,7 +79,7 @@ class Motors:
         self.Motor1.set_moving_speed(speedLimit)
         self.Motor2.set_moving_speed(speedLimit)
     
-    def distance2theta(self,width):
+    def distance2theta( self, width ):
         xPositionFromCenter = width/2
         #positive movement means it goes away from center(open gripper)
         #negative means it closes the gripper
@@ -101,10 +101,40 @@ class Motors:
         delta_Z = self.Crank*math.cos(math.radians(delta_theta)) - 14 + 81.32 + self.Camera2Ref
         return delta_Z
 
-    def getPosition(self):
-        self.Motor1.get_present_position()
-        self.Motor2.get_present_position()
-        
+
+    def getPosition( self ):
+        m1 = self.Motor1.get_present_position()
+        m2 = self.Motor2.get_present_position()
+        return m1, m2
+    
+
+    def getTheta( self ):
+        m1Pos, m2Pos = self.getPosition()
+        Motor1_theta = 300 * m1Pos / 1023
+        Motor2_theta = 300 * m2Pos / 1023
+        return Motor1_theta, Motor2_theta
+    
+
+    def theta2distance( self, deltaTheta_deg ):
+        #theta comes in degrees
+        #positive movement means it goes away from center(open gripper)
+        #negative means it closes the gripper
+        Movement = math.sin( math.radians( deltaTheta_deg ) ) * self.Crank
+        width    = (Movement + self.OffsetCamera2Crank - self.OffsetCrank2Finger) * 2.0
+        return width
+
+
+    def get_aperture( self ):
+        '''
+        @return aperture in mm, either between both fingers, or from finger to x-center
+        '''
+        # perform inverse calculations of theta_to_position, distance_to_theta
+        Motor1_theta, _ = self.getTheta()
+        deltaTheta_deg = + self.Motor1theta_90 - Motor1_theta
+        # delta_theta2 = - self.Motor2theta_90 + Motor2_theta
+        return self.theta2distance( deltaTheta_deg ) * 1.333 # HACK HACK HACK HACK HACK HACK
+
+
     def openGripper(self):
         open1 = int((self.Motor1theta_min+4)*1023/300)
         open2 = int((self.Motor2theta_max-4)*1023/300)

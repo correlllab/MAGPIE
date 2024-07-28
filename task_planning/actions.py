@@ -17,11 +17,11 @@ from py_trees.common import Status
 from py_trees.composites import Sequence
 
 ### Local ###
-from env_config import ( _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED, _MOVE_COOLDOWN_S, _MIN_CAM_PCD_DIST_M, )
+from env_config import ( _Z_SAFE, _ROBOT_FREE_SPEED, _ROBOT_HOLD_SPEED, _MOVE_COOLDOWN_S, _MIN_CAM_PCD_DIST_M, _BLOCK_SCALE )
 
 sys.path.append( "../" )
 from magpie.poses import translation_diff, vec_unit
-from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper
+from magpie.BT import Move_Arm, Open_Gripper, Close_Gripper, Gripper_Aperture_OK
 from task_planning.symbols import extract_pose_as_homog
 
 
@@ -360,11 +360,20 @@ class MoveHolding( GroundedAction ):
         poseMd1[0:3,3] = psnMid1
         poseMd2[0:3,3] = psnMid2
     
-        self.add_children( [
+        checkedMotion = Sequence( name = "Move Without Dropping", memory = False )
+        dropChecker   = Gripper_Aperture_OK( _BLOCK_SCALE, margin_m = _BLOCK_SCALE*0.25, name = "Check Holding", ctrl = robot  )
+        transportMotn = Sequence( name = "Move Object", memory = True )
+        transportMotn.add_children( [
             Move_Arm( poseMd1, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
             Move_Arm( poseMd2, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
             Move_Arm( poseEnd, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),
         ] )
+        checkedMotion.add_children([
+            dropChecker,
+            transportMotn
+        ])
+
+        self.add_child( checkedMotion )
 
 
 
@@ -589,6 +598,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
             dstPose_i = dstPoses[i]
             seqMove_i = seqMoves[i]
             legDist_i = translation_diff( lastPose, dstPose_i )
+            assert legDist_i > 0.0, "ERROR: Computed ZERO leg distance!"
             legDirV_i = linear_direction_from_A_to_B( lastPose, dstPose_i )
             targtDist += legDist_i
 

@@ -27,9 +27,9 @@
     
 * `[>]` Add periodic updates to all `MoveFree` behaviors
     - `[Y]` Lower robot movement speed so that updates *actually* occur during execution, 2024-07-26: Halved the default speed to 0.125
-    - `[>]` Segment moves into alternating move and sense actions, 2024-07-26: Wow that took waaaaay too long
+    - `[Y]` Segment moves into alternating move and sense actions, 2024-07-26: Wow that took waaaaay too long
         * `[Y]` Test moves, 2024-07-26: Moves are WEIRD, Planning the experiment reset as a GRASP?
-        * `[>]` Fix moves
+        * `[Y]` Fix moves, 2024-07-27: Fixed
     - `[ ]` Add the distribution change criterion back into the planner 
 * `[ ]` Test planner
 

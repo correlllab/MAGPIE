@@ -25,6 +25,8 @@ from math import isnan
 ### Special ###
 import numpy as np
 from py_trees.common import Status
+from py_trees.composites import Sequence
+from magpie.BT import Open_Gripper
 import open3d as o3d
 
 ### Local ###
@@ -37,7 +39,7 @@ from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_po
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
 from task_planning.utils import ( DataLogger, diff_norm, breakpoint, )
 from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
-                                    Interleaved_MoveFree_and_PerceiveScene, MoveFree, )
+                                    Interleaved_MoveFree_and_PerceiveScene, MoveFree, GroundedAction, )
 from task_planning.belief import ObjectMemory
 sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
@@ -925,12 +927,17 @@ class ResponsiveTaskPlanner:
 
     def phase_5_Return_Home( self, goPose ):
         """ Get ready for next iteration while updating beliefs """
-        btAction = Interleaved_MoveFree_and_PerceiveScene( 
-            MoveFree( [None, ObjPose( goPose )], robot = self.robot, suppressGrasp = True ), 
-            self, 
-            _UPDATE_PERIOD_S, 
-            initSenseStep = True 
-        )
+        btAction = GroundedAction( args = list(), robot = self.robot, name = "Return Home" )
+        btAction.add_children([
+            Open_Gripper( ctrl = self.robot ),
+            Interleaved_MoveFree_and_PerceiveScene( 
+                MoveFree( [None, ObjPose( goPose )], robot = self.robot, suppressGrasp = True ), 
+                self, 
+                _UPDATE_PERIOD_S, 
+                initSenseStep = True 
+            ),
+        ])
+        
         btr = BT_Runner( btAction, _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S )
         btr.setup_BT_for_running()
 
