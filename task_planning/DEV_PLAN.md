@@ -30,14 +30,19 @@
     - `[Y]` Segment moves into alternating move and sense actions, 2024-07-26: Wow that took waaaaay too long
         * `[Y]` Test moves, 2024-07-26: Moves are WEIRD, Planning the experiment reset as a GRASP?
         * `[Y]` Fix moves, 2024-07-27: Fixed
+        * `[Y]` After placing a block, need to suppress the starting sense action when the gripper is directly over the block, 2024-07-28: Run a check with `check_and_correct_extreme_closeup` and suppress if check fails
+    - `[>]` Block unfair NULL updates to objects outside of the camera frustrum
+        * `[>]` Calc frustrum as the interior of 5 planes defined by X & Y FOVs and max depth
+        * `[ ]` Check that a sphere w/ block radius is inside of all 4 planes
+        * `[ ]` Suppress NULL update for blocks that fail check
     - `[ ]` Add the distribution change criterion back into the planner 
+        * `[ ]` Q: How to quantify change to an LKG entry?
 * `[ ]` Test planner
 
-* `[!]` Determine whether objects outside of the camera frustrum are getting unfairly assigned NULL updates!
+
 
 * `[ ]` Determine experimental confusion matrix
-    - `[ ]` Q: How many trials?
-    - `{ }` Q: Is it possible to automate part of this?
+    - `[ ]` Attempt Correll's automation procedure
 
 * `[ ]` Test planner
 * `[ ]` Experiments x10

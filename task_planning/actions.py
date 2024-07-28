@@ -494,6 +494,8 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.planner = planner
         self.distMax = _ROBOT_FREE_SPEED * sensePeriod_s
         self.zSAFE   = max( _Z_SAFE, targetP[2,3] ) # Eliminate (some) silly vertical movements
+        self.bgnShot = initSenseStep
+        self.mfBT    = mfBT
         
         # Poses to be Modified at Ticktime #
         self.targetP = targetP
@@ -505,15 +507,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.moveJg = Sequence( "Leg 2", memory = True )
         self.mvTrgt = Sequence( "Leg 3", memory = True )
         
-        # 0. Optional: Start with a sensing action
-        if initSenseStep:
-            self.add_child( PerceiveScene( mfBT.args, robot = mfBT.ctrl, name = "PerceiveScene 1", planner = planner ) )
-        # 1. Move direcly up from the starting pose
-        self.add_child( self.moveUp )
-        # 2. Translate to above the target
-        self.add_child( self.moveJg )
-        # 3. Move to the target pose
-        self.add_child( self.mvTrgt )
+        
 
 
     def initialise( self ):
@@ -554,10 +548,23 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
                 return np.array( tcpPose )
 
 
-        # 1. Fetch pose NOW
+        # 0. Fetch pose NOW
         nowPose = self.ctrl.get_tcp_pose()
+        epsilon = 0.00005
+
+        # 1. Optional: Start with a sensing action, but only when appropriate
+        if self.bgnShot:
+            truShot = check_and_correct_extreme_closeup( nowPose )
+            if translation_diff( truShot, nowPose ) <= epsilon:
+                self.add_child( PerceiveScene( self.mfBT.args, robot = self.mfBT.ctrl, name = "PerceiveScene 1", planner = self.planner ) )
+        # 2. Move direcly up from the starting pose
+        self.add_child( self.moveUp )
+        # 3. Translate to above the target
+        self.add_child( self.moveJg )
+        # 4. Move to the target pose
+        self.add_child( self.mvTrgt )
         
-        # 2. Compute intermediate poses
+        # 5. Compute intermediate poses
         self.pose1up = nowPose.copy()
         self.pose1up[2, 3] = self.zSAFE
 
@@ -577,7 +584,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
             print( "##### Construct Intermittent Paths ... #####\n" )
 
 
-        # 3. Construct child sequences && Set them up
+        # 6. Construct child sequences && Set them up
         accumDist = 0.0
         targtDist = 0.0
         modloDist = self.distMax # 0.0
@@ -586,7 +593,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         dstPoses  = [ self.pose1up, self.pose2up, self.targetP ]
         seqMoves  = [ self.moveUp , self.moveJg , self.mvTrgt  ]
         lastPose  = nowPose.copy()
-        epsilon   = 0.00005
+        
 
         if self._VERBOSE:
             print( "\n##### Interleaved_MoveFree_and_PerceiveScene: Interleaved Motion #####" )

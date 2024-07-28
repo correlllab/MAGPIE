@@ -33,7 +33,7 @@ import open3d as o3d
 from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S,
-                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, )
+                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, _D405_FOV_H_DEG, _D405_FOV_V_DEG, _D405_FOV_D_M,  )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_pose_as_homog, 
                                     extract_pose_as_homog, euclidean_distance_between_symbols )
@@ -45,9 +45,10 @@ sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
 sys.path.append( "./graphics/" )
 from graphics.draw_beliefs import generate_belief_geo
+from graphics.homog_utils import homog_xform, R_x, R_y
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
-from magpie.poses import repair_pose
+from magpie.poses import repair_pose, vec_unit
 
 
 ### PDDLStream ### 
@@ -94,6 +95,15 @@ def p_inside_workspace_bounds( pose ):
     else:
         raise ValueError( f"`p_inside_workspace_bounds`: Input was neither homogeneous nor [Px,Py,Pz,Ow,Ox,Oy,Oz]\n{pose}" )        
     return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
+
+
+def p_sphere_inside_plane_list( qCen, qRad, planeList ):
+    """ Return True if a sphere with `qCen` and `qRad` can be found above every plane in `planeList` = [ ..., [point, normal], ... ] """
+    for (pnt_i, nrm_i) in planeList:
+        dif_i = np.subtract( qCen, pnt_i )
+        if np.dot( dif_i, vec_unit( nrm_i ) ) < qRad:
+            return False
+    return True
 
 
 def entropy_factor( probs ):
@@ -754,6 +764,55 @@ class ResponsiveTaskPlanner:
             if (f[0] == 'GraspObj') and (f[1] == label):
                 return True
         return False
+
+
+    ##### Sensor Placement ################################################
+
+    def get_D405_FOV_frustrum( self, camXform ):
+        """ Get 5 <point, normal> pairs for planes bounding an Intel RealSense D405 field of view with its focal point at `camXform` """
+        ## Fetch Components ##
+        rtnFOV   = list()
+        camXform = repair_pose( camXform ) # Make sure all bases are unit vectors
+        ## Fetch Components ##
+        xBasis4  = np.array( [*camXform[0:3,0].tolist(), 1.0 ] )
+        xBsOpp4  = np.array( [*(-camXform[0:3,0]).tolist(), 1.0 ] )
+        yBasis4  = np.array( [*camXform[0:3,1].tolist(), 1.0 ] )
+        yBsOpp4  = np.array( [*(-camXform[0:3,1]).tolist(), 1.0 ] )
+        zBasis   = camXform[0:3,2]
+        cFocus   = camXform[0:3,3]
+        ## Depth Limit ##
+        dPnt = cFocus + (zBasis * _D405_FOV_D_M)
+        dNrm = zBasis * -1.0
+        rtnFOV.append( [dPnt, dNrm,] )
+        ## Top Limit ##
+        topTurn = homog_xform( R_x( -np.radians( _D405_FOV_V_DEG/2.0 ) ), [0.0,0.0,0.0,] )
+        tPnt    = cFocus.copy()
+        tNrm    = topTurn.dot( yBsOpp4 )[0:3]
+        rtnFOV.append( [tPnt, tNrm,] )
+        ## Bottom Limit ##
+        btmTurn = homog_xform( R_x( np.radians( _D405_FOV_V_DEG/2.0 ) ), [0.0,0.0,0.0,] )
+        bPnt    = cFocus.copy()
+        bNrm    = btmTurn.dot( yBasis4 )[0:3]
+        rtnFOV.append( [bPnt, bNrm,] )
+        ## Right Limit ##
+        rgtTurn = homog_xform( R_y( -np.radians( _D405_FOV_H_DEG/2.0 ) ), [0.0,0.0,0.0,] )
+        rPnt    = cFocus.copy()
+        rNrm    = rgtTurn.dot( xBasis4 )[0:3]
+        rtnFOV.append( [rPnt, rNrm,] )
+        ## Left Limit ##
+        lftTurn = homog_xform( R_y( np.radians( _D405_FOV_H_DEG/2.0 ) ), [0.0,0.0,0.0,] )
+        lPnt    = cFocus.copy()
+        lNrm    = lftTurn.dot( xBsOpp4 )[0:3]
+        rtnFOV.append( [lPnt, lNrm,] )
+        ## Return Limits ##
+        return rtnFOV
+    
+
+    def p_symbol_in_cam_view( self, camXform, symbol ):
+        bounds = self.get_D405_FOV_frustrum( camXform )
+        qPosn  = extract_pose_as_homog( symbol )[0:3,3]
+        # FIXME, START HERE: FINISH TEST
+        p_sphere_inside_plane_list( qCen, qRad, planeList )
 
 
     ##### Task Planning Phases ############################################
