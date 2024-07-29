@@ -20,7 +20,7 @@ _VERBOSE        = True
 
 ########## GRAPHICS ################################################################################
 
-_USE_GRAPHICS = False
+_USE_GRAPHICS = True
 _BLOCK_ALPHA  = 1.0
 _CLR_TABLE  = {
     'red': [1.0, 0.0, 0.0,],
@@ -78,15 +78,16 @@ _ROBOT_HOLD_SPEED   =  0.125
 _MOVE_COOLDOWN_S    =  0.5
 _BT_UPDATE_HZ       = 10.0
 _BT_ACT_TIMEOUT_S   = 20.0
-_MIN_CAM_PCD_DIST_M = 0.075 + _BLOCK_SCALE
+
 
 
 
 ########## CAMERA ##################################################################################
 
-_D405_FOV_H_DEG = 84.0
-_D405_FOV_V_DEG = 58.0
-_D405_FOV_D_M   =  0.920
+_D405_FOV_H_DEG     = 84.0
+_D405_FOV_V_DEG     = 58.0
+_D405_FOV_D_M       =  0.920
+_MIN_CAM_PCD_DIST_M = 0.075 + _BLOCK_SCALE * len( _ACTUAL_NAMES )
 
 
 ########## BELIEFS #################################################################################
@@ -105,6 +106,7 @@ _SCORE_DECAY_TAU_S =  20.0 # Score time constant, for freshness
 _OBJ_TIMEOUT_S     = 120.0 # Readings older than this are not considered
 _UPDATE_PERIOD_S   =   8.0 # Number of seconds between belief updates
 _DEF_NULL_SCORE    =   0.75 # Default null score if there was no comparison
+_LKG_SEP           = 0.80*_BLOCK_SCALE # 0.40 # 0.60 # 0.70 # 0.75
 
 
 

@@ -13,7 +13,8 @@ import numpy as np
 ### Local ###
 from graphics.homog_utils import R_quat, homog_xform
 from magpie.poses import translation_diff
-from env_config import _NULL_NAME
+from env_config import ( _NULL_NAME, _NULL_NAME, 
+                         _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _MAX_Z_BOUND, )
 
 
 
@@ -31,21 +32,30 @@ def extract_np_array_pose( obj_or_arr ):
         return None
     
 
-def extract_pose_as_homog( obj_or_arr ):
+def extract_pose_as_homog( obj_or_arr, noRot = False ):
     """ Return only a copy of the homogeneous coordinates of the 3D pose """
     bgnPose = extract_np_array_pose( obj_or_arr )
     if len( bgnPose ) == 4:
-        return bgnPose
-    elif len( bgnPose ) == 7:
-        rtnPosn = bgnPose[:3]
-        rtnOrnt = bgnPose[3:]
-        return homog_xform( R_quat( *rtnOrnt ), rtnPosn )
+        rtnPose = bgnPose
+    elif len( bgnPose ) == 16:
+        rtnPose = np.array( bgnPose ).reshape( (4,4,) )
+    else:
+        raise ValueError( f"`extract_pose_as_homog`: Poorly formed pose:\n{bgnPose}" )
+    if noRot:
+        rtnPose[0:3,0:3] = np.eye(3)
+    return rtnPose
     
 
 def extract_position( obj_or_arr ):
     """ Return only a copy of the position vector of the 3D pose """
     pose = extract_pose_as_homog( obj_or_arr )
     return pose[0:3,3]
+
+
+def p_symbol_inside_workspace_bounds( obj_or_arr ):
+    """ Return True if inside the bounding box, Otherwise return False """
+    posn = extract_position( obj_or_arr )      
+    return (_MIN_X_OFFSET <= posn[0] <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= posn[1] <= _MAX_Y_OFFSET) and (0.0 < posn[2] <= _MAX_Z_BOUND)
 
 
 def euclidean_distance_between_symbols( sym1, sym2 ):
@@ -63,7 +73,7 @@ class ObjPose:
     num = count()
 
     def __init__( self, pose = None ):
-        self.pose  = extract_pose_as_homog( pose ) if (pose is not None) else extract_pose_as_homog( [0,0,0,1,0,0,0] )
+        self.pose  = extract_pose_as_homog( pose ) if (pose is not None) else np.eye(4)
         self.index = next( self.num )
 
     def row_vec( self ):
@@ -87,7 +97,7 @@ class GraspObj:
     def __init__( self, label = None, pose = None, prob = None, score = None ):
         """ Set components used by planners """
         self.label = label if (label is not None) else _NULL_NAME
-        self.pose  = pose if (pose is not None) else ObjPose( [0,0,0,1,0,0,0] )
+        self.pose  = pose if (pose is not None) else ObjPose( np.eye(4) )
         self.index = next( self.num )
         self.prob  = prob if (prob is not None) else 0.0 # 2024-07-22: This is for sorting dupes in the planner and is NOT used by PDDLStream
         self.score = score if (score is not None) else 0.0 # 2024-07-25: This is for sorting dupes in the planner and is NOT used by PDDLStream
@@ -118,8 +128,7 @@ class ObjectReading( GraspObj ):
         cleanDict = {}
         objAge    = now() - self.ts
         for k, v in self.labels.items():
-            if v > 0.0:
-                cleanDict[k] = v
+            cleanDict[ k[:3] ] = np.round( v, 3 )
         return f"<ObjectReading @ {extract_position( self.pose )}, Dist: {str(cleanDict)}, Score: {self.score:.4f}, Age: {objAge:.2f} >"
     
 

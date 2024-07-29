@@ -453,7 +453,7 @@ class PerceiveScene( BasicBehavior ):
             self.needCool = True
         else:
             self.needCool = False
-        # self.ctrl.moveL( self.pose, self.linSpeed, self.linAccel, self.asynch )
+    
 
 
     def update( self ):
@@ -507,7 +507,12 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         self.moveJg = Sequence( "Leg 2", memory = True )
         self.mvTrgt = Sequence( "Leg 3", memory = True )
         
-        
+        # 2. Move direcly up from the starting pose
+        self.add_child( self.moveUp )
+        # 3. Translate to above the target
+        self.add_child( self.moveJg )
+        # 4. Move to the target pose
+        self.add_child( self.mvTrgt )
 
 
     def initialise( self ):
@@ -524,7 +529,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
 
             # 1. If downward-facing, then Check for correction
             if (zzMag < 0.0):
-                hndZdir = vec_unit( np.dot( camPose, np.array( [0.0, 0.0, 1.0, 1.0,] ) )[0:3] )
+                hndZdir = vec_unit( np.dot( camPose, np.array( [0.0, 0.0, -1.0, 1.0,] ) )[0:3] )
                 camPosn = camPose[0:3,3]
                 XYintrc = line_intersect_plane( camPosn, hndZdir, [0.0, 0.0, 0.0,], [0.0, 0.0, 1.0,], pntParallel = False )
                 if XYintrc is None:
@@ -556,13 +561,7 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
         if self.bgnShot:
             truShot = check_and_correct_extreme_closeup( nowPose )
             if translation_diff( truShot, nowPose ) <= epsilon:
-                self.add_child( PerceiveScene( self.mfBT.args, robot = self.mfBT.ctrl, name = "PerceiveScene 1", planner = self.planner ) )
-        # 2. Move direcly up from the starting pose
-        self.add_child( self.moveUp )
-        # 3. Translate to above the target
-        self.add_child( self.moveJg )
-        # 4. Move to the target pose
-        self.add_child( self.mvTrgt )
+                self.prepend_child( PerceiveScene( self.mfBT.args, robot = self.mfBT.ctrl, name = "PerceiveScene 1", planner = self.planner ) )
         
         # 5. Compute intermediate poses
         self.pose1up = nowPose.copy()
@@ -652,8 +651,9 @@ class Interleaved_MoveFree_and_PerceiveScene( GroundedAction ):
                         )
                     modloDist = self.distMax # No assumptions violated here
                         
-            # J. Prep sequence
-            seqMove_i.setup_with_descendants()
+        # J. Prep sequence
+        for chld in self.children:
+            chld.setup_with_descendants()
 
         if self._VERBOSE:
             print( f"##### Constructed {moveNum} motions! #####\n" )

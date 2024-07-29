@@ -30,13 +30,13 @@ from magpie.BT import Open_Gripper
 import open3d as o3d
 
 ### Local ###
-from env_config import ( _BLOCK_SCALE, _MAX_Z_BOUND, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
-                         _MIN_X_OFFSET, _MAX_X_OFFSET, _MIN_Y_OFFSET, _MAX_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
+from env_config import ( _BLOCK_SCALE, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
+                         _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S,
-                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, _D405_FOV_H_DEG, _D405_FOV_V_DEG, _D405_FOV_D_M,  )
+                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, _LKG_SEP, )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_pose_as_homog, 
-                                    extract_pose_as_homog, euclidean_distance_between_symbols )
+                                    euclidean_distance_between_symbols, p_symbol_inside_workspace_bounds )
 from task_planning.utils import ( DataLogger, diff_norm, breakpoint, )
 from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
                                     Interleaved_MoveFree_and_PerceiveScene, MoveFree, GroundedAction, )
@@ -45,10 +45,9 @@ sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
 sys.path.append( "./graphics/" )
 from graphics.draw_beliefs import generate_belief_geo
-from graphics.homog_utils import homog_xform, R_x, R_y
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
-from magpie.poses import repair_pose, vec_unit
+from magpie.poses import repair_pose
 
 
 ### PDDLStream ### 
@@ -74,36 +73,16 @@ def rand_table_pose():
     """ Return a random pose in the direct viscinity if the robot """
     rtnPose = np.eye(4)
     rtnPose[0:3,3] = [ 
-        _MIN_X_OFFSET + _X_WRK_SPAN*random(), 
-        _MIN_Y_OFFSET + _Y_WRK_SPAN*random(), 
-        _BLOCK_SCALE,
+        _MIN_X_OFFSET + 0.5*_X_WRK_SPAN*random(), 
+        _MIN_Y_OFFSET + 0.5*_Y_WRK_SPAN*random(), 
+        _BLOCK_SCALE/2.0,
     ]
     return rtnPose
-    
 
 
-def p_inside_workspace_bounds( pose ):
-    """ Return True if inside the bounding box, Otherwise return False """
-    if len( pose ) == 4:
-        x = pose[0,3]
-        y = pose[1,3]
-        z = pose[2,3]
-    elif len( pose ) == 7:
-        x = pose[0]
-        y = pose[1]
-        z = pose[2]
-    else:
-        raise ValueError( f"`p_inside_workspace_bounds`: Input was neither homogeneous nor [Px,Py,Pz,Ow,Ox,Oy,Oz]\n{pose}" )        
-    return (_MIN_X_OFFSET <= x <= _MAX_X_OFFSET) and (_MIN_Y_OFFSET <= y <= _MAX_Y_OFFSET) and (0.0 < z <= _MAX_Z_BOUND)
-
-
-def p_sphere_inside_plane_list( qCen, qRad, planeList ):
-    """ Return True if a sphere with `qCen` and `qRad` can be found above every plane in `planeList` = [ ..., [point, normal], ... ] """
-    for (pnt_i, nrm_i) in planeList:
-        dif_i = np.subtract( qCen, pnt_i )
-        if np.dot( dif_i, vec_unit( nrm_i ) ) < qRad:
-            return False
-    return True
+def display_belief_geo( beliefList ):
+    geo = generate_belief_geo( beliefList )
+    o3d.visualization.draw_geometries( geo )
 
 
 def entropy_factor( probs ):
@@ -154,7 +133,7 @@ class VisualCortex:
         return self.memory[:]
     
 
-    def __init__( self ):
+    def __init__( self, noViz = False ):
         """ Start OWL-ViT and init object persistence """
         
         # 1. Setup state
@@ -162,15 +141,21 @@ class VisualCortex:
         # self.tFresh = 20.0
         
         # 2. Start Perception
-        self.perc = Perception_OWLViT
-        print( f"`VisualCortex.__init__`: Waiting on OWL-ViT to start ..." )
-        self.perc.start_vision()
-        print( f"`VisualCortex.__init__`: OWL-ViT STARTED!" )
+        self.noViz = noViz
+        if not noViz:
+            self.perc = Perception_OWLViT
+            print( f"`VisualCortex.__init__`: Waiting on OWL-ViT to start ..." )
+            self.perc.start_vision()
+            print( f"`VisualCortex.__init__`: OWL-ViT STARTED!" )
+        else:
+            self.perc = None
+            print( f"`VisualCortex.__init__`: Perception is INACTIVE!" )
 
 
     def stop( self ):
         """ Stop the Perception Process and the Communication Thread """
-        self.perc.shutdown()
+        if not self.noViz:
+            self.perc.shutdown()
         print( "\n##### `VisualCortex` SHUTDOWN #####\n" )
 
 
@@ -190,7 +175,6 @@ class VisualCortex:
             xform = np.eye(4)
         for item in obs.values():
             dstrb = {}
-            blcZ  = 0.0
             tScan = item['Time']
 
             for nam, prb in item['Probability'].items():
@@ -201,12 +185,9 @@ class VisualCortex:
             if len( item['Pose'] ) == 16:
                 objPose = xform.dot( np.array( item['Pose'] ).reshape( (4,4,) ) ) 
                 # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
-                blcZ = self.snap_z_to_nearest_block_unit_above_zero( objPose[2,3] )
-                objPose = [ objPose[0,3], objPose[1,3], blcZ, 1,0,0,0, ]
+                objPose[2,3] = self.snap_z_to_nearest_block_unit_above_zero( objPose[2,3] )
             else:
-                # HACK: SNAP TO NEAREST BLOCK UNIT && SNAP ABOVE TABLE
-                blcZ = self.snap_z_to_nearest_block_unit_above_zero( item['Pose'][2] )
-                objPose = [ objPose[0], objPose[1], blcZ, 1,0,0,0, ]
+                raise ValueError( f"`observation_to_readings`: BAD POSE FORMAT!\n{item['Pose']}" )
             
             # Attempt to quantify how much we trust this reading
             score_i = (1.0 - entropy_factor( dstrb )) * item['Count']
@@ -232,7 +213,7 @@ class VisualCortex:
         for r, objR in enumerate( totLst ):
             
             # HACK: ONLY CONSIDER OBJECTS INSIDE THE WORKSPACE
-            if not p_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
+            if not p_symbol_inside_workspace_bounds( extract_pose_as_homog( objR ) ):
                 continue
 
             if (useTimeout and ((tCurr - objR.ts) > _OBJ_TIMEOUT_S)):
@@ -242,7 +223,7 @@ class VisualCortex:
             conflict = [objR,]
             for m in range( r+1, Ntot ):
                 objM = totLst[m]
-                if euclidean_distance_between_symbols( objR, objM ) < _MIN_SEP:
+                if euclidean_distance_between_symbols( objR, objM ) < _LKG_SEP:
                     conflict.append( objM )
             # 4. Sort overlapping indications and add only the top
             conflict.sort( key = lambda item: item.score, reverse = True )
@@ -255,6 +236,13 @@ class VisualCortex:
         if not suppressStorage:
             self.memory = nuMem[:]
         return nuMem
+    
+
+    def report_LKG( self ):
+        print( f"\n### LKG has {len(self.memory)} items ###" )
+        for lkg in self.memory:
+            print( lkg )
+        print( f"### Done ###\n" )
                     
                     
     def move_reading_from_BT_plan( self, planBT ):
@@ -323,8 +311,9 @@ class VisualCortex:
 
 ##### Planning Params #####################################################
 
-# _trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 1.0*_BLOCK_SCALE,  1,0,0,0 ] )
-_trgtGrn = ObjPose( [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 0.5*_BLOCK_SCALE,  1,0,0,0 ] )
+_poseGrn = np.eye(4)
+_poseGrn[0:3,3] = [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 0.5*_BLOCK_SCALE, ]
+_trgtGrn = ObjPose( _poseGrn )
 
 
 _temp_home = np.array( [[-1.000e+00, -1.190e-04,  2.634e-05, -2.540e-01],
@@ -349,13 +338,8 @@ _HIGH_TWO_POSE = repair_pose( np.array( [[-0.351, -0.552,  0.756, -0.552],
 
 
 
-
-
-
-
 ##### Planner #############################################################
 
-# class BaselineTaskPlanner:
 class ResponsiveTaskPlanner:
     """ Basic task planning loop against which the Method is compared """
 
@@ -377,24 +361,28 @@ class ResponsiveTaskPlanner:
         self.grasp  = list() # ------- ? NOT USED ?
 
 
-    def __init__( self, world = None ):
+    def __init__( self, world = None, noViz = False, noBot = False ):
         """ Create a pre-determined collection of poses and plan skeletons """
         # NOTE: The planner will start the Perception Process and the UR5 connection as soon as it is instantiated
         self.reset_beliefs()
         self.reset_state()
-        self.world  = world if (world is not None) else VisualCortex()
-        self.robot  = ur5.UR5_Interface()
-        self.logger = DataLogger()
+        self.world  = world if (world is not None) else VisualCortex( noViz = noViz )
+        self.robot  = ur5.UR5_Interface() if (not noBot) else None
+        self.logger = DataLogger() if (not noBot) else None
+        self.noViz  = noViz
+        self.noBot  = noBot
         # DEATH MONITOR
         self.noSoln =  0
         self.nonLim = 10
-        self.robot.start()
+        if (not noBot):
+            self.robot.start()
 
 
     def shutdown( self ):
         """ Stop the Perception Process and the UR5 connection """
         self.world.stop()
-        self.robot.stop()
+        if not self.noBot:
+            self.robot.stop()
 
 
     def perceive_scene( self, xform = None ):
@@ -402,7 +390,9 @@ class ResponsiveTaskPlanner:
         scan = self.world.full_scan_noisy( xform )
         # LKG and Belief are updated SEPARATELY and merged LATER as symbols
         self.world.rectify_readings( copy_readings_as_LKG( scan ) )
-        self.memory.belief_update( scan, maxRadius = _MAX_UPDATE_RAD_M )
+        if _USE_GRAPHICS:
+            display_belief_geo( self.world.get_last_best_readings() )
+        self.memory.belief_update( scan, xform, maxRadius = _MAX_UPDATE_RAD_M )
 
 
     ##### Stream Helpers ##################################################
@@ -445,9 +435,6 @@ class ResponsiveTaskPlanner:
                     rtnPose = self.get_grounded_fact_pose_or_new( upPose )
                     print( f"FOUND a pose {rtnPose} supported by {objcName}!" )
 
-                    # rtnPose = ObjPose( upPose )
-                    # print( f"FOUND a pose {rtnPose} supported by {objcName}!" )
-
                     yield (rtnPose,)
 
         return stream_func
@@ -462,7 +449,6 @@ class ResponsiveTaskPlanner:
             if _VERBOSE:
                 print( f"\nEvaluate PLACEMENT POSE stream with args: {args}\n" )
 
-            # objcName = args[0]
             placed   = False
             testPose = None
             while not placed:
@@ -654,13 +640,7 @@ class ResponsiveTaskPlanner:
         print( f"\nDeterminized {len(rtnLst)} objects!\n" )
         return rtnLst
     
-    def display_belief_geo( self, beliefList = None ):
-        
-        if beliefList is None:
-            geo = generate_belief_geo( self.beliefs )
-        else:
-            geo = generate_belief_geo( beliefList )
-        o3d.visualization.draw_geometries( geo )
+    
 
 
 
@@ -766,53 +746,7 @@ class ResponsiveTaskPlanner:
         return False
 
 
-    ##### Sensor Placement ################################################
-
-    def get_D405_FOV_frustrum( self, camXform ):
-        """ Get 5 <point, normal> pairs for planes bounding an Intel RealSense D405 field of view with its focal point at `camXform` """
-        ## Fetch Components ##
-        rtnFOV   = list()
-        camXform = repair_pose( camXform ) # Make sure all bases are unit vectors
-        ## Fetch Components ##
-        xBasis4  = np.array( [*camXform[0:3,0].tolist(), 1.0 ] )
-        xBsOpp4  = np.array( [*(-camXform[0:3,0]).tolist(), 1.0 ] )
-        yBasis4  = np.array( [*camXform[0:3,1].tolist(), 1.0 ] )
-        yBsOpp4  = np.array( [*(-camXform[0:3,1]).tolist(), 1.0 ] )
-        zBasis   = camXform[0:3,2]
-        cFocus   = camXform[0:3,3]
-        ## Depth Limit ##
-        dPnt = cFocus + (zBasis * _D405_FOV_D_M)
-        dNrm = zBasis * -1.0
-        rtnFOV.append( [dPnt, dNrm,] )
-        ## Top Limit ##
-        topTurn = homog_xform( R_x( -np.radians( _D405_FOV_V_DEG/2.0 ) ), [0.0,0.0,0.0,] )
-        tPnt    = cFocus.copy()
-        tNrm    = topTurn.dot( yBsOpp4 )[0:3]
-        rtnFOV.append( [tPnt, tNrm,] )
-        ## Bottom Limit ##
-        btmTurn = homog_xform( R_x( np.radians( _D405_FOV_V_DEG/2.0 ) ), [0.0,0.0,0.0,] )
-        bPnt    = cFocus.copy()
-        bNrm    = btmTurn.dot( yBasis4 )[0:3]
-        rtnFOV.append( [bPnt, bNrm,] )
-        ## Right Limit ##
-        rgtTurn = homog_xform( R_y( -np.radians( _D405_FOV_H_DEG/2.0 ) ), [0.0,0.0,0.0,] )
-        rPnt    = cFocus.copy()
-        rNrm    = rgtTurn.dot( xBasis4 )[0:3]
-        rtnFOV.append( [rPnt, rNrm,] )
-        ## Left Limit ##
-        lftTurn = homog_xform( R_y( np.radians( _D405_FOV_H_DEG/2.0 ) ), [0.0,0.0,0.0,] )
-        lPnt    = cFocus.copy()
-        lNrm    = lftTurn.dot( xBsOpp4 )[0:3]
-        rtnFOV.append( [lPnt, lNrm,] )
-        ## Return Limits ##
-        return rtnFOV
     
-
-    def p_symbol_in_cam_view( self, camXform, symbol ):
-        bounds = self.get_D405_FOV_frustrum( camXform )
-        qPosn  = extract_pose_as_homog( symbol )[0:3,3]
-        # FIXME, START HERE: FINISH TEST
-        p_sphere_inside_plane_list( qCen, qRad, planeList )
 
 
     ##### Task Planning Phases ############################################
@@ -824,7 +758,7 @@ class ResponsiveTaskPlanner:
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
         self.beliefs = self.merge_and_reconcile_object_memories()
-        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes-score" ) # clean-dupes
+        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes-score" ) # clean-dupes # clean-dupes-score # unique
         self.status  = Status.RUNNING
 
         if _VERBOSE:
@@ -1093,8 +1027,8 @@ class ResponsiveTaskPlanner:
             
             self.phase_1_Perceive( 1, camPose )
             
-            if _USE_GRAPHICS:
-                self.display_belief_geo()
+            # if _USE_GRAPHICS:
+            #     self.display_belief_geo()
 
             ##### Phase 2 ########################
 
@@ -1197,17 +1131,37 @@ if __name__ == "__main__":
 
     if _TROUBLESHOOT:
         print( f"########## Running Debug Code at {dateStr} ##########" )
+        from graphics.homog_utils import R_x, homog_xform
 
-        # print( repair_pose( _GOOD_VIEW_POSE ) )
 
-        rbt = ur5.UR5_Interface()
-        rbt.start()
-        rbt.moveL( repair_pose( _GOOD_VIEW_POSE ), asynch = False )
-        sleep(5)
-        rbt.moveL( repair_pose( _HIGH_VIEW_POSE ), asynch = False )
-        # print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
-        sleep(1)
-        rbt.stop()
+        planner = ResponsiveTaskPlanner( noViz = True, noBot = True )
+        blcPosn = {
+            "good": [ 0.0  ,  0.0  ,  0.140,],
+            "bad1": [ 0.0  ,  0.140,  0.0  ,],
+            "bad2": [ 0.140,  0.0  ,  0.0  ,],
+            "bad3": [ 0.0  , -0.140,  0.0  ,],
+            "bad4": [-0.140,  0.0  ,  0.0  ,],
+            "bad5": [ 0.0  ,  0.0  , -0.140,],
+
+        }
+        blcPose = np.eye(4)
+        camPose = np.eye(4)
+        camPose = camPose.dot( homog_xform( R_x(np.pi/2.0), [0,0,0] ) )
+
+        for k, v in blcPosn.items():
+            blcPose[0:3,3] = v
+            print( f"Pose: {k}, Passed?: {planner.memory.p_symbol_in_cam_view( camPose, blcPose )}\n" )
+
+        
+        if 0:
+            rbt = ur5.UR5_Interface()
+            rbt.start()
+            rbt.moveL( repair_pose( _GOOD_VIEW_POSE ), asynch = False )
+            sleep(5)
+            rbt.moveL( repair_pose( _HIGH_VIEW_POSE ), asynch = False )
+            # print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
+            sleep(1)
+            rbt.stop()
 
 
     elif _VISION_TEST:
@@ -1227,14 +1181,14 @@ if __name__ == "__main__":
         observs = planner.world.perc.merge_and_build_model()
         xfrmCam = planner.robot.get_cam_pose()
         planner.world.full_scan_noisy( xfrmCam, observations = observs )
-        if _USE_GRAPHICS:
-            planner.memory.display_belief_geo( planner.world.scan )
+        # if _USE_GRAPHICS:
+        #     planner.memory.display_belief_geo( planner.world.scan )
 
         planner.world.rectify_readings( copy_readings_as_LKG( planner.world.scan ) )
         observs = planner.world.get_last_best_readings()
         planner.world.full_scan_noisy( xfrmCam, observations = observs )
-        if _USE_GRAPHICS:
-            planner.memory.display_belief_geo( planner.world.scan )
+        # if _USE_GRAPHICS:
+        #     planner.memory.display_belief_geo( planner.world.scan )
 
         sleep( 2.5 )
         planner.shutdown()

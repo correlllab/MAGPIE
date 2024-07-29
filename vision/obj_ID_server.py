@@ -415,6 +415,7 @@ class Perception_OWLViT:
                 print( f"\nAbout to build clusters ...\n", flush=True, file=sys.stderr )
 
             clusters = cls.find_clusters(filtered_boxes, filtered_scores)
+            clusters = [item for item in clusters if len( item )] # 2024-07-28: Some clusters are EMPTY
             objIDstrTemp = {f'Object {objectnum + 1}': {} for objectnum in range(len(clusters))}
 
             index_to_segment = [max(cluster, key=lambda x: x[2])[3] for cluster in clusters]

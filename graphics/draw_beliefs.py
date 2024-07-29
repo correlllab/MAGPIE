@@ -11,8 +11,9 @@ from graphics.dh_graphics import plot_DH_robot
 from graphics.homog_utils import homog_xform, R_quat
 sys.path.append( "../" )
 from env_config import ( _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, _BLOCK_SCALE, _CLR_TABLE, )
+from task_planning.symbols import extract_pose_as_homog
 
-_TABLE_THIC = 0.030
+_TABLE_THIC = 0.015
 
 
 ########## HELPER FUNCTIONS ########################################################################
@@ -95,9 +96,8 @@ def wireframe_box_geo( xScl, yScl, zScl ):
 def reading_geo( objReading ):
     """ Get geo for a single observation """
     labelSort = zip_dict_sorted_by_decreasing_value( objReading.labels )
-    objPose   = objReading.pose.pose
-    posn      = objPose[:3]
-    ornt      = objPose[3:]
+    objXfrm   = extract_pose_as_homog( objReading, noRot = True )
+    print( objXfrm )
     hf        = _BLOCK_SCALE/2.0
     topCrnrs  = [
         homog_xform( np.eye(3), [-hf+hf,-hf+hf, _BLOCK_SCALE,] ),
@@ -105,7 +105,7 @@ def reading_geo( objReading ):
         homog_xform( np.eye(3), [ hf+hf,-hf+hf, _BLOCK_SCALE,] ),
         homog_xform( np.eye(3), [ hf+hf, hf+hf, _BLOCK_SCALE,] ),
     ]
-    objXfrm = homog_xform( R_quat( *ornt ), posn )
+    
     rtnGeo  = list()
     
     wir = wireframe_box_geo( _BLOCK_SCALE, _BLOCK_SCALE, _BLOCK_SCALE )

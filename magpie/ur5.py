@@ -16,7 +16,8 @@ from rtde_receive import RTDEReceiveInterface as RTDEReceive
 
 # Gripper Interface
 import serial.tools.list_ports
-from magpie.motor_code import Motors
+# from magpie.motor_code import Motors
+from magpie.gripper import Gripper
 
 # Poses is from rmlib and used for converting between 4 x 4 homogenous pose and 6 element vector representation (x,y,z,rx,ry,rz)
 from magpie import poses
@@ -96,8 +97,10 @@ class UR5_Interface:
         servoPort = get_USB_port_with_desc( "OpenRB" )
         if servoPort is not None:
             print( f"Found Dynamixel Port:\n{servoPort}\n" )
-            self.gripper =  Motors( servoPort )
-            self.gripper.torquelimit( self.torqLim )
+            # self.gripper = Motors( servoPort )
+            # self.gripper.torquelimit( self.torqLim )
+            self.gripper = Gripper( servoPort )
+            self.gripper.set_torque( self.torqLim, finger='both')
         else:
             raise RuntimeError( "Could NOT connect to gripper Dynamixel board!" )
 
@@ -106,8 +109,8 @@ class UR5_Interface:
         """ Shutdown robot and gripper connections """
         self.ctrl.servoStop()
         self.ctrl.stopScript()
-        # self.recv.disconnect()
-        # self.ctrl.disconnect()
+        self.gripper.disconnect()
+        
 
     def get_name( self ):
         """ Get string that represents this robot """
@@ -196,23 +199,26 @@ class UR5_Interface:
 
     def open_gripper( self ):
         """ Open gripper to the fullest extent """
-        self.gripper.openGripper()
+        # self.gripper.openGripper()
+        self.gripper.open_gripper()
 
 
     def set_gripper( self, width ):
         """ Computes the servo angles needed for the jaws to be width mm apart """
         # Sends command over serial to the gripper to hold those angles
-        self.gripper.position( self.gripper.distance2theta( width * 1000.0 ) )
+        # self.gripper.position( self.gripper.distance2theta( width * 1000.0 ) )
+        self.gripper.set_goal_aperture( width * 1000.0, finger = 'both', debug = False, record_load = False )
 
 
     def close_gripper( self ):
         """ Set the gripper fingers to near-zero gap """
-        self.set_gripper( self.gripClos_m )
+        # self.set_gripper( self.gripClos_m )
+        self.gripper.close_gripper()
 
 
     def get_gripper_sep( self ):
         """ Return the separation between the gripper fingers in [m] """
-        return self.gripper.get_aperture() / 1000.0
+        return self.gripper.get_aperture( finger = 'both' ) / 1000.0
 
 
     def align_tcp( self, lock_roll = False, lock_pitch = False, lock_yaw = False ):
