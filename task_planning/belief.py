@@ -20,7 +20,7 @@ from task_planning.symbols import euclidean_distance_between_symbols, extract_po
 sys.path.append( "../magpie/" )
 from magpie.poses import repair_pose, vec_unit
 sys.path.append( "../graphics/" )
-from graphics.homog_utils import R_x, R_y
+from graphics.homog_utils import R_x, R_y, posn_from_xform
 
 
 
@@ -55,6 +55,8 @@ def exp_filter( lastVal, nextVal, rate01 ):
 
 def p_sphere_inside_plane_list( qCen, qRad, planeList ):
     """ Return True if a sphere with `qCen` and `qRad` can be found above every plane in `planeList` = [ ..., [point, normal], ... ] """
+    if len( qCen ) == 4:
+        qCen = posn_from_xform( qCen )
     for (pnt_i, nrm_i) in planeList:
         # print(pnt_i, nrm_i)
         dif_i = np.subtract( qCen, pnt_i )

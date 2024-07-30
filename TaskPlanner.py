@@ -36,7 +36,7 @@ from env_config import ( _BLOCK_SCALE, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIME
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_pose_as_homog, 
                                     euclidean_distance_between_symbols, p_symbol_inside_workspace_bounds )
-from task_planning.utils import ( DataLogger, diff_norm, breakpoint, )
+from task_planning.utils import ( DataLogger, diff_norm, match_name, )
 from task_planning.actions import ( display_PDLS_plan, get_BT_plan_until_block_change, BT_Runner, 
                                     Interleaved_MoveFree_and_PerceiveScene, MoveFree, GroundedAction, )
 from task_planning.belief import ObjectMemory
@@ -60,14 +60,6 @@ from pddlstream.algorithms.meta import solve
 
 
 ########## HELPER FUNCTIONS ########################################################################
-
-def match_name( shortName ):
-    """ Search for the environment object name that matches the abbreviated query """
-    for envName in _BLOCK_NAMES:
-        if shortName in envName:
-            return envName
-    return _NULL_NAME
-
 
 def rand_table_pose():
     """ Return a random pose in the direct viscinity if the robot """

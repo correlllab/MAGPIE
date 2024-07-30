@@ -13,15 +13,16 @@ from pprint import pprint
 import numpy as np
 
 ### Local ###
-from TaskPlanner import VisualCortex, match_name
+from TaskPlanner import VisualCortex
 from magpie import ur5
 from magpie.poses import repair_pose, translation_diff, vec_unit
 from graphics.homog_utils import posn_from_xform
+from task_planning.utils import match_name
 from task_planning.symbols import p_symbol_inside_workspace_bounds
 from task_planning.belief import extract_class_dist_in_order, get_D405_FOV_frustum, p_sphere_inside_plane_list
 
 ### Config ###
-from env_config import _BLOCK_SCALE, _BLOCK_NAMES, _NULL_NAME
+from env_config import _BLOCK_SCALE, _BLOCK_NAMES, _ACTUAL_NAMES, _NULL_NAME, _N_ACTUAL, _N_CLASSES
 
 
 ##### Constants #####
@@ -179,9 +180,12 @@ def read_program_output( inPath, actual = False ):
 
 def get_truth_inside_of_camera_frustum( camPose, actual ):
     rtnActual = list()
-    bounds    = get_D405_FOV_frustum( camPose )
+    camBounds = get_D405_FOV_frustum( camPose )
     for (gndNam, gndPose) in actual:
-        if # FIXME
+        if p_sphere_inside_plane_list( gndPose, _BLOCK_RAD_M, camBounds ) and (match_name( gndNam ) in _ACTUAL_NAMES):
+            # print(gndNam, gndPose)
+            rtnActual.append( [gndNam, gndPose,] )
+    return rtnActual
 
     
 
@@ -234,23 +238,42 @@ if __name__ == "__main__":
     totConf = dict()
     for h in _HEIGHT_SEQ_M:
         totConf[ h ] = dict()
+        totConf[ h ]['MISS']   = dict()
+        totConf[ h ]['Totals'] = dict()
         for bName in _BLOCK_NAMES:
-            totConf[ h ][ bName ] = list()
+            totConf[ h ][ bName  ] = list()
+        for bName in _ACTUAL_NAMES:
+            totConf[ h ]['MISS'  ][ bName ] = 0
+            totConf[ h ]['Totals'][ bName ] = 0
+
     
 
 
     for dPath in dataPaths:
         print( f"\n########## Reading {dPath} ##########\n" )
         shots, actual = read_program_output( dPath, actual = True )
+
         # 1. For each height level
         for i, camHeight in enumerate( _HEIGHT_SEQ_M ):
             confHght = dict()
+            confHght['MISS']   = dict()
+            confHght['Totals'] = dict()
             for bName in _BLOCK_NAMES:
-                confHght[ bName ] = list()
+                confHght[ bName  ] = list()
+            for bName in _ACTUAL_NAMES:
+                confHght['MISS'  ][ bName ] = 0
+                confHght['Totals'][ bName ] = 0
+
             # 2. For each shot at this height level, Fetch the shot
             for j in range( _POSES_PER_HEIGHT ):
-                k    = (i*_POSES_PER_HEIGHT)+j
-                shot = shots[k]
+                k         = (i*_POSES_PER_HEIGHT)+j
+                shot      = shots[k]
+                actualCam = get_truth_inside_of_camera_frustum( shot['cam'], actual )
+                truHits   = dict()
+                truNames  = [pair[0] for pair in actualCam]
+                for tNam in truNames:
+                    truHits[ match_name( tNam ) ] = 0
+
                 # 3. For each observation in this shot, fetch and analyze
                 for obs in shot['obs']:
                     N_obs += 1
@@ -260,10 +283,11 @@ if __name__ == "__main__":
                     if p_symbol_inside_workspace_bounds( pose_k ):
                         # 5. Attempt to match with the ground truth
                         found = False
-                        for (gndNam, gndPose) in actual:
+                        for (gndNam, gndPose) in actualCam:
                             if translation_diff( gndPose, pose_k ) <= _ACCEPT_RAD:
                                 gndName = match_name( gndNam )
                                 confHght[ gndName ].append( dist_k )
+                                truHits[ gndName ] += 1
                                 found = True
                                 break
                         # 6. If it is not a match, Then it was a hallucination
@@ -271,16 +295,73 @@ if __name__ == "__main__":
                             confHght[ _NULL_NAME ].append( dist_k )
                     else:
                         N_xcl += 1
+                for (gndNam, gndPose) in actualCam:
+                    gndName = match_name( gndNam )
+                    confHght['Totals'][ gndName ] += len( shot['obs'] )
+                    if (truHits[ gndName ] == 0):
+                        confHght['MISS'][ gndName ] += len( shot['obs'] )
+
             for bName in _BLOCK_NAMES:
                 totConf[ camHeight ][ bName ].extend( confHght[ bName ] )
+            for bName in _ACTUAL_NAMES:
+                totConf[ camHeight ]['MISS'  ][ bName ] += confHght['MISS'  ][ bName ]
+                totConf[ camHeight ]['Totals'][ bName ] += confHght['Totals'][ bName ]
 
         
     N_con = 0
     for k1 in totConf.keys():
         for k2 in totConf[ k1 ].keys():
-            N_con += len( totConf[ k1 ][ k2 ] )
+            if k2 in _BLOCK_NAMES:
+                N_con += len( totConf[ k1 ][ k2 ] )
 
     print( f"Processed {N_obs} observations, Excluded {N_xcl}, Recorded {N_con} confusions!, Check OK: {(N_obs-N_xcl) == N_con}" )
+
+
+    ##### Compute Confusion Matrix at each Height #########################
+    confMatx = dict()
+
+    # 1. For every camera height
+    for height_k, data_k in totConf.items():
+        # 2. Init conf matx
+        matx_k = np.zeros( (_N_CLASSES,_N_CLASSES,) )
+        # 3. For every ground truth entry
+        for i, actName_i in enumerate( _BLOCK_NAMES ):
+            # 4. Compute the average distribution of positive indications
+            row_i = np.mean( data_k[ actName_i ], axis = 0 )
+            # print( f"\t{data_k[ actName_i ]}" )
+            if sum( row_i[0:_N_ACTUAL].tolist() ) > 0.0:
+                row_i[0:_N_ACTUAL] = row_i[0:_N_ACTUAL] / sum( row_i[0:_N_ACTUAL].tolist() )
+            # 5. Handle negative indications
+            if (actName_i in _ACTUAL_NAMES) and (data_k['MISS'][ actName_i ] > 0):
+                frac_k = data_k['MISS'][ actName_i ] / data_k['Totals'][ actName_i ]
+                remn_k = 1.0 - frac_k
+                row_i[-1] = frac_k
+                row_i[0:_N_ACTUAL] = row_i[0:_N_ACTUAL]*remn_k
+            matx_k[i,:] = row_i
+        totMiss = 0
+        totTotl = 0
+        for i, actName_i in enumerate( _ACTUAL_NAMES ):
+            totMiss += data_k['MISS'  ][ actName_i ]
+            totTotl += data_k['Totals'][ actName_i ]
+        notFrac = totMiss / totTotl
+        goodNot = 1.0 - notFrac
+        matx_k[-1,0:_N_ACTUAL] = matx_k[-1,0:_N_ACTUAL] * notFrac
+        matx_k[-1,-1] = goodNot
+        confMatx[ height_k ] = matx_k
+
+
+    print('\n')
+    for height_k, matx_k in confMatx.items():
+        print( height_k )
+        print( matx_k   )
+        good = True
+        for row in matx_k:
+            rowSum = sum( row )
+            if (0.999 > rowSum) or (rowSum > 1.001):
+                good = False
+                break
+        print( f"OK?: {good}\n" )
+
 
     os.system( 'kill %d' % os.getpid() ) 
 

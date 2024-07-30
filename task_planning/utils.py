@@ -13,7 +13,8 @@ from spatialmath import Quaternion
 from spatialmath.quaternion import UnitQuaternion
 from spatialmath.base import r2q
 
-
+### Local ###
+from env_config import _NULL_NAME, _BLOCK_NAMES
 
 ########## DEBUGGING ###############################################################################
 
@@ -47,12 +48,26 @@ def sorted_obj_labels( obj ):
     return rtnLst
 
 
+def match_name( shortName ):
+    """ Search for the environment object name that matches the abbreviated query """
+    for envName in _BLOCK_NAMES:
+        if shortName in envName:
+            return envName
+    return None
+
+
 def extract_dct_values_in_order( dct, keyLst, insertZero = False ):
     """ Get the `dct` values in the order specified in `keyLst` """
     rtnLst = []
+    altNam = dict()
+    for k in dct.keys():
+        if match_name(k) in _BLOCK_NAMES:
+            altNam[ match_name(k) ] = k
     for k in keyLst:
         if k in dct:
             rtnLst.append( dct[k] )
+        if k in altNam:
+            rtnLst.append( dct[altNam[k]] )
         elif insertZero:
             rtnLst.append( 0.0 )
     return rtnLst

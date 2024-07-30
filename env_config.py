@@ -56,7 +56,8 @@ else:
 
 _POSE_DIM     = 7
 _ACTUAL_NAMES = _BLOCK_NAMES[:-1]
-_N_CLASSES    = len( _BLOCK_NAMES )
+_N_CLASSES    = len( _BLOCK_NAMES  )
+_N_ACTUAL     = len( _ACTUAL_NAMES )
 
 _BLOCK_SCALE  = 0.025 # Medium Wooden Blocks
 # _BLOCK_SCALE  = 0.040 # 3D Printed Blocks
