@@ -47,12 +47,14 @@ def sorted_obj_labels( obj ):
     return rtnLst
 
 
-def extract_dct_values_in_order( dct, keyLst ):
+def extract_dct_values_in_order( dct, keyLst, insertZero = False ):
     """ Get the `dct` values in the order specified in `keyLst` """
     rtnLst = []
     for k in keyLst:
         if k in dct:
             rtnLst.append( dct[k] )
+        elif insertZero:
+            rtnLst.append( 0.0 )
     return rtnLst
 
 

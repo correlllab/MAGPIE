@@ -26,22 +26,25 @@ from graphics.homog_utils import R_x, R_y
 
 ########## HELPER FUNCTIONS ########################################################################
 
-def extract_class_dist_in_order( obj, order = _BLOCK_NAMES ):
+def extract_class_dist_in_order( obj, order = _BLOCK_NAMES, insertZero = False ):
     """ Get the discrete class distribution, in order according to environment variable """
     if isinstance( obj, dict ):
-        return np.array( extract_dct_values_in_order( obj, order ) )
+        return np.array( extract_dct_values_in_order( obj, order, insertZero = insertZero ) )
     else:
-        return np.array( extract_dct_values_in_order( obj.labels, order ) )
+        return np.array( extract_dct_values_in_order( obj.labels, order, insertZero = insertZero ) )
 
 
-def extract_class_dist_sorted_by_key( obj ):
+def extract_class_dist_sorted_by_key( obj, insertZero = False ):
     """ Get the discrete class distribution, sorted by key name """
-    return np.array( extract_dct_values_in_order( obj.labels, sorted_obj_labels( obj ) ) )
+    return np.array( extract_dct_values_in_order( obj.labels, sorted_obj_labels( obj ), insertZero = insertZero ) )
 
 
-def extract_class_dist_in_order( obj, order = _BLOCK_NAMES ):
+def extract_class_dist_in_order( obj, order = _BLOCK_NAMES, insertZero = False ):
     """ Get the discrete class distribution, in order according to environment variable """
-    return np.array( extract_dct_values_in_order( obj.labels, order ) )
+    if isinstance( obj, dict ):
+        return np.array( extract_dct_values_in_order( obj, order, insertZero = insertZero ) )
+    else:
+        return np.array( extract_dct_values_in_order( obj.labels, order, insertZero = insertZero ) )
 
 
 def exp_filter( lastVal, nextVal, rate01 ):
@@ -61,7 +64,37 @@ def p_sphere_inside_plane_list( qCen, qRad, planeList ):
             return False
     return True
 
-
+def get_D405_FOV_frustum( camXform ):
+    """ Get 5 <point, normal> pairs for planes bounding an Intel RealSense D405 field of view with its focal point at `camXform` """
+    ## Fetch Components ##
+    rtnFOV   = list()
+    camXform = repair_pose( camXform ) # Make sure all bases are unit vectors
+    camRot   = camXform[0:3,0:3]
+    cFocus   = camXform[0:3,3]
+    ## Depth Limit ##
+    dNrm = camRot.dot( [0.0,0.0,-1.0,] )
+    dPos = np.eye(4)
+    dPos[2,3] = _D405_FOV_D_M
+    dPnt = camXform.dot( dPos )[0:3,3]
+    rtnFOV.append( [dPnt, dNrm,] )
+    ## Top Limit ##
+    tNrm = camRot.dot( R_x( -np.radians( _D405_FOV_V_DEG/2.0 ) ).dot( [0.0,-1.0,0.0] ) )
+    tPnt = cFocus.copy()
+    rtnFOV.append( [tPnt, tNrm,] )
+    ## Bottom Limit ##
+    bNrm = camRot.dot( R_x( np.radians( _D405_FOV_V_DEG/2.0 ) ).dot( [0.0,1.0,0.0] ) )
+    bPnt = cFocus.copy()
+    rtnFOV.append( [bPnt, bNrm,] )
+    ## Right Limit ##
+    rNrm = camRot.dot( R_y( np.radians( _D405_FOV_H_DEG/2.0 ) ).dot( [1.0,0.0,0.0] ) )
+    rPnt = cFocus.copy()
+    rtnFOV.append( [rPnt, rNrm,] )
+    ## Left Limit ##
+    lNrm = camRot.dot( R_y( -np.radians( _D405_FOV_H_DEG/2.0 ) ).dot( [-1.0,0.0,0.0] ) )
+    lPnt = cFocus.copy()
+    rtnFOV.append( [lPnt, lNrm,] )
+    ## Return Limits ##
+    return rtnFOV
 
 ########## BELIEFS #################################################################################
 
@@ -95,41 +128,9 @@ class ObjectMemory:
 
     ##### Sensor Placement ################################################
 
-    def get_D405_FOV_frustrum( self, camXform ):
-        """ Get 5 <point, normal> pairs for planes bounding an Intel RealSense D405 field of view with its focal point at `camXform` """
-        ## Fetch Components ##
-        rtnFOV   = list()
-        camXform = repair_pose( camXform ) # Make sure all bases are unit vectors
-        camRot   = camXform[0:3,0:3]
-        cFocus   = camXform[0:3,3]
-        ## Depth Limit ##
-        dNrm = camRot.dot( [0.0,0.0,-1.0,] )
-        dPos = np.eye(4)
-        dPos[2,3] = _D405_FOV_D_M
-        dPnt = camXform.dot( dPos )[0:3,3]
-        rtnFOV.append( [dPnt, dNrm,] )
-        ## Top Limit ##
-        tNrm = camRot.dot( R_x( -np.radians( _D405_FOV_V_DEG/2.0 ) ).dot( [0.0,-1.0,0.0] ) )
-        tPnt = cFocus.copy()
-        rtnFOV.append( [tPnt, tNrm,] )
-        ## Bottom Limit ##
-        bNrm = camRot.dot( R_x( np.radians( _D405_FOV_V_DEG/2.0 ) ).dot( [0.0,1.0,0.0] ) )
-        bPnt = cFocus.copy()
-        rtnFOV.append( [bPnt, bNrm,] )
-        ## Right Limit ##
-        rNrm = camRot.dot( R_y( np.radians( _D405_FOV_H_DEG/2.0 ) ).dot( [1.0,0.0,0.0] ) )
-        rPnt = cFocus.copy()
-        rtnFOV.append( [rPnt, rNrm,] )
-        ## Left Limit ##
-        lNrm = camRot.dot( R_y( -np.radians( _D405_FOV_H_DEG/2.0 ) ).dot( [-1.0,0.0,0.0] ) )
-        lPnt = cFocus.copy()
-        rtnFOV.append( [lPnt, lNrm,] )
-        ## Return Limits ##
-        return rtnFOV
-    
 
     def p_symbol_in_cam_view( self, camXform, symbol ):
-        bounds = self.get_D405_FOV_frustrum( camXform )
+        bounds = get_D405_FOV_frustum( camXform )
         qPosn  = extract_pose_as_homog( symbol )[0:3,3]
         blcRad = np.sqrt( 3.0 * (_BLOCK_SCALE/2.0)**2 )
         return p_sphere_inside_plane_list( qPosn, blcRad, bounds )
