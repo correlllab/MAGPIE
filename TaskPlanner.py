@@ -1342,12 +1342,11 @@ if __name__ == "__main__":
                 )
 
             actBlc = list( zip(['ylw','blu','NOT'], _CONF_BLC_POSES) ) # Config 1
-            actBlc = list( zip(['blu','grn','NOT'], _CONF_BLC_POSES) ) # Config 2
-            actBlc = list( zip(['ylw','grn','NOT'], _CONF_BLC_POSES) ) # Config 3
-                
-            actBlc = list( zip(['blu','ylw','NOT'], _CONF_BLC_POSES) ) # Config 4
-            actBlc = list( zip(['grn','blu','NOT'], _CONF_BLC_POSES) ) # Config 5
-            actBlc = list( zip(['grn','ylw','NOT'], _CONF_BLC_POSES) ) # Config 6
+            # actBlc = list( zip(['blu','grn','NOT'], _CONF_BLC_POSES) ) # Config 2
+            # actBlc = list( zip(['ylw','grn','NOT'], _CONF_BLC_POSES) ) # Config 3
+            # actBlc = list( zip(['blu','ylw','NOT'], _CONF_BLC_POSES) ) # Config 4
+            # actBlc = list( zip(['grn','blu','NOT'], _CONF_BLC_POSES) ) # Config 5
+            # actBlc = list( zip(['grn','ylw','NOT'], _CONF_BLC_POSES) ) # Config 6
 
             # camTst = camera_pose_from_target_offset( _CONF_BLC_POSES[0], vec_unit( [-1,1,1] )*0.200 )
             # print( camTst )
