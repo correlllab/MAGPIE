@@ -19,7 +19,7 @@ from spatialmath.base import r2q
 
 def breakpoint( bpName ):
     """ Pause program at the terminal until the user presses [Enter] """
-    input( f"\n>>>> BREAKPOINT: {bpName} <<<<\n" )
+    return input( f"\n>>>> BREAKPOINT: {bpName} <<<<\n" )
 
 
 
