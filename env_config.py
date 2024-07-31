@@ -20,7 +20,7 @@ _VERBOSE        = True
 
 ########## GRAPHICS ################################################################################
 
-_USE_GRAPHICS = True
+_USE_GRAPHICS = False
 _BLOCK_ALPHA  = 1.0
 _CLR_TABLE  = {
     'red': [1.0, 0.0, 0.0,],
@@ -59,7 +59,7 @@ _ACTUAL_NAMES = _BLOCK_NAMES[:-1]
 _N_CLASSES    = len( _BLOCK_NAMES  )
 _N_ACTUAL     = len( _ACTUAL_NAMES )
 
-_BLOCK_SCALE  = 0.025 # Medium Wooden Blocks
+_BLOCK_SCALE  = 0.025 # Medium Wooden Blocks (YCB)
 # _BLOCK_SCALE  = 0.040 # 3D Printed Blocks
 
 _SPACE_EXPAND =  0.100

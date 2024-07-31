@@ -1125,12 +1125,16 @@ _VISION_TEST    = 0
 _EXP_BGN_POSE   = _HIGH_VIEW_POSE
 
 
-
-
 _CONF_CAM_POSE_ANGLED1 = repair_pose( np.array( [[ 0.55 , -0.479,  0.684, -0.45 ],
                                                  [-0.297, -0.878, -0.376, -0.138],
                                                  [ 0.781,  0.003, -0.625,  0.206],
                                                  [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
+
+_YCB_LANDSCAPE_CLOSE_BGN = repair_pose( np.array( [[-0.698,  0.378,  0.608, -0.52 ],
+                                                   [ 0.264,  0.926, -0.272, -0.308],
+                                                   [-0.666, -0.029, -0.746,  0.262],
+                                                   [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
+
 
 
 if __name__ == "__main__":
@@ -1141,34 +1145,36 @@ if __name__ == "__main__":
         print( f"########## Running Debug Code at {dateStr} ##########" )
         from graphics.homog_utils import R_x, homog_xform
 
+        if 0:
+            planner = ResponsiveTaskPlanner( noViz = True, noBot = True )
+            blcPosn = {
+                "good": [ 0.0  ,  0.0  ,  0.140,],
+                "bad1": [ 0.0  ,  0.140,  0.0  ,],
+                "bad2": [ 0.140,  0.0  ,  0.0  ,],
+                "bad3": [ 0.0  , -0.140,  0.0  ,],
+                "bad4": [-0.140,  0.0  ,  0.0  ,],
+                "bad5": [ 0.0  ,  0.0  , -0.140,],
 
-        planner = ResponsiveTaskPlanner( noViz = True, noBot = True )
-        blcPosn = {
-            "good": [ 0.0  ,  0.0  ,  0.140,],
-            "bad1": [ 0.0  ,  0.140,  0.0  ,],
-            "bad2": [ 0.140,  0.0  ,  0.0  ,],
-            "bad3": [ 0.0  , -0.140,  0.0  ,],
-            "bad4": [-0.140,  0.0  ,  0.0  ,],
-            "bad5": [ 0.0  ,  0.0  , -0.140,],
+            }
+            blcPose = np.eye(4)
+            camPose = np.eye(4)
+            camPose = camPose.dot( homog_xform( R_x(np.pi/2.0), [0,0,0] ) )
 
-        }
-        blcPose = np.eye(4)
-        camPose = np.eye(4)
-        camPose = camPose.dot( homog_xform( R_x(np.pi/2.0), [0,0,0] ) )
-
-        for k, v in blcPosn.items():
-            blcPose[0:3,3] = v
-            print( f"Pose: {k}, Passed?: {planner.memory.p_symbol_in_cam_view( camPose, blcPose )}\n" )
+            for k, v in blcPosn.items():
+                blcPose[0:3,3] = v
+                print( f"Pose: {k}, Passed?: {planner.memory.p_symbol_in_cam_view( camPose, blcPose )}\n" )
 
         
-        if 0:
+        elif 1:
             rbt = ur5.UR5_Interface()
             rbt.start()
-            rbt.moveL( repair_pose( _GOOD_VIEW_POSE ), asynch = False )
-            sleep(5)
-            rbt.moveL( repair_pose( _HIGH_VIEW_POSE ), asynch = False )
-            # print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
-            sleep(1)
+            sleep(2)
+            print( f"Began at pose:\n{rbt.get_tcp_pose()}" )
+            
+            # rbt.moveL( repair_pose( _GOOD_VIEW_POSE ), asynch = False )
+            # sleep(5)
+            # rbt.moveL( repair_pose( _HIGH_VIEW_POSE ), asynch = False )
+            
             rbt.stop()
 
 
@@ -1206,8 +1212,8 @@ if __name__ == "__main__":
         print( f"########## Running Planner at {dateStr} ##########" )
 
         try:
-            planner = responsive_experiment_prep( _EXP_BGN_POSE )
-            planner.solve_task( maxIter = 30, beginPlanPose = _EXP_BGN_POSE )
+            planner = responsive_experiment_prep( _YCB_LANDSCAPE_CLOSE_BGN ) # _EXP_BGN_POSE
+            planner.solve_task( maxIter = 30, beginPlanPose = _YCB_LANDSCAPE_CLOSE_BGN )
             sleep( 2.5 )
             planner.shutdown()
             

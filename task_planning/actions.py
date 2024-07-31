@@ -361,7 +361,7 @@ class MoveHolding( GroundedAction ):
         poseMd2[0:3,3] = psnMid2
     
         checkedMotion = Sequence( name = "Move Without Dropping", memory = False )
-        dropChecker   = Gripper_Aperture_OK( _BLOCK_SCALE, margin_m = _BLOCK_SCALE*0.25, name = "Check Holding", ctrl = robot  )
+        dropChecker   = Gripper_Aperture_OK( _BLOCK_SCALE, margin_m = _BLOCK_SCALE*0.50, name = "Check Holding", ctrl = robot  )
         transportMotn = Sequence( name = "Move Object", memory = True )
         transportMotn.add_children( [
             Move_Arm( poseMd1, ctrl = robot, linSpeed = _ROBOT_HOLD_SPEED ),

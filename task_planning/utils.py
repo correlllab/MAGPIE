@@ -58,6 +58,19 @@ def match_name( shortName ):
 
 def extract_dct_values_in_order( dct, keyLst, insertZero = False ):
     """ Get the `dct` values in the order specified in `keyLst` """
+    # NOTE: "TaskPlanner.py" version!
+    rtnLst = []
+    for k in keyLst:
+        if k in dct:
+            rtnLst.append( dct[k] )
+        elif insertZero:
+            rtnLst.append( 0.0 )
+    return rtnLst
+
+
+def extract_dct_values_in_order_conf( dct, keyLst, insertZero = False ):
+    """ Get the `dct` values in the order specified in `keyLst` """
+    # WARNING: "Confusion.py" VERSION! **BREAKS** THE PLANNER!
     rtnLst = []
     altNam = dict()
     for k in dct.keys():

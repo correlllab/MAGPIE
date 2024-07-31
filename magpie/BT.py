@@ -245,7 +245,9 @@ class Gripper_Aperture_OK( BasicBehavior ):
     def update( self ):
         """ Return true if the target maintained """
         # print( f"\nGripper Sep: {self.ctrl.get_gripper_sep()}\n" )
-        if np.abs( self.ctrl.get_gripper_sep() - self.width ) <= self.margin:
+        sep = self.ctrl.get_gripper_sep()
+        print( f"Gripper Width: {sep}" )
+        if np.abs( sep - self.width ) <= self.margin:
             self.status = Status.SUCCESS
         else:
             self.status = Status.FAILURE
