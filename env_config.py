@@ -20,7 +20,8 @@ _VERBOSE        = True
 
 ########## GRAPHICS ################################################################################
 
-_USE_GRAPHICS = False
+_USE_GRAPHICS   = False
+_RECORD_SYM_SEQ = True
 _BLOCK_ALPHA  = 1.0
 _CLR_TABLE  = {
     'red': [1.0, 0.0, 0.0,],
@@ -105,11 +106,14 @@ _NULL_EVIDENCE    = True
 
 _SCORE_FILTER_EXP  =   0.75 # During a belief update, accept the new score at this rate
 _SCORE_DECAY_TAU_S =  20.0 # Score time constant, for freshness 
+_SCORE_DIV_FAIL    = 2.0
 _OBJ_TIMEOUT_S     = 120.0 # Readings older than this are not considered
-_UPDATE_PERIOD_S   =   8.0 # Number of seconds between belief updates
+_UPDATE_PERIOD_S   =   4.0 # Number of seconds between belief updates
 _DEF_NULL_SCORE    =   0.75 # Default null score if there was no comparison
 _LKG_SEP           = 0.80*_BLOCK_SCALE # 0.40 # 0.60 # 0.70 # 0.75
-
+_CUT_MERGE_S_FRAC  = 0.325
+_CUT_SCORE_FRAC    = 0.250
+_REIFY_SUPER_BEL   = 1.01
 
 
 ########## MEASUREMENTS ############################################################################

@@ -32,7 +32,8 @@ import open3d as o3d
 from env_config import ( _BLOCK_SCALE, _SCORE_DECAY_TAU_S, _NULL_NAME, _OBJ_TIMEOUT_S, _BLOCK_NAMES, _VERBOSE, 
                          _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN,
                          _ACCEPT_POSN_ERR, _MIN_SEP, _USE_GRAPHICS, _N_XTRA_SPOTS, _MAX_UPDATE_RAD_M, _UPDATE_PERIOD_S,
-                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, _LKG_SEP, )
+                         _BT_UPDATE_HZ, _BT_ACT_TIMEOUT_S, _LKG_SEP, _RECORD_SYM_SEQ, _CUT_SCORE_FRAC, _CUT_MERGE_S_FRAC,
+                         _REIFY_SUPER_BEL, _SCORE_DIV_FAIL, )
 sys.path.append( "./task_planning/" )
 from task_planning.symbols import ( ObjectReading, ObjPose, GraspObj, extract_pose_as_homog, 
                                     euclidean_distance_between_symbols, p_symbol_inside_workspace_bounds )
@@ -130,7 +131,7 @@ class VisualCortex:
         
         # 1. Setup state
         self.reset_state()
-        # self.tFresh = 20.0
+        
         
         # 2. Start Perception
         self.noViz = noViz
@@ -248,30 +249,31 @@ class VisualCortex:
         endMin  = None
         objMtch = None
         
-        if planBT.status == Status.SUCCESS:
-            for act_i in planBT.children:
-                if "MoveHolding" in act_i.__class__.__name__:
-                    poseBgn, poseEnd, label = act_i.args
-                    for objM in self.memory:
-                        dist_ij = euclidean_distance_between_symbols( objM, poseBgn )
-                        if (dist_ij <= _MIN_SEP) and (dist_ij < dMin) and (label in objM.labels):
-                            dMin    = dist_ij
-                            endMin  = poseEnd
-                            updated = True
-                            objMtch = objM
-                    break
-            if updated:
+        
+        for act_i in planBT.children:
+            if "MoveHolding" in act_i.__class__.__name__:
+                poseBgn, poseEnd, label = act_i.args
+                for objM in self.memory:
+                    dist_ij = euclidean_distance_between_symbols( objM, poseBgn )
+                    if (dist_ij <= _MIN_SEP) and (dist_ij < dMin) and (label in objM.labels):
+                        dMin    = dist_ij
+                        endMin  = poseEnd
+                        updated = True
+                        objMtch = objM
+                break
+        if updated:
+            if planBT.status == Status.SUCCESS:
                 objMtch.pose = endMin
                 objMtch.ts   = now() # 2024-07-27: THIS IS EXTREMELY IMPORTANT ELSE THIS READING DIES --> BAD BELIEFS
                 # 2024-07-27: NEED TO DO SOME DEEP THINKING ABOUT THE FRESHNESS OF RELEVANT FACTS
                 if _verbose:
                     print( f"`get_moved_reading_from_BT_plan`: BT {planBT.name} updated {objMtch}!" )  
             else:
-                if _verbose:
-                    print( f"`get_moved_reading_from_BT_plan`: NO update applied by BT {planBT.name}!" )    
+                objMtch.score /= _SCORE_DIV_FAIL
         else:
             if _verbose:
-                print( f"`get_moved_reading_from_BT_plan`: BT {planBT.name} did NOT complete successfully!" )
+                print( f"`get_moved_reading_from_BT_plan`: NO update applied by BT {planBT.name}!" )    
+
         return updated
 
 
@@ -349,12 +351,35 @@ class ResponsiveTaskPlanner:
         self.facts   = list() # ------- Grounded predicates
 
 
+    def open_file( self ):
+        """ Set the name of the current file """
+        dateStr     = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+        if _RECORD_SYM_SEQ:
+            self.outNam = f"Sym-Confidence_{dateStr}.txt"
+        else:
+            self.outNam = f"Responsive-Planner_{dateStr}.txt"
+        self.outFil = open( os.path.join( self.outDir, self.outNam ), 'w' )
+
+
+    def dump_to_file( self, openNext = False ):
+        """ Write all data lines to a file """
+        self.outFil.writelines( [f"{str(line)}\n" for line in self.datLin] )
+        self.outFil.close()
+        if openNext:
+            self.datLin = list()
+            self.open_file()
+
+
     def reset_state( self ):
         """ Erase problem state """
         self.status = Status.INVALID # Running status
         self.task   = None # --------- Current task definition
         self.goal   = tuple() # ------ Current goal specification
         self.grasp  = list() # ------- ? NOT USED ?
+        self.datLin = list() # ------- Data to write
+        self.outDir = "data/"
+        self.open_file()
+
 
 
     def __init__( self, world = None, noViz = False, noBot = False ):
@@ -377,6 +402,7 @@ class ResponsiveTaskPlanner:
     def shutdown( self ):
         """ Stop the Perception Process and the UR5 connection """
         self.world.stop()
+        self.dump_to_file( openNext = False )
         if not self.noBot:
             self.robot.stop()
 
@@ -530,13 +556,19 @@ class ResponsiveTaskPlanner:
 
     ##### Object Permanence ###############################################
 
-    def merge_and_reconcile_object_memories( self, tau = _SCORE_DECAY_TAU_S ):
+    def merge_and_reconcile_object_memories( self, tau = _SCORE_DECAY_TAU_S, cutScoreFrac = 0.5  ):
         """ Calculate a consistent object state from LKG Memory and Beliefs """
         mrgLst  = list()
         tCurr   = now()
-        totLst  = copy_readings( self.memory.beliefs[:] )
-        LKGmem  = copy_readings( self.world.get_last_best_readings() )
+        totLst  = self.memory.beliefs[:]
+        LKGmem  = self.world.get_last_best_readings()
         totLst.extend( LKGmem )
+
+        def cut_bottom_fraction( objs, frac ):
+            """ Return a version of `objs` with the bottom `frac` scores removed """
+            rtnObjs = sorted( objs, key = lambda item: item.score, reverse = True )
+            keepNum  = len( rtnObjs ) - int( frac * len( rtnObjs ) )
+            return rtnObjs[ 0:keepNum ]
         
         # Filter and Decay stale readings
         for r in totLst:
@@ -547,18 +579,29 @@ class ResponsiveTaskPlanner:
                     score_r = 0.0
                 r.score = score_r
                 mrgLst.append( r )
+
+        if (1.0 > cutScoreFrac > 0.0):
+            mrgLst = cut_bottom_fraction( mrgLst, cutScoreFrac )
         
         # Enforce consistency and return
         return self.world.rectify_readings( mrgLst, suppressStorage = True )
         
 
-    def most_likely_objects( self, objList, method = "unique-non-null" ):
+    def most_likely_objects( self, objList, method = "unique-non-null", cutScoreFrac = 0.5 ):
         """ Get the `N` most likely combinations of object classes """
+
+        def cut_bottom_fraction( objs, frac ):
+            """ Return a version of `objs` with the bottom `frac` scores removed """
+            rtnObjs = sorted( objs, key = lambda item: item.score, reverse = True )
+            keepNum  = len( rtnObjs ) - int( frac * len( rtnObjs ) )
+            return rtnObjs[ 0:keepNum ]
 
         ### Combination Generator ###
 
         def gen_combos( objs ):
             ## Init ##
+            if (1.0 > cutScoreFrac > 0.0):
+                objs = cut_bottom_fraction( objs, cutScoreFrac )
             comboList = [ [1.0,[],], ]
             ## Generate all class combinations with joint probabilities ##
             for bel in objs:
@@ -567,7 +610,8 @@ class ResponsiveTaskPlanner:
                     for label_j, prob_j in bel.labels.items():
                         prob_ij = combo_i[0] * prob_j
 
-                        objc_ij = GraspObj( label = label_j, pose = bel.pose, prob = prob_j, score = bel.score )
+                        objc_ij = GraspObj( label = label_j, pose = bel.pose, 
+                                            prob = prob_j, score = bel.score, labels = bel.labels )
                         
                         nuCombos.append( [prob_ij, combo_i[1]+[objc_ij,],] )
                 comboList = nuCombos
@@ -637,8 +681,19 @@ class ResponsiveTaskPlanner:
         return rtnLst
     
     
-
-
+    def reify_chosen_beliefs( self, objs, chosen, factor = _REIFY_SUPER_BEL ):
+        """ Super-believe in the beliefs we believed in """
+        posen = [ extract_pose_as_homog( ch ) for ch in chosen ]
+        maxSc = 0.0
+        for obj in objs:
+            if obj.score > maxSc:
+                maxSc = obj.score
+        for obj in objs:
+            for cPose in posen:
+                if (translation_diff( cPose, extract_pose_as_homog( obj ) ) <= _LKG_SEP):
+                    obj.score = maxSc * factor
+                    obj.ts    = now()
+                
 
     ##### Noisy Task Monitoring ###########################################
 
@@ -753,8 +808,20 @@ class ResponsiveTaskPlanner:
         for _ in range( Nscans ):
             self.perceive_scene( xform ) # We need at least an initial set of beliefs in order to plan
 
-        self.beliefs = self.merge_and_reconcile_object_memories()
-        self.symbols = self.most_likely_objects( self.beliefs, method = "clean-dupes-score" ) # clean-dupes # clean-dupes-score # unique
+        self.beliefs = self.merge_and_reconcile_object_memories( cutScoreFrac = _CUT_MERGE_S_FRAC )
+        self.symbols = self.most_likely_objects( self.beliefs, 
+                                                 method = "clean-dupes-score",  # clean-dupes # clean-dupes-score # unique
+                                                 cutScoreFrac = _CUT_SCORE_FRAC )
+        # HACK: TOP OFF THE SCORES OF THE LKG ENTRIES THAT BECAME SYMBOLS
+        self.reify_chosen_beliefs( self.world.memory, self.symbols )
+        
+        
+        if _RECORD_SYM_SEQ:
+            savLst = list()
+            for sym in self.symbols:
+                savLst.append( sym.get_dict() )
+            self.datLin.append( savLst )
+
         self.status  = Status.RUNNING
 
         if _VERBOSE:

@@ -92,20 +92,35 @@ class ObjPose:
 
 class GraspObj:
     """ The concept of a named object at a pose """
+    # FIXME: JUST MERGE THIS WITH `ObjectReading` THEY ARE THE SAME NOW
     num = count()
 
-    def __init__( self, label = None, pose = None, prob = None, score = None ):
+    def __init__( self, label = None, pose = None, prob = None, score = None, labels = None ):
         """ Set components used by planners """
-        self.label = label if (label is not None) else _NULL_NAME
-        self.pose  = pose if (pose is not None) else ObjPose( np.eye(4) )
-        self.index = next( self.num )
-        self.prob  = prob if (prob is not None) else 0.0 # 2024-07-22: This is for sorting dupes in the planner and is NOT used by PDDLStream
-        self.score = score if (score is not None) else 0.0 # 2024-07-25: This is for sorting dupes in the planner and is NOT used by PDDLStream
+        self.label  = label if (label is not None) else _NULL_NAME
+        self.labels = labels if (labels is not None) else dict()
+        self.pose   = pose if (pose is not None) else ObjPose( np.eye(4) )
+        self.index  = next( self.num )
+        self.prob   = prob if (prob is not None) else 0.0 # 2024-07-22: This is for sorting dupes in the planner and is NOT used by PDDLStream
+        self.score  = score if (score is not None) else 0.0 # 2024-07-25: This is for sorting dupes in the planner and is NOT used by PDDLStream
 
 
     def __repr__( self ):
         """ Text representation of noisy reading """
         return f"<GraspObj {self.index} @ {extract_position( self.pose )}, Class: {str(self.label)}, Score: {str(self.score)}>"
+    
+    def get_dict( self ):
+        """ Return a verison of the `GraspObj` suitable for a TXT file """
+        return {
+            'name'  : self.__class__.__name__,
+            'time'  : now(),
+            'label' : self.label,
+            'labels': self.labels,
+            'pose'  : extract_pose_as_homog( self.pose ),
+            'index' : self.index,
+            'prob'  : self.prob,
+            'score' : self.score,
+        }
 
 
 
