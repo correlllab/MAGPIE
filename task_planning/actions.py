@@ -36,10 +36,12 @@ HAND_OBJ_KEY   = "handHas"
 PROTO_PICK_ROT = np.array( [[ -1.0,  0.0,  0.0, ],
                             [  0.0,  1.0,  0.0, ],
                             [  0.0,  0.0, -1.0, ]] )
+_GRASP_OFFSET_X = -1.15/100.0 + 0.0075
+_GRASP_OFFSET_Y =  1.30/100.0 - 0.0075
 _GRASP_OFFSET_Z = 0.110 + 0.110 + 0.010 # Link 6 to gripper tip
 TCP_XFORM = np.array([
-    [1, 0, 0, -1.15 / 100     ],
-    [0, 1, 0,  1.3 / 100      ],
+    [1, 0, 0, _GRASP_OFFSET_X ],
+    [0, 1, 0, _GRASP_OFFSET_Y ],
     [0, 0, 1, _GRASP_OFFSET_Z ],
     [0, 0, 0, 1               ],
 ])

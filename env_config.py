@@ -111,8 +111,8 @@ _OBJ_TIMEOUT_S     = 120.0 # Readings older than this are not considered
 _UPDATE_PERIOD_S   =   4.0 # Number of seconds between belief updates
 _DEF_NULL_SCORE    =   0.75 # Default null score if there was no comparison
 _LKG_SEP           = 0.80*_BLOCK_SCALE # 0.40 # 0.60 # 0.70 # 0.75
-_CUT_MERGE_S_FRAC  = 0.325
-_CUT_SCORE_FRAC    = 0.250
+_CUT_MERGE_S_FRAC  = 0.325 # 0.325 # 0.40 # 0.20
+_CUT_SCORE_FRAC    = 0.25
 _REIFY_SUPER_BEL   = 1.01
 
 

@@ -116,7 +116,7 @@ class GraspObj:
             'time'  : now(),
             'label' : self.label,
             'labels': self.labels,
-            'pose'  : extract_pose_as_homog( self.pose ),
+            'pose'  : extract_pose_as_homog( self.pose ).tolist(),
             'index' : self.index,
             'prob'  : self.prob,
             'score' : self.score,
@@ -146,6 +146,18 @@ class ObjectReading( GraspObj ):
             cleanDict[ k[:3] ] = np.round( v, 3 )
         return f"<ObjectReading @ {extract_position( self.pose )}, Dist: {str(cleanDict)}, Score: {self.score:.4f}, Age: {objAge:.2f} >"
     
+    
+    def get_dict( self ):
+        """ Return a verison of the `GraspObj` suitable for a TXT file """
+        return {
+            'name'  : self.__class__.__name__,
+            'time'  : now(),
+            'ts'    : self.ts,
+            'labels': self.labels,
+            'pose'  : extract_pose_as_homog( self.pose ).tolist(),
+            'index' : self.index,
+            'score' : self.score,
+        }
 
     def copy( self ):
         """ Make a copy of this belief """

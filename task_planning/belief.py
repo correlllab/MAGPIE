@@ -16,7 +16,7 @@ from env_config import ( _BLOCK_SCALE, _N_CLASSES, _CONFUSE_PROB, _NULL_NAME, _N
                          _DEF_NULL_SCORE, _D405_FOV_H_DEG, _D405_FOV_V_DEG, _D405_FOV_D_M, )
 from task_planning.utils import ( extract_dct_values_in_order, sorted_obj_labels, multiclass_Bayesian_belief_update, get_confusion_matx, 
                                   get_confused_class_reading )
-from task_planning.symbols import euclidean_distance_between_symbols, extract_pose_as_homog, p_symbol_inside_workspace_bounds
+from task_planning.symbols import euclidean_distance_between_symbols, extract_pose_as_homog, p_symbol_inside_workspace_bounds, ObjPose
 sys.path.append( "../magpie/" )
 from magpie.poses import repair_pose, vec_unit
 sys.path.append( "../graphics/" )
@@ -158,9 +158,18 @@ class ObjectMemory:
         if relevant:
             belBest.visited = True
             self.accum_evidence_for_belief( objReading, belBest )
-            # belBest.pose = np.array( objReading.pose ) # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
-            belBest.pose  = objReading.pose # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
-            belBest.score = exp_filter( belBest.score, objReading.score, _SCORE_FILTER_EXP )
+
+            updtFrac = objReading.score / (belBest.score + objReading.score)
+            # belBest.pose  = objReading.pose # WARNING: ASSUME THE NEW NEAREST POSE IS CORRECT!
+            belPosn = posn_from_xform( extract_pose_as_homog( belBest.pose    ) )
+            objPosn = posn_from_xform( extract_pose_as_homog( objReading.pose ) )
+            updPosn = objPosn * updtFrac + belPosn * (1.0 - updtFrac)
+            updPose = np.eye(4)
+            updPose[0:3,3] = updPosn
+            belBest.pose  = ObjPose( updPose )
+            # belBest.score = exp_filter( belBest.score, objReading.score, _SCORE_FILTER_EXP )
+            belBest.score = exp_filter( belBest.score, objReading.score, updtFrac )
+            
             belBest.ts    = tsNow
 
         # 2. If this evidence does not support an existing belief, it is a new belief

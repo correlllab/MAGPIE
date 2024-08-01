@@ -66,8 +66,8 @@ def rand_table_pose():
     """ Return a random pose in the direct viscinity if the robot """
     rtnPose = np.eye(4)
     rtnPose[0:3,3] = [ 
-        _MIN_X_OFFSET + 0.5*_X_WRK_SPAN*random(), 
-        _MIN_Y_OFFSET + 0.5*_Y_WRK_SPAN*random(), 
+        _MIN_X_OFFSET + 0.5*_X_WRK_SPAN + 0.5*_X_WRK_SPAN*random(), 
+        _MIN_Y_OFFSET + 0.5*_Y_WRK_SPAN + 0.5*_Y_WRK_SPAN*random(), 
         _BLOCK_SCALE/2.0,
     ]
     return rtnPose
@@ -100,10 +100,18 @@ def copy_readings_as_LKG( readLst ):
 
 
 def copy_readings( readLst ):
-    """ Return a list of readings intended for the Last-Known-Good collection """
+    """ Return a list of readings """
     rtnLst = list()
     for r in readLst:
         rtnLst.append( r.copy() )
+    return rtnLst
+
+
+def copy_readings_dict( readLst ):
+    """ Return a list of reading dictionaries """
+    rtnLst = list()
+    for r in readLst:
+        rtnLst.append( r.get_dict() )
     return rtnLst
 
 
@@ -682,7 +690,8 @@ class ResponsiveTaskPlanner:
     
     
     def reify_chosen_beliefs( self, objs, chosen, factor = _REIFY_SUPER_BEL ):
-        """ Super-believe in the beliefs we believed in """
+        """ Super-believe in the beliefs we believed in. 
+            That is: Refresh the timestamp and score of readings that ultimately became grounded symbols """
         posen = [ extract_pose_as_homog( ch ) for ch in chosen ]
         maxSc = 0.0
         for obj in objs:
@@ -797,7 +806,14 @@ class ResponsiveTaskPlanner:
         return False
 
 
-    
+    def capture_object_memory( self ):
+        """ Save the current state of the entire object permanence framework as nested dictionaries """
+        return {
+            'time'    : now(),
+            'symbols' : copy_readings_dict( self.symbols ),
+            'LKGmem'  : copy_readings_dict( self.world.memory ),
+            'beliefs' : copy_readings_dict( self.memory.beliefs ),
+        }
 
 
     ##### Task Planning Phases ############################################
@@ -817,10 +833,7 @@ class ResponsiveTaskPlanner:
         
         
         if _RECORD_SYM_SEQ:
-            savLst = list()
-            for sym in self.symbols:
-                savLst.append( sym.get_dict() )
-            self.datLin.append( savLst )
+            self.datLin.append( self.capture_object_memory() )
 
         self.status  = Status.RUNNING
 
