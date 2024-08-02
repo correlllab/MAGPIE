@@ -196,7 +196,9 @@ class VisualCortex:
                 print( f"\nWARN: Got a NaN score with count {item['Count']} and distribution {dstrb}\n" )
                 score_i = 0.0
 
-            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i ) )
+            rtnBel.append( ObjectReading( 
+                labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i 
+            ) )
         return rtnBel
     
 
@@ -420,8 +422,6 @@ class ResponsiveTaskPlanner:
         scan = self.world.full_scan_noisy( xform )
         # LKG and Belief are updated SEPARATELY and merged LATER as symbols
         self.world.rectify_readings( copy_readings_as_LKG( scan ) )
-        if _USE_GRAPHICS:
-            display_belief_geo( self.world.get_last_best_readings() )
         self.memory.belief_update( scan, xform, maxRadius = _MAX_UPDATE_RAD_M )
 
 
@@ -810,6 +810,7 @@ class ResponsiveTaskPlanner:
         """ Save the current state of the entire object permanence framework as nested dictionaries """
         return {
             'time'    : now(),
+            'scan'    : copy_readings_dict( self.world.scan ),
             'symbols' : copy_readings_dict( self.symbols ),
             'LKGmem'  : copy_readings_dict( self.world.memory ),
             'beliefs' : copy_readings_dict( self.memory.beliefs ),
