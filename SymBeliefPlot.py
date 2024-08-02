@@ -81,7 +81,8 @@ def get_reading_list_geo( readings, kind = 'symbol' ):
 
 if __name__ == "__main__":
 
-    _PLOT_SYM_HISTORY = False
+    _PLOT_SYM_HISTORY = True
+    _VIZ_MEMO_HISTORY = False
 
     ##### Read File #######################################################
 
@@ -124,8 +125,8 @@ if __name__ == "__main__":
         
 
         for name in synNames:
-            # plt.plot( series['time'], series[ name ]['prob'], plotTable[ name ]['plot'] )
-            plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'] )
+            plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
+            # plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'] )
 
         # ax2 = ax1.twinx()
         # for name in synNames:
@@ -137,10 +138,12 @@ if __name__ == "__main__":
 
     ##### Extract Symbol Decision Making ##################################
     
-    for datum in symData[:1]:
-        symCubes = [table_geo(),]
-        geo, txt = get_reading_list_geo( datum['LKGmem'], 'LKG' )
-        symCubes.extend( geo )
-        symCubes.extend( txt )
-        # symCubes.extend( get_reading_list_geo( datum['beliefs'] ) )
-        vispy_geo_list_window( symCubes, )
+    if _VIZ_MEMO_HISTORY:
+
+        for datum in symData[:1]:
+            symCubes = [table_geo(),]
+            geo, txt = get_reading_list_geo( datum['LKGmem'], 'LKG' )
+            symCubes.extend( geo )
+            symCubes.extend( txt )
+            # symCubes.extend( get_reading_list_geo( datum['beliefs'] ) )
+            vispy_geo_list_window( symCubes, )
