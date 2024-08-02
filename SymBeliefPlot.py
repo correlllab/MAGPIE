@@ -24,9 +24,9 @@ _CAM_POS = np.add( _LOOK, [ 0.5, 0.5, 0.5 ] )
 ########## DATA READ ###############################################################################
 _PLOT_TABLE = {
     # Confidence Plots
-    'grnBlock': { 'plot': 'green' , },
-    'bluBlock': { 'plot': 'blue'  , },
-    'ylwBlock': { 'plot': 'orange', },
+    'grnBlock': { 'plot': 'green' , 'name': 'Green Block' },
+    'bluBlock': { 'plot': 'blue'  , 'name': 'Blue Block' },
+    'ylwBlock': { 'plot': 'orange', 'name': 'Yellow Block' },
     # Memory Rendering
     'symbol'  : 'black',
     'LKG'     : 'red',
@@ -120,19 +120,28 @@ if __name__ == "__main__":
                 series[ name ]['score'].append( 0.0 )
 
     if _PLOT_SYM_HISTORY:
-        # fig, ax1 = plt.subplots()
-        plt.figure()
+        
+        plt.rcParams.update({
+            "text.usetex": True,
+        })
+
+        plt.figure( figsize = (18,18), dpi = 300 )
         
 
         for name in synNames:
-            plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
-            # plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'] )
+            # plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
+            plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
+                      label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
 
-        # ax2 = ax1.twinx()
-        # for name in synNames:
-        #     ax2.plot( series['time'], series[ name ]['score'], '--' )
-
+        plt.title( 'Symbol Quality $s_{obj}$ -vs- Time', fontsize = 60 )
+        plt.xlabel('Time [s]', fontsize = 40); 
+        plt.ylabel('Quality $s_{obj}$', fontsize = 40)
+        plt.legend( fontsize = 40 )
+        plt.xticks( fontsize = 30 )
+        plt.yticks( fontsize = 30 )
+        plt.savefig( 'graphics/paper/QualityPlot.pdf' )
         plt.show()
+        
         plt.clf()
         
 
