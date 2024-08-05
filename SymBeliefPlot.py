@@ -14,6 +14,7 @@ from vispy import gloo, app
 
 ### Local ###
 from graphics.draw_beliefs import reading_dict_geo, vispy_geo_list_window, table_geo, _TABLE_THIC
+from magpie.poses import translation_diff
 from env_config import ( _LKG_SEP, _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, )
 
 
@@ -48,6 +49,7 @@ def read_symbol_trace( fPath ):
 
 
 def get_reading_list_geo( readings, kind = 'symbol' ):
+    """ Obtain geometry """
     geo  = list()
     txt  = list()
     sMax = -1e6
@@ -70,8 +72,12 @@ def get_reading_list_geo( readings, kind = 'symbol' ):
     return geo, txt
 
 
-
-########## Visualization Functions #################################################################
+def p_orig_pose( qXfrm ):
+    """ Return True if `qXfrm` is equal to the origin pose """
+    try:
+        return (translation_diff( np.array( qXfrm ), np.eye(4) ) < _LKG_SEP)
+    except Exception:
+        return False
 
 
 
@@ -88,6 +94,13 @@ if __name__ == "__main__":
     _OTHER_FIGURES    = 0
     _SHOW_PLOTS       = 0
 
+    _TITLE_FSIZ  = 25
+    _LEGEND_FSIZ = 20
+    _TICK_FSIZ   = 15
+    _AXES_FSIZ   = 25
+    _LINE_WIDTH  =  5
+    _PLOT_ENDEX  = -9
+
     ##### Read File #######################################################
 
     symData  = read_symbol_trace( "data/Sym-Confidence_08-01-2024_13-09-18.txt" )
@@ -101,16 +114,21 @@ if __name__ == "__main__":
     series = dict()
     series['time'   ] = list()
     series['MaxLike'] = list()
+    series['SymMove'] = list()
     for name in synNames:
         series[ name ] = dict()
         series[ name ]['prob' ] = list()
         series[ name ]['score'] = list()
+        series[ name ]['pose' ] = list()
 
     ##### Extract Symbol History ##########################################
 
     for i, datum in enumerate( symData ):
         series['time'].append( datum['time'] - tStart )
-        mxLk_i = 1.0
+        mxLk_i   = 1.0
+        deltaSym = False
+        transMax = 0.0
+        nameDmax = None
         for name in synNames:
             sym_f = None
             for sym_j in datum['symbols']:
@@ -121,9 +139,26 @@ if __name__ == "__main__":
                 mxLk_i *= sym_f['prob' ]
                 series[ name ]['prob' ].append( sym_f['prob' ] )
                 series[ name ]['score'].append( sym_f['score'] )
+                series[ name ]['pose' ].append( np.array( sym_f['pose'] ) )
             else:
                 series[ name ]['prob' ].append( 0.0 )
                 series[ name ]['score'].append( 0.0 )
+                series[ name ]['pose' ].append( np.eye(4) )
+            
+            if (i > 1):
+                nameDist = translation_diff( series[ name ]['pose' ][-1], series[ name ]['pose' ][-2] )
+                if (nameDist > _LKG_SEP*3.0) and (not p_orig_pose( series[ name ]['pose' ][-1] )):
+                    deltaSym = True
+                    if nameDist > transMax:
+                        transMax = nameDist
+                        nameDmax = name
+
+
+        if deltaSym:
+            series['SymMove'].append( nameDmax )
+        else:
+            series['SymMove'].append( 0 )
+        
         series['MaxLike'].append( mxLk_i )
 
     if _PLOT_SYM_HISTORY:
@@ -139,7 +174,7 @@ if __name__ == "__main__":
             for name in synNames:
                 # plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
                 plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
-                        label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
+                        label = _PLOT_TABLE[ name ]['name'], linewidth = _LINE_WIDTH )
             plt.title( 'Symbol Quality $s_{obj}$ -vs- Time', fontsize = 60 )
             plt.xlabel( 'Time [s]', fontsize = 40 )
             plt.ylabel( 'Quality $s_{obj}$', fontsize = 40 )
@@ -150,28 +185,39 @@ if __name__ == "__main__":
 
         elif 1:
 
-            fig, axs = plt.subplots( 2, figsize = (12,16), dpi = 300 )
+            fig, axs = plt.subplots( nrows=1, ncols=2, figsize = (24,8), dpi = 300 )
             # fig.suptitle( 'Vertically stacked subplots' )
             
 
             ### Top Plot ###
 
             for name in synNames:
-                axs[0].plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
-                             label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
+                axs[0].plot( series['time'][:_PLOT_ENDEX], 
+                             series[ name ]['score'][:_PLOT_ENDEX], 
+                             _PLOT_TABLE[ name ]['plot'], 
+                             label = _PLOT_TABLE[ name ]['name'], linewidth = _LINE_WIDTH )
             
-            axs[0].set_title('Axis [0, 0]', fontsize = 30 )
-            axs[0].legend( fontsize = 20 )
-            axs[0].tick_params( axis='both', labelsize = 15 )
+            axs[0].set_title('Symbol Quality $s_{obj}$ -vs- Time', fontsize = _TITLE_FSIZ )
+            axs[0].legend( fontsize = _LEGEND_FSIZ )
+            axs[0].tick_params( axis='both', labelsize = _TICK_FSIZ )
+            axs[0].set_xlabel( 'Time [s]', fontsize = _AXES_FSIZ )
+            axs[0].set_ylabel( 'Quality $s_{obj}$', fontsize = _AXES_FSIZ )
 
             ### Bottom Plot ###
 
-            axs[1].set_title( 'Axis [0, 0]', fontsize = 30 )
-            axs[1].plot( series['time'], series['MaxLike'], linewidth = 5 )
-            axs[1].tick_params( axis='both', labelsize = 15 )
+            axs[1].set_title( 'Maximum Likelihood of Grounded Symbols -vs- Time', fontsize = _TITLE_FSIZ )
+            axs[1].plot( series['time'][:_PLOT_ENDEX], 
+                         series['MaxLike'][:_PLOT_ENDEX], 
+                         linewidth = _LINE_WIDTH, color = 'purple' )
+            axs[1].tick_params( axis='both', labelsize = _TICK_FSIZ )
+            axs[1].set_xlabel( 'Time [s]', fontsize = _AXES_FSIZ )
+            axs[1].set_ylabel( 'Max. Likelihood', fontsize = _AXES_FSIZ )
+            for i, p_move_i in enumerate( series['SymMove'][:_PLOT_ENDEX] ):
+                if p_move_i:
+                    axs[1].axvline( x = series['time'][i], color = _PLOT_TABLE[ p_move_i ]['plot'] )
 
             plt.tight_layout( pad   = 2.25, 
-                              w_pad = 0, 
+                              w_pad = 1.25, 
                               h_pad = 1.25 )
 
             plt.savefig( 'graphics/paper/QualityPlot_V2.pdf' )
