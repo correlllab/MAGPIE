@@ -83,9 +83,10 @@ def get_reading_list_geo( readings, kind = 'symbol' ):
 
 if __name__ == "__main__":
 
-    _PLOT_SYM_HISTORY = False
-    _VIZ_MEMO_HISTORY = False
-    _OTHER_FIGURES    = True
+    _PLOT_SYM_HISTORY = 1
+    _VIZ_MEMO_HISTORY = 0
+    _OTHER_FIGURES    = 0
+    _SHOW_PLOTS       = 0
 
     ##### Read File #######################################################
 
@@ -98,7 +99,8 @@ if __name__ == "__main__":
             synNames.add( sym_j['label'] )
 
     series = dict()
-    series['time'] = list()
+    series['time'   ] = list()
+    series['MaxLike'] = list()
     for name in synNames:
         series[ name ] = dict()
         series[ name ]['prob' ] = list()
@@ -108,6 +110,7 @@ if __name__ == "__main__":
 
     for i, datum in enumerate( symData ):
         series['time'].append( datum['time'] - tStart )
+        mxLk_i = 1.0
         for name in synNames:
             sym_f = None
             for sym_j in datum['symbols']:
@@ -115,12 +118,13 @@ if __name__ == "__main__":
                     sym_f = sym_j
                     break
             if sym_f is not None:
-                # pprint( sym_f )
+                mxLk_i *= sym_f['prob' ]
                 series[ name ]['prob' ].append( sym_f['prob' ] )
                 series[ name ]['score'].append( sym_f['score'] )
             else:
                 series[ name ]['prob' ].append( 0.0 )
                 series[ name ]['score'].append( 0.0 )
+        series['MaxLike'].append( mxLk_i )
 
     if _PLOT_SYM_HISTORY:
         
@@ -128,23 +132,53 @@ if __name__ == "__main__":
             "text.usetex": True,
         })
 
-        plt.figure( figsize = (18,18), dpi = 300 )
         
-
-        for name in synNames:
-            # plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
-            plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
-                      label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
-
-        plt.title( 'Symbol Quality $s_{obj}$ -vs- Time', fontsize = 60 )
-        plt.xlabel('Time [s]', fontsize = 40); 
-        plt.ylabel('Quality $s_{obj}$', fontsize = 40)
-        plt.legend( fontsize = 40 )
-        plt.xticks( fontsize = 30 )
-        plt.yticks( fontsize = 30 )
-        plt.savefig( 'graphics/paper/QualityPlot.pdf' )
-        plt.show()
         
+        if 0:
+            plt.figure( figsize = (18,18), dpi = 300 )
+            for name in synNames:
+                # plt.plot( series['time'], series[ name ]['prob'], _PLOT_TABLE[ name ]['plot'] )
+                plt.plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
+                        label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
+            plt.title( 'Symbol Quality $s_{obj}$ -vs- Time', fontsize = 60 )
+            plt.xlabel( 'Time [s]', fontsize = 40 )
+            plt.ylabel( 'Quality $s_{obj}$', fontsize = 40 )
+            plt.legend( fontsize = 40 )
+            plt.xticks( fontsize = 30 )
+            plt.yticks( fontsize = 30 )
+            plt.savefig( 'graphics/paper/QualityPlot.pdf' )
+
+        elif 1:
+
+            fig, axs = plt.subplots( 2, figsize = (12,16), dpi = 300 )
+            # fig.suptitle( 'Vertically stacked subplots' )
+            
+
+            ### Top Plot ###
+
+            for name in synNames:
+                axs[0].plot( series['time'], series[ name ]['score'], _PLOT_TABLE[ name ]['plot'], 
+                             label = _PLOT_TABLE[ name ]['name'], linewidth = 5 )
+            
+            axs[0].set_title('Axis [0, 0]', fontsize = 30 )
+            axs[0].legend( fontsize = 20 )
+            axs[0].tick_params( axis='both', labelsize = 15 )
+
+            ### Bottom Plot ###
+
+            axs[1].set_title( 'Axis [0, 0]', fontsize = 30 )
+            axs[1].plot( series['time'], series['MaxLike'], linewidth = 5 )
+            axs[1].tick_params( axis='both', labelsize = 15 )
+
+            plt.tight_layout( pad   = 2.25, 
+                              w_pad = 0, 
+                              h_pad = 1.25 )
+
+            plt.savefig( 'graphics/paper/QualityPlot_V2.pdf' )
+
+        
+        if _SHOW_PLOTS: 
+            plt.show()
         plt.clf()
         
 
