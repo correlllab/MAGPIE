@@ -3,6 +3,7 @@
 ##### Imports #####
 
 ### Standard ###
+import os
 from pprint import pprint
 from ast import literal_eval
 
@@ -14,6 +15,7 @@ from vispy import gloo, app
 ### Local ###
 from graphics.draw_beliefs import reading_dict_geo, vispy_geo_list_window, table_geo, _TABLE_THIC
 from env_config import ( _LKG_SEP, _MIN_X_OFFSET, _MIN_Y_OFFSET, _X_WRK_SPAN, _Y_WRK_SPAN, )
+
 
 _LOOK = [ _MIN_X_OFFSET + _X_WRK_SPAN/2.0, 
           _MIN_Y_OFFSET + _Y_WRK_SPAN/2.0, 
@@ -81,8 +83,9 @@ def get_reading_list_geo( readings, kind = 'symbol' ):
 
 if __name__ == "__main__":
 
-    _PLOT_SYM_HISTORY = True
+    _PLOT_SYM_HISTORY = False
     _VIZ_MEMO_HISTORY = False
+    _OTHER_FIGURES    = True
 
     ##### Read File #######################################################
 
@@ -156,3 +159,15 @@ if __name__ == "__main__":
             symCubes.extend( txt )
             # symCubes.extend( get_reading_list_geo( datum['beliefs'] ) )
             vispy_geo_list_window( symCubes, )
+
+
+    ##### Various Calcs and Figs ##########################################
+
+    if _OTHER_FIGURES:
+        from TaskPlanner import entropy_factor
+
+        print( (1.0-entropy_factor( [0.75,0.25,0.0,0.0]     )) * 4 )
+        print( (1.0-entropy_factor( [0.5,0.25,0.25,0.0]     )) * 4 )
+        print( (1.0-entropy_factor( [0.333,0.333,0.333,0.0] )) * 3 )
+
+    os.system( 'kill %d' % os.getpid() ) 
