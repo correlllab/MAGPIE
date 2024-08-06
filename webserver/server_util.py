@@ -14,6 +14,8 @@ import platform
 import rlds # GDM Reinforcement Learning Dataset
 import spacy
 import sys
+sys.path.append("../")
+from magpie import poses
 import time
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -70,10 +72,8 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
     1. move (csv)
     2. grasp_log (json)
     3. home (csv)
-    into one tfds in rlds format
-    rlds: https://github.com/google-research/rlds?tab=readme-ov-file#load-with-tfds
+    into one dataframe
     '''
-    global IMAGE
     # required format
     # observation: 6x joint velocities, gripper velocity, gripper force
     # camera: 640x480x3 RGB image
@@ -85,10 +85,34 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
     # load csv to pd df
     home = pd.read_csv(f"robot_logs/home_{timestamp}.csv")
     move = pd.read_csv(f"robot_logs/move_{timestamp}.csv")
+    
+    # extract 6d poses, x, y, z, rx, ry, rz from actual_TCP_pose_0 to actual_TCP_pose_5
+    home_tcp = home[['actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5']]
+    move_tcp = move[['actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5']]
 
     # extract timestamp columns and actual_qd columns from actual_qd_0 to actual_qd_5
-    home = home[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
-    move = move[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    home = home[['timestamp']]
+    move = move[['timestamp']]
+
+    def axis_angle_to_rpy(pose):
+        # convert 6d pose to matrix
+        tmat = poses.pose_vec_to_mtrx(pose)
+        # convert rot to roll, pitch, yaw
+        rpy = poses.rotation_mtrx_to_rpy(tmat[:3, :3])
+        # combine with translation, the first 3 elements of pose
+        rpy = np.concatenate((pose[:3], rpy))
+        return rpy
+    # convert 6d axis-angle pose to 6d rpy pose for home_tcp and move_tcp
+    home_tcp = home_tcp.apply(axis_angle_to_rpy, axis=1)
+    move_tcp = move_tcp.apply(axis_angle_to_rpy, axis=1)
+    
+    # assign to home and move dfs
+    # home tcp has become a single column df, each cell containing a 6-element list, need to split back into 'actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5'
+    home_tcp = pd.DataFrame(home_tcp.tolist(), columns=['x', 'y', 'z', 'rx', 'ry', 'rz'])
+    move_tcp = pd.DataFrame(move_tcp.tolist(), columns=['x', 'y', 'z', 'rx', 'ry', 'rz'])
+
+    home[['x', 'y', 'z', 'rx', 'ry', 'rz']] = home_tcp
+    move[['x', 'y', 'z', 'rx', 'ry', 'rz']] = move_tcp
 
     # load json
     grasp_pth = f"robot_logs/grasp_log_{timestamp}.json"
@@ -98,8 +122,9 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
     # keep only timestamp, aperture, gripper_vel, and contact_force cols, add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
 
     grasp_log = grasp_log[['timestamp', 'aperture', 'gripper_vel', 'contact_force', 'applied_force']]
-    grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
-    grasp_log = grasp_log[['timestamp', 'actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5', 'aperture', 'gripper_vel', 'contact_force', 'applied_force']]
+    # grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
+    grasp_log[['x', 'y', 'z', 'rx', 'ry', 'rz']] = move.iloc[-1][['x', 'y', 'z', 'rx', 'ry', 'rz']]
+    grasp_log = grasp_log[['timestamp', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'aperture', 'gripper_vel', 'contact_force', 'applied_force']]
     
     # add columns to move and home dfs, zeroed out
     move['aperture'] = 0.0
@@ -143,34 +168,49 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
 
     return df
 
-def df_to_rlds(df, img, path="robot_logs/episode.tfds", obj=""):
+def df_to_rlds(df, img, language_instruction="", path="robot_logs/episode.tfds", obj=""):
     episode_steps = df.to_dict(orient='records')
 
     # # make images array with length == len(steps) that is img at index 0 and a blank image the rest
     # images = [img] + [np.zeros_like(img) for _ in range(len(episode_steps)-1)]
 
     # Convert list of dictionaries to RLDS episode
+    # rlds: https://github.com/google-research/rlds?tab=readme-ov-file#load-with-tfds
     episode = {
         'steps':[{
-            'observation': {
-                'timestamp': step['timestamp'],
-                'joint_vel': [
-                    step['actual_qd_0'],
-                    step['actual_qd_1'],
-                    step['actual_qd_2'],
-                    step['actual_qd_3'],
-                    step['actual_qd_4'],
-                    step['actual_qd_5']
+            'timestamp': step['timestamp'],
+            'action': [
+                step['x'],
+                step['y'],
+                step['z'],
+                step['rx'],
+                step['ry'],
+                step['rz'],
+                step['aperture'],
+                step['gripper_vel'],
+                step['contact_force'],
+                step['applied_force'],
                 ],
-                'aperture': step['aperture'],
-                'gripper_vel': step['gripper_vel'],
-                'contact_force': step['contact_force'],
-                'applied_force': step['applied_force'],
+            'observation': {
+                'state': [
+                step['x'],
+                step['y'],
+                step['z'],
+                step['rx'],
+                step['ry'],
+                step['rz'],
+                step['aperture'],
+                step['gripper_vel'],
+                step['contact_force'],
+                step['applied_force'],
+                ],
                 'image': np.array(img)
             },
-            'action': 1,  # Placeholder, assuming no action data is available
+            'language_instruction': language_instruction,
             'reward': 0,  # Placeholder, assuming no reward data is available
-            'is_terminal': False  # Placeholder, assuming steps are not terminal
+            'is_terminal': False,  # Placeholder, assuming steps are not terminal
+            'is_first': False,  # Placeholder, assuming steps are not terminal
+            'is_last': False  # Placeholder, assuming steps are not terminal
         } for step in episode_steps]
         # } for step, i in zip(episode_steps, images)]
     }
@@ -178,10 +218,14 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds", obj=""):
     # Convert the episode to a list of tuples
     steps = [
         (
-            step['observation'],  # observation
+            step['timestamp'],     # timestep
             step['action'],       # action
+            step['observation'],  # observation
+            step['language_instruction'],  # language_instruction
             step['reward'],       # reward
-            step['is_terminal']   # is_terminal
+            step['is_terminal'],   # is_terminal
+            step['is_first'],   # is_terminal
+            step['is_last']   # is_terminal
         )
         for step in episode['steps']
     ]
@@ -193,33 +237,25 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds", obj=""):
 
     # Define the dataset types and shapes
     output_types = (
-        {
-            'timestamp': tf.float32,
-            'joint_vel': tf.float32,
-            'aperture': tf.float32,
-            'gripper_vel': tf.float32,
-            'contact_force': tf.float32,
-            'applied_force': tf.float32,
-            'image': tf.uint8
-        },
+        tf.float32,  # timestamp,
         tf.float32,  # action
+        {'state': tf.float32, 'image': tf.uint8},  # observation
+        tf.string,   # language_instruction
         tf.float32,  # reward
-        tf.bool      # is_terminal
+        tf.bool,     # is_terminal
+        tf.bool,     # is_first
+        tf.bool      # is_last
     )
 
     output_shapes = (
-        {
-            'timestamp': tf.TensorShape([]),
-            'joint_vel': tf.TensorShape([6]),
-            'aperture': tf.TensorShape([]),
-            'gripper_vel': tf.TensorShape([]),
-            'contact_force': tf.TensorShape([]),
-            'applied_force': tf.TensorShape([]),
-            'image': tf.TensorShape([480, 640, 3])
-        },
-        tf.TensorShape([]),  # action
-        tf.TensorShape([]),  # reward
-        tf.TensorShape([])   # is_terminal
+        tf.TensorShape([]),  # timestamp
+        tf.TensorShape([10]),  # action
+        {'state': tf.TensorShape([10]), 'image': tf.TensorShape([480, 640, 3])},  # observation
+        tf.TensorShape([]),   # language_instruction
+        tf.TensorShape([]),   # reward
+        tf.TensorShape([]),   # is_terminal
+        tf.TensorShape([]),   # is_first
+        tf.TensorShape([])   # is_last
     )
 
     # Create the tf.data.Dataset
@@ -230,8 +266,8 @@ def df_to_rlds(df, img, path="robot_logs/episode.tfds", obj=""):
     )
 
     # save tfds as file
-    tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}_{obj}')
+    tf.data.Dataset.save(dataset, f'robot_logs/episode_{path}_{obj}_FIX')
     episode = rlds.build_episode(tfds.as_numpy(dataset), metadata=output_types[0])
     # rlds.save_as_tfds(dataset, f'robot_logs/{path}.tfds')
 
-    return episode
+    return episode, dataset
