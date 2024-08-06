@@ -46,7 +46,6 @@ if on_robot:
     from magpie.perception import pcd
     from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptc
 
-import simulated_romi_prompt as srp
 app = Flask(__name__)
 
 # metadata / logging
@@ -353,7 +352,7 @@ def move():
             GRASP_TIMESTAMP = time.time()
             robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/move_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
             robot.start()
-            z = 0.01
+            z = 0.0125
             print(f"z_offset: {z}")
             # imminently TODO: now that we've sorted out the camera extrinsics, shouldn't need this anymore
             # gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
