@@ -114,6 +114,9 @@ class Gripper:
         self.Finger2.set_goal_position(close2)
         time.sleep(0.1) # 100ms
 
+    def adaptive_grasp(self):
+        self.close_gripper()
+
     def reset_packet_overload(self, finger='both'):
         self.Finger1.set_torque_enable(True)
         self.Finger2.set_torque_enable(True)

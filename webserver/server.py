@@ -389,12 +389,15 @@ def release():
 @app.route("/grasp", methods=["POST"])
 def grasp():
     global GRIPPER
-
+    global CONFIG
     msg = {"operation": "grasp", "success": False}
     try:
         if on_robot:
             # GRIPPER.grasp()
-            GRIPPER.close_gripper()
+            if CONFIG["grasp"] == "cag":
+                GRIPPER.adaptive_grasp()
+            else:
+                GRIPPER.close_gripper()
             msg["success"] = True
     except Exception as e:
         print(e)
