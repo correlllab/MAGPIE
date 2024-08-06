@@ -120,6 +120,21 @@ class RealSense():
         return pcd, rawRGBDImage
         # return (downsampledPCD,rawRGBDImage)
 
+    def apply_extrinsics(self, pcd):
+        # Applies extrinsics to the camera frame, returning pcd back to wrist frame
+        # pose is a 4x4 numpy array
+        # pcd is an open3d point cloud
+        # create rotation matrix of -pi/2 about z-axis
+        rot = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+        tmat_gripper = np.array([[1, 0, 0, -1.15 / 100],
+                        [0, 1, 0, 1.3 / 100],
+                        [0, 0, 1, (309.63 - 195.0) / 1000],
+                        [0, 0, 0, 1]])
+        pcd.rotate(rot) # account for camera orientation, which is -pi/2 about z-axis relative to ur5 wrist
+        pcd.transform(tmat_gripper) # account for camera position relative to ur5 wrist
+        return pcd
+
+
     def displayImages(self, depthImg, colorImg):
         # Displays a depth and color image given the rgbdImage
         plt.subplot(1, 2, 1)

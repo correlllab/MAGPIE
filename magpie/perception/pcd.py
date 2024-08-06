@@ -121,6 +121,20 @@ def display_world_nb(world_pcd):
     geometry.append(world_pcd)
     draw(geometry)
 
+def apply_extrinsics(pcd):
+    # Applies extrinsics to the camera frame
+    # pose is a 4x4 numpy array
+    # pcd is an open3d point cloud
+    # create rotation matrix of -pi/2 about z-axis
+    rot = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    tmat_camera = np.array([[1, 0, 0, -1.15 / 100],
+                    [0, 1, 0, 1.3 / 100],
+                    [0, 0, 1, (309.63 - 195.0) / 1000],
+                    [0, 0, 0, 1]])
+    pcd.rotate(rot) # account for camera orientation, which is -pi/2 about z-axis relative to ur5 wrist
+    pcd.transform(tmat_camera) # account for camera position relative to ur5 wrist
+    return pcd
+
 def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, method='iterative', display=True):
     '''
     @param segments list of Open3D point cloud segments
@@ -139,7 +153,7 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dm = create_depth_mask_from_mask(np.array(segments[index][0]), rgbd_image.depth)
     
     cpcd = crop_and_denoise_pcd(dm, rgbd_image, rsc, NB=5)
-
+    cpcd = apply_extrinsics(cpcd)
     if type == "box-dbscan": # much cheaper than SAM
         # find largest cluster with dbscan
         labels = np.array(cpcd.cluster_dbscan(eps=0.01, min_points=50))
