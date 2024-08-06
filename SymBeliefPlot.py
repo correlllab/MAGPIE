@@ -89,8 +89,8 @@ def p_orig_pose( qXfrm ):
 
 if __name__ == "__main__":
 
-    _PLOT_SYM_HISTORY = 1
-    _VIZ_MEMO_HISTORY = 0
+    _PLOT_SYM_HISTORY = 0
+    _VIZ_MEMO_HISTORY = 1
     _OTHER_FIGURES    = 0
     _SHOW_PLOTS       = 0
 
@@ -99,12 +99,13 @@ if __name__ == "__main__":
     _TICK_FSIZ   = 15
     _AXES_FSIZ   = 25
     _LINE_WIDTH  =  5
+    _PLOT_BGNDX  =  5
     _PLOT_ENDEX  = -9
 
     ##### Read File #######################################################
 
     symData  = read_symbol_trace( "data/Sym-Confidence_08-01-2024_13-09-18.txt" )
-    tStart   = symData[0]['time']
+    tStart   = symData[_PLOT_BGNDX]['time']
     
     synNames = set([])
     for i, datum in enumerate( symData ):
@@ -166,8 +167,6 @@ if __name__ == "__main__":
         plt.rcParams.update({
             "text.usetex": True,
         })
-
-        
         
         if 0:
             plt.figure( figsize = (18,18), dpi = 300 )
@@ -192,8 +191,8 @@ if __name__ == "__main__":
             ### Top Plot ###
 
             for name in synNames:
-                axs[0].plot( series['time'][:_PLOT_ENDEX], 
-                             series[ name ]['score'][:_PLOT_ENDEX], 
+                axs[0].plot( series['time'][_PLOT_BGNDX:_PLOT_ENDEX], 
+                             series[ name ]['score'][_PLOT_BGNDX:_PLOT_ENDEX], 
                              _PLOT_TABLE[ name ]['plot'], 
                              label = _PLOT_TABLE[ name ]['name'], linewidth = _LINE_WIDTH )
             
@@ -206,15 +205,16 @@ if __name__ == "__main__":
             ### Bottom Plot ###
 
             axs[1].set_title( 'Maximum Likelihood of Grounded Symbols -vs- Time', fontsize = _TITLE_FSIZ )
-            axs[1].plot( series['time'][:_PLOT_ENDEX], 
-                         series['MaxLike'][:_PLOT_ENDEX], 
+            axs[1].plot( series['time'][_PLOT_BGNDX:_PLOT_ENDEX], 
+                         series['MaxLike'][_PLOT_BGNDX:_PLOT_ENDEX], 
                          linewidth = _LINE_WIDTH, color = 'purple' )
             axs[1].tick_params( axis='both', labelsize = _TICK_FSIZ )
             axs[1].set_xlabel( 'Time [s]', fontsize = _AXES_FSIZ )
             axs[1].set_ylabel( 'Max. Likelihood', fontsize = _AXES_FSIZ )
-            for i, p_move_i in enumerate( series['SymMove'][:_PLOT_ENDEX] ):
+            for i, p_move_i in enumerate( series['SymMove'][_PLOT_BGNDX:_PLOT_ENDEX] ):
+                ii = i+_PLOT_BGNDX
                 if p_move_i:
-                    axs[1].axvline( x = series['time'][i], color = _PLOT_TABLE[ p_move_i ]['plot'] )
+                    axs[1].axvline( x = series['time'][ii], color = _PLOT_TABLE[ p_move_i ]['plot'] )
 
             plt.tight_layout( pad   = 2.25, 
                               w_pad = 1.25, 
@@ -232,9 +232,9 @@ if __name__ == "__main__":
     
     if _VIZ_MEMO_HISTORY:
 
-        for datum in symData[:1]:
+        for datum in symData[_PLOT_BGNDX:_PLOT_ENDEX]:
             symCubes = [table_geo(),]
-            geo, txt = get_reading_list_geo( datum['LKGmem'], 'LKG' )
+            geo, txt = get_reading_list_geo( datum['symbols'], 'symbol' )
             symCubes.extend( geo )
             symCubes.extend( txt )
             # symCubes.extend( get_reading_list_geo( datum['beliefs'] ) )
