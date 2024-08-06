@@ -85,7 +85,7 @@ class RealSense():
             colorIM.save(f"colorImage{subFix}.jpeg")
         return rawRGBDImage
 
-    def getPCD(self, save=False):
+    def getPCD(self, save=False, adjust_extrinsics=False):
         # Takes images and returns a PCD and RGBD Image
         # Applies extrinsics and zMax
         # Downsamples PCD based on self.voxelSize
@@ -106,6 +106,17 @@ class RealSense():
             np.save(f"colorImage{subFix}", np.array(rawRGBDImage.color))
             np.save(f"depthImage{subFix}", np.array(rawRGBDImage.depth))
             o3d.io.write_point_cloud(f"pcd{subFix}.pcd", downsampledPCD)
+        
+        if adjust_extrinsics:
+            # create rotation matrix of -pi/2 about z-axis
+            rot = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+            tmat_gripper = np.array([[1, 0, 0, -1.15 / 100],
+                            [0, 1, 0, 1.3 / 100],
+                            [0, 0, 1, (309.63 - 195.0) / 1000],
+                            [0, 0, 0, 1]])
+            pcd.rotate(rot) # account for camera orientation, which is -pi/2 about z-axis relative to ur5 wrist
+            pcd.transform(tmat_gripper) # account for camera position relative to ur5 wrist
+            
         return pcd, rawRGBDImage
         # return (downsampledPCD,rawRGBDImage)
 

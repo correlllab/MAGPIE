@@ -153,9 +153,6 @@ def get_segment(segments, index, rgbd_image, rsc, type="box", viz_scale=1500.0, 
         dbspcd.colors = o3d.utility.Vector3dVector(largest_cluster_colors)
         cpcd = dbspcd
 
-    # create rotation matrix of -pi/2 about z-axis
-    rot = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
-    cpcd.rotate(rot) # account for camera orientation, which is -pi/2 about z-axis relative to ur5 wrist
     mc = cpcd.compute_mean_and_covariance()
     # rotate grasp pose -pi/2 about z-axis
     grasp_pose = [mc[0][1], -mc[0][0], mc[0][2]]

@@ -359,6 +359,7 @@ def move():
             # z = 0.05 + APERTURE # TODO: figure this out
             z = 0.12
             print(f"z_offset: {z}")
+            # imminently TODO: now that we've sorted out the camera extrinsics, shouldn't need this anymore
             gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
             time.sleep(SLEEP_RATE * 3)
             AT_GOAL = True
