@@ -125,9 +125,10 @@ class Gripper:
             time.sleep(delay)
         return np.mean(forces)
 
-    async def adaptive_grasp(self, kp_F, kp_x, f_err_threshold, init_force=1.5):
+    async def adaptive_grasp(self, kp_F = 100, kp_x = 10, f_err_threshold = 0.1, init_force=1.5):
         # @param kp_F: proportional gain on applied force for the adaptive grasp controller
-        # @param kp_x: proportional gain on aperture for the adaptive grasp controller
+        # @param kp_x: proportional gain on goal aperture for the adaptive grasp controller
+        # @param f_err_threshold: threshold for error in force measurement
         # initial aperture 20mm, dx 1mm, df 0.2N
         await self.deligrasp(20, init_force, 1, 0.2)
         fa = init_force
@@ -135,9 +136,9 @@ class Gripper:
         while True: # this is running on ~80hz
             x   = self.get_aperture(finger='both')
             f   = self.interval_force_measure(self.latency, 5) # 0.003s, 333hz measurement
-            err = fc - f if fc - f > f_err_threshold else 0
+            err = np.abs(fc - f) if fc - f > f_err_threshold else 0
             df  = kp_F * err
-            dx  = kp_x * err
+            dx  = kp_x * (err/fc) # normalize error between 0-1 for tighter bound on dx
             self.set_force(fa + df, finger='both')
             self.set_goal_aperture(x + dx, finger='both')
             time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
