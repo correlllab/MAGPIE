@@ -248,7 +248,6 @@ class Gripper:
         # see comments in check_slip as to why we need to halve the force
         # tbh, we might not actually need to halve the force here
         # so long as check_slip halves the force.
-        # TODO: figure this out
         force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         force = min(force, 16.1)
@@ -354,6 +353,7 @@ class Gripper:
         @return ff: final force (N) applied when fc is met
         @return k: spring constant (N/mm) of the object grasped
         '''
+        self.debug = debug
         grasp_log = []
         self.set_force(fc, 'both')
         goal_aperture = x
