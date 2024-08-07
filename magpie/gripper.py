@@ -1,3 +1,4 @@
+import asyncio
 import sys
 sys.path.append("../../")
 from magpie.ax12 import Ax12
@@ -113,8 +114,35 @@ class Gripper:
         self.Finger1.set_goal_position(close1)
         self.Finger2.set_goal_position(close2)
         time.sleep(0.1) # 100ms
+    
+    def interval_force_measure(self, delay, iterations, finger='both'):
+        # @param delay: time in seconds to wait between each force measurement
+        # @param iterations: number of force measurements to take
+        forces = []
+        for _ in range(iterations):
+            force = np.mean(self.get_force(finger=finger))
+            forces.append(force)
+            time.sleep(delay)
+        return np.mean(forces)
 
-    def adaptive_grasp(self):
+    async def adaptive_grasp(self, kp_F, kp_x, f_err_threshold, init_force=1.5):
+        # @param kp_F: proportional gain on applied force for the adaptive grasp controller
+        # @param kp_x: proportional gain on aperture for the adaptive grasp controller
+        # initial aperture 20mm, dx 1mm, df 0.2N
+        await self.deligrasp(20, init_force, 1, 0.2)
+        fa = init_force
+        fc = self.interval_force_measure(self.latency, 5) # 5x 1666 Hz measurements
+        while True: # this is running on ~80hz
+            x   = self.get_aperture(finger='both')
+            f   = self.interval_force_measure(self.latency, 5) # 0.003s, 333hz measurement
+            err = fc - f if fc - f > f_err_threshold else 0
+            df  = kp_F * err
+            dx  = kp_x * err
+            self.set_force(fa + df, finger='both')
+            self.set_goal_aperture(x + dx, finger='both')
+            time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
+            if err < 0.1:
+                break
         self.close_gripper()
 
     def reset_packet_overload(self, finger='both'):
@@ -343,7 +371,7 @@ class Gripper:
             self.set_goal_aperture(aperture, finger='left', record_load=False)
         time.sleep(self.delay * 3)
 
-    def deligrasp(self, x, fc, dx, df, complete=True, debug=False): 
+    async def deligrasp(self, x, fc, dx, df, complete=True, debug=False): 
         '''
         @param x: initial goal aperture (mm)
         @param fc: initial force (N) and requisite contact force to stop grasping
@@ -554,6 +582,8 @@ class Gripper:
 
     def check_slip(self, pos_load, stop_force, finger='both'):
         '''
+        this is kind of a misnomer, because no motion occurs in this function
+        see self.adaptive_grasp for a classical closed-loop slip-checking function that runs while robot is in motion
         @param pos_load: position-load data array of shape (2, n) --> [[positions], [loads]]
         @param stop_load: force to stop at in N
         @param finger: left, right, or both fingers
