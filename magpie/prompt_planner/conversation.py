@@ -71,7 +71,7 @@ class Conversation:
       message = [{"role": "user", "content": prompt_model.prompts[llm_id]}]
       self._message_queues[llm_id].append(message[0])
 
-  def send_command(self, user_command: str, encoded_image=None, vision=False) -> str:
+  def send_command(self, user_command: str, encoded_image=None, vision=False, debug=False) -> str:
     """Sends a user command to the LLMs, returns final processed response."""
     if user_command == "reset":
       self.reset()
@@ -91,11 +91,14 @@ class Conversation:
             }
           }]
     for llm_id in range(self._prompt_model.num_llms):
+      start = time.time()
       completion = _open_ai_call_with_retry(
           self._model,
           self._message_queues[llm_id]
           + [{"role": "user", "content": upstream_message}],
       )
+      if debug:
+        print(f"LLM{llm_id} took {time.time() - start:.2f}s")
       if self._prompt_model.keep_message_history[llm_id]:
         self._message_queues[llm_id].append(
             {"role": "user", "content": upstream_message}
