@@ -125,26 +125,39 @@ class Gripper:
             time.sleep(delay)
         return np.mean(forces)
 
-    async def adaptive_grasp(self, kp_F = 100, kp_x = 10, f_err_threshold = 0.1, init_force=1.5):
+    def adaptive_grasp(self, kp_F=0.1, kp_x=0.1, f_err_threshold=0.05, init_force=1.5, init__aperture=20, duration=10):
         # @param kp_F: proportional gain on applied force for the adaptive grasp controller
         # @param kp_x: proportional gain on goal aperture for the adaptive grasp controller
         # @param f_err_threshold: threshold for error in force measurement
         # initial aperture 20mm, dx 1mm, df 0.2N
-        await self.deligrasp(20, init_force, 1, 0.2)
+        self.deligrasp(init__aperture, init_force, 1, 0.2)
         fa = init_force
         fc = self.interval_force_measure(self.latency, 5) # 5x 1666 Hz measurements
-        while True: # this is running on ~80hz
+        start = time.time()
+        # while True: # this is running on ~80hz
+        while time.time() - start < duration: # this is running on ~80hz
             x   = self.get_aperture(finger='both')
             f   = self.interval_force_measure(self.latency, 5) # 0.003s, 333hz measurement
-            err = np.abs(fc - f) if fc - f > f_err_threshold else 0
+            # err = np.abs(fc - f) if fc - f > f_err_threshold else 0
+            err = fc - f if fc - f > f_err_threshold else 0
+            err = max(err, init_force/2 - f)
+            print(f'Prev force: {fc}')
+            print(f'Current force: {f}')
+            print(f'Error: {err}')
             df  = kp_F * err
-            dx  = kp_x * (err/fc) # normalize error between 0-1 for tighter bound on dx
-            self.set_force(fa + df, finger='both')
-            self.set_goal_aperture(x + dx, finger='both')
+            dx  = kp_x * err # normalize error between 0-1 for tighter bound on dx
+            fc  = f
+            fa = fa + df
+            print(f'dx: {dx}, df: {df}')
+            print(f'Applied force: {fa}')
+            print(f'Aperture: {x}')
+            print(f'Goal Aperture: {x - dx}')
+            self.set_force(fa, finger='both')
+            self.set_goal_aperture(x - dx, finger='both')
             time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
-            if err < 0.1:
-                break
-        self.close_gripper()
+        print('Final contact force: ', self.interval_force_measure(self.latency, 5))
+        print('Final aperture: ', self.get_aperture(finger='both'))
+        print('Final applied force: ', fa)
 
     def reset_packet_overload(self, finger='both'):
         self.Finger1.set_torque_enable(True)
@@ -372,7 +385,7 @@ class Gripper:
             self.set_goal_aperture(aperture, finger='left', record_load=False)
         time.sleep(self.delay * 3)
 
-    async def deligrasp(self, x, fc, dx, df, complete=True, debug=False): 
+    def deligrasp(self, x, fc, dx, df, complete=True, debug=False): 
         '''
         @param x: initial goal aperture (mm)
         @param fc: initial force (N) and requisite contact force to stop grasping
