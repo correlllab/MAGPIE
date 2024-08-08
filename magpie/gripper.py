@@ -141,17 +141,19 @@ class Gripper:
             # err = np.abs(fc - f) if fc - f > f_err_threshold else 0
             err = fc - f if fc - f > f_err_threshold else 0
             err = max(err, init_force/2 - f)
-            print(f'Prev force: {fc}')
-            print(f'Current force: {f}')
-            print(f'Error: {err}')
+            if self.debug:
+                print(f'Prev force: {fc}')
+                print(f'Current force: {f}')
+                print(f'Error: {err}')
             df  = kp_F * err
             dx  = kp_x * err # normalize error between 0-1 for tighter bound on dx
             fc  = f
             fa = fa + df
-            print(f'dx: {dx}, df: {df}')
-            print(f'Applied force: {fa}')
-            print(f'Aperture: {x}')
-            print(f'Goal Aperture: {x - dx}')
+            if self.debug:
+                print(f'dx: {dx}, df: {df}')
+                print(f'Applied force: {fa}')
+                print(f'Aperture: {x}')
+                print(f'Goal Aperture: {x - dx}')
             self.set_force(fa, finger='both')
             self.set_goal_aperture(x - dx, finger='both')
             time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
