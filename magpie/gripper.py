@@ -1,3 +1,4 @@
+import asyncio
 import sys
 sys.path.append("../../")
 from magpie.ax12 import Ax12
@@ -113,6 +114,52 @@ class Gripper:
         self.Finger1.set_goal_position(close1)
         self.Finger2.set_goal_position(close2)
         time.sleep(0.1) # 100ms
+    
+    def interval_force_measure(self, delay, iterations, finger='both'):
+        # @param delay: time in seconds to wait between each force measurement
+        # @param iterations: number of force measurements to take
+        forces = []
+        for _ in range(iterations):
+            force = np.mean(self.get_force(finger=finger))
+            forces.append(force)
+            time.sleep(delay)
+        return np.mean(forces)
+
+    def adaptive_grasp(self, kp_F=0.1, kp_x=0.1, f_err_threshold=0.05, init_force=1.5, init__aperture=20, duration=10):
+        # @param kp_F: proportional gain on applied force for the adaptive grasp controller
+        # @param kp_x: proportional gain on goal aperture for the adaptive grasp controller
+        # @param f_err_threshold: threshold for error in force measurement
+        # initial aperture 20mm, dx 1mm, df 0.2N
+        self.deligrasp(init__aperture, init_force, 1, 0.2)
+        fa = init_force
+        fc = self.interval_force_measure(self.latency, 5) # 5x 1666 Hz measurements
+        start = time.time()
+        # while True: # this is running on ~80hz
+        while time.time() - start < duration: # this is running on ~80hz
+            x   = self.get_aperture(finger='both')
+            f   = self.interval_force_measure(self.latency, 5) # 0.003s, 333hz measurement
+            # err = np.abs(fc - f) if fc - f > f_err_threshold else 0
+            err = fc - f if fc - f > f_err_threshold else 0
+            err = max(err, init_force/2 - f)
+            if self.debug:
+                print(f'Prev force: {fc}')
+                print(f'Current force: {f}')
+                print(f'Error: {err}')
+            df  = kp_F * err
+            dx  = kp_x * err # normalize error between 0-1 for tighter bound on dx
+            fc  = f
+            fa = fa + df
+            if self.debug:
+                print(f'dx: {dx}, df: {df}')
+                print(f'Applied force: {fa}')
+                print(f'Aperture: {x}')
+                print(f'Goal Aperture: {x - dx}')
+            self.set_force(fa, finger='both')
+            self.set_goal_aperture(x - dx, finger='both')
+            time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
+        print('Final contact force: ', self.interval_force_measure(self.latency, 5))
+        print('Final aperture: ', self.get_aperture(finger='both'))
+        print('Final applied force: ', fa)
 
     def reset_packet_overload(self, finger='both'):
         self.Finger1.set_torque_enable(True)
@@ -245,7 +292,6 @@ class Gripper:
         # see comments in check_slip as to why we need to halve the force
         # tbh, we might not actually need to halve the force here
         # so long as check_slip halves the force.
-        # TODO: figure this out
         force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         force = min(force, 16.1)
@@ -351,6 +397,7 @@ class Gripper:
         @return ff: final force (N) applied when fc is met
         @return k: spring constant (N/mm) of the object grasped
         '''
+        self.debug = debug
         grasp_log = []
         self.set_force(fc, 'both')
         goal_aperture = x
@@ -551,6 +598,8 @@ class Gripper:
 
     def check_slip(self, pos_load, stop_force, finger='both'):
         '''
+        this is kind of a misnomer, because no motion occurs in this function
+        see self.adaptive_grasp for a classical closed-loop slip-checking function that runs while robot is in motion
         @param pos_load: position-load data array of shape (2, n) --> [[positions], [loads]]
         @param stop_load: force to stop at in N
         @param finger: left, right, or both fingers

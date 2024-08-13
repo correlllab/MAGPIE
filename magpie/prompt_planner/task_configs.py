@@ -26,7 +26,11 @@ from typing import Any
 
 import sys
 sys.path.append('../../')
+import magpie.prompt_planner.prompts.mp_prompt_coder_muk as mpc
 import magpie.prompt_planner.prompts.mp_prompt_thinker_coder_muk as mptc
+import magpie.prompt_planner.prompts.mp_prompt_thinker_muk as mpt
+import magpie.prompt_planner.prompts.mp_prompt_thinker_phys as mptp
+import magpie.prompt_planner.prompts.mp_prompt_thinker_vision_phys as mptvp
 import magpie.prompt_planner.prompts.mp_prompt_tc_vision as mptcv
 import magpie.prompt_planner.prompts.mp_prompt_tc_vision_phys as mptcvp
 import magpie.prompt_planner.prompts.mp_prompt_tc_phys as mptcp
@@ -47,6 +51,10 @@ ALL_TASKS = {
     'magpie': TaskConfig(
         client=None,
         prompts={
+            'thinker': mpt.PromptThinker,
+            'thinker_phys': mptp.PromptThinker,
+            'thinker_vision_phys': mptvp.PromptThinker,
+            'coder': mpc.PromptCoder,
             'thinker_coder': mptc.PromptThinkerCoder,
             'thinker_coder_phys': mptcp.PromptThinkerCoderPhys,
             'thinker_coder_vision': mptcv.PromptThinkerCoderVision,

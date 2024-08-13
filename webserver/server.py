@@ -46,7 +46,6 @@ if on_robot:
     from magpie.perception import pcd
     from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptc
 
-import simulated_romi_prompt as srp
 app = Flask(__name__)
 
 # metadata / logging
@@ -353,13 +352,11 @@ def move():
             GRASP_TIMESTAMP = time.time()
             robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/move_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
             robot.start()
-            # current_pose = robot.getPose()
-            # desired_pose = np.array(current_pose) @ np.array(GOAL_POSE)
-            # robot.moveL(GOAL_POSE)
-            # z = 0.05 + APERTURE # TODO: figure this out
-            z = 0.12
+            z = 0.0125
             print(f"z_offset: {z}")
-            gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
+            # imminently TODO: now that we've sorted out the camera extrinsics, shouldn't need this anymore
+            # gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
+            robot.move_tcp_cartesian(GOAL_POSE, z_offset=z)
             time.sleep(SLEEP_RATE * 3)
             AT_GOAL = True
             robot.stop_recording()
@@ -388,12 +385,15 @@ def release():
 @app.route("/grasp", methods=["POST"])
 def grasp():
     global GRIPPER
-
+    global CONFIG
     msg = {"operation": "grasp", "success": False}
     try:
         if on_robot:
             # GRIPPER.grasp()
-            GRIPPER.close_gripper()
+            if CONFIG["grasp"] == "cag":
+                GRIPPER.adaptive_grasp()
+            else:
+                GRIPPER.close_gripper()
             msg["success"] = True
     except Exception as e:
         print(e)
