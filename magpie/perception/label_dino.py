@@ -8,22 +8,20 @@ import torch
 import numpy as np
 from magpie.perception.label import Label
 from magpie.perception.object import Object
-from transformers import OwlViTProcessor, OwlViTForObjectDetection
-from transformers import Owlv2Processor, Owlv2ForObjectDetection
+from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 import matplotlib.pyplot as plt
 
-class LabelOWLViT(Label):
-    def __init__(self, topk=3, score_threshold=0.005, pth="google/owlvit-base-patch32", v2=False):
+class LabelDINO(Label):
+    def __init__(self, topk=3, score_threshold=0.005, pth="IDEA-Research/grounding-dino-tiny", device="cuda"):
         '''
         @param camera camera object, expects realsense_wrapper
         '''
         super().__init__()
-        if v2:
-            self.processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
-            self.model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
-        else:
-            self.processor = OwlViTProcessor.from_pretrained(pth)
-            self.model = OwlViTForObjectDetection.from_pretrained(pth)
+
+        device = "cuda"
+        self.processor = AutoProcessor.from_pretrained(pth)
+        self.model = AutoModelForZeroShotObjectDetection.from_pretrained(pth).to(device)
+
         self.dims = None
         self.H = None
         self.W = None
