@@ -11,6 +11,7 @@ from magpie.perception.object import Object
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 class LabelOWLViT(Label):
     def __init__(self, topk=3, score_threshold=0.005, pth="google/owlvit-base-patch32", v2=False):
@@ -18,7 +19,8 @@ class LabelOWLViT(Label):
         @param camera camera object, expects realsense_wrapper
         '''
         super().__init__()
-        if v2:
+        self.v2 = v2
+        if self.v2:
             self.processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
             self.model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
         else:
@@ -31,6 +33,7 @@ class LabelOWLViT(Label):
         self.TOP_K = topk
         self.preds_plot = None
         self.queries = None
+        self.results = None
         self.sorted_indices = None
         self.sorted_labels = None
         self.sorted_text_labels = None
@@ -79,21 +82,31 @@ class LabelOWLViT(Label):
         for score, box, label in zip(scores, boxes, labels):
             if score < self.SCORE_THRESHOLD and not topk:
                 continue
-            cx, cy, w, h = box
-            ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
-                    [cy-h/2, cy-h/2, cy+h/2, cy+h/2, cy-h/2], "r")
-            ax.text(
-                cx - w / 2,
-                cy + h / 2 + 0.015,
-                f"{text_queries[label]} ({idx}): {score:1.2f}",
-                ha="left",
-                va="top",
-                color="red",
-                bbox={
-                    "facecolor": "white",
-                    "edgecolor": "red",
-                    "boxstyle": "square,pad=.3"
-                })
+            if not self.v2:
+                cx, cy, w, h = box
+                ax.plot([cx-w/2, cx+w/2, cx+w/2, cx-w/2, cx-w/2],
+                        [cy-h/2, cy-h/2, cy+h/2, cy+h/2, cy-h/2], "r")
+                ax.text(
+                    cx - w / 2,
+                    cy + h / 2 + 0.015,
+                    f"{text_queries[label]} ({idx}): {score:1.2f}",
+                    ha="left",
+                    va="top",
+                    color="red",
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "red",
+                        "boxstyle": "square,pad=.3"
+                    })
+            elif self.v2:
+                x1, y1, x2, y2 = box
+                width = x2 - x1
+                height = y2 - y1
+                rect = patches.Rectangle((x1, y1), width, height, linewidth=2, edgecolor='r', facecolor='none')
+                ax.add_patch(rect)
+                plt.text(x1, y1, f'{text_queries[label]} ({idx}): {score:.3f}', color='red', verticalalignment='top', 
+                         bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 1})
+
             idx += 1
         
         fig.canvas.draw()
@@ -109,7 +122,8 @@ class LabelOWLViT(Label):
         labels = logits.indices.cpu().detach().numpy()
         # boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
         boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
-        pboxes = self.processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=self.SCORE_THRESHOLD)[0]['boxes']
+        self.results = self.processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=self.SCORE_THRESHOLD)
+        pboxes = self.results[0]['boxes']
         # sort labels by score, high to low
         sorted_indices = np.argsort(scores)[::-1]
 
