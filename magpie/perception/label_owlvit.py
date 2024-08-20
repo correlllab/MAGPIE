@@ -10,8 +10,18 @@ from magpie.perception.label import Label
 from magpie.perception.object import Object
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
+from transformers.utils.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from PIL import Image
+
+def get_preprocessed_image(pixel_values):
+    pixel_values = pixel_values.squeeze().numpy()
+    unnormalized_image = (pixel_values * np.array(OPENAI_CLIP_STD)[:, None, None]) + np.array(OPENAI_CLIP_MEAN)[:, None, None]
+    unnormalized_image = (unnormalized_image * 255).astype(np.uint8)
+    unnormalized_image = np.moveaxis(unnormalized_image, 0, -1)
+    unnormalized_image = Image.fromarray(unnormalized_image)
+    return unnormalized_image
 
 class LabelOWLViT(Label):
     def __init__(self, topk=3, score_threshold=0.005, pth="google/owlvit-base-patch32", v2=False):
@@ -29,6 +39,7 @@ class LabelOWLViT(Label):
         self.dims = None
         self.H = None
         self.W = None
+        self.unnormalized_image = None
         self.SCORE_THRESHOLD = score_threshold
         self.TOP_K = topk
         self.preds_plot = None
@@ -71,9 +82,12 @@ class LabelOWLViT(Label):
     
     def plot_predictions(self, input_image, text_queries, scores, boxes, labels, topk=False, show_plot=True):
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+        if self.v2:
+            input_image = self.unnormalized_image
         ax.imshow(input_image, extent=(0, 1, 1, 0))
         ax.set_axis_off()
-        
+
+
         idx = 0
         if topk:
             scores = self.sorted_scores[:self.TOP_K]
@@ -151,11 +165,15 @@ class LabelOWLViT(Label):
         img = np.asarray(input_image)
         img_tensor = torch.tensor(img, dtype=torch.float32)
         inputs = self.processor(input_labels, images=img_tensor, padding=True, return_tensors="pt")
+        self.unnormalized_image = get_preprocessed_image(inputs.pixel_values)
         outputs = self.model(**inputs)
         self.dims = img.shape[:2][::-1] # TODO: check if this is correct
         self.W = self.dims[0]
         self.H = self.dims[1]
-        target_sizes = torch.Tensor([self.dims])
+        if self.v2:
+            target_sizes = torch.Tensor([self.unnormalized_image.size[::-1]])
+        else:
+            target_sizes = torch.Tensor([self.dims])
         self.queries = abbrev_labels
         scores, labels, boxes, pboxes = self.get_preds(outputs, target_sizes)
         image_plt = img.astype(np.float32) / 255.0
