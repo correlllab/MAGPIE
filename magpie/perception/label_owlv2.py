@@ -69,7 +69,7 @@ class LabelOWLv2(Label):
     
     def plot_predictions(self, input_image, text_queries, scores, boxes, labels, topk=False, show_plot=True):
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-        ax.imshow(input_image, extent=(0, 1, 1, 0))
+        ax.imshow(input_image)
         ax.set_axis_off()
 
 
@@ -86,8 +86,8 @@ class LabelOWLv2(Label):
             height = y2 - y1
             rect = patches.Rectangle((x1, y1), width, height, linewidth=2, edgecolor='r', facecolor='none')
             ax.add_patch(rect)
-            plt.text(x1, y1, f'{text_queries[label]} ({idx}): {score:.3f}', color='red', verticalalignment='top', 
-                        bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 1})
+            ax.text(x1, y1, f'{text_queries[label]} ({idx}): {score:.3f}', color='red', verticalalignment='top', 
+                    bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 1})
 
             idx += 1
         
@@ -102,13 +102,13 @@ class LabelOWLv2(Label):
         scores = torch.sigmoid(logits.values).cpu().detach().numpy()
         # Get prediction labels and boundary boxes
         labels = logits.indices.cpu().detach().numpy()
-        # boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
-        # boxes = outputs["pred_boxes"][0].cpu().detach().numpy()
         self.results = self.processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=self.SCORE_THRESHOLD)
-        boxes = self.results[0]['boxes']
-        pboxes = self.results[0]['boxes']
+        boxes  = self.results[0]['boxes'].cpu().detach().numpy()
+        pboxes = self.results[0]['boxes'].cpu().detach().numpy()
+        scores = self.results[0]['scores'].cpu().detach().numpy()
+        labels = self.results[0]['labels'].cpu().detach().numpy()
         # sort labels by score, high to low
-        sorted_indices = np.argsort(scores)[::-1][:len(boxes)]
+        sorted_indices = np.argsort(scores)[::-1]
 
         # store member variables
         # cut off score indices below threshold
@@ -118,7 +118,6 @@ class LabelOWLv2(Label):
         self.sorted_text_labels = np.array([self.queries[label] for label in labels[self.sorted_indices]])
         self.sorted_boxes = boxes[self.sorted_indices]
         self.sorted_boxes_coords = boxes[self.sorted_indices]
-        # self.sorted_boxes_coords = np.array([self.box_coordinates(box) for box in boxes[self.sorted_indices]])
         self.sorted_labeled_boxes = list(zip(self.sorted_boxes, self.sorted_labels))
         self.sorted_labeled_boxes_coords = list(zip(self.sorted_boxes_coords, self.sorted_labels))
         self.sorted = list(zip(self.sorted_scores, self.sorted_labels, self.sorted_indices, self.sorted_boxes))
