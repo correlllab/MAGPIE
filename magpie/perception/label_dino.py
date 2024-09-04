@@ -8,7 +8,8 @@ import torch
 import numpy as np
 from magpie.perception.label import Label
 from magpie.perception.object import Object
-from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
+from transformers import Owlv2Processor, Owlv2ForObjectDetection
+from transformers.utils.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 import matplotlib.pyplot as plt
 
 class LabelDINO(Label):
