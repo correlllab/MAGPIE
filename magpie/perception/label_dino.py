@@ -5,6 +5,10 @@ NOTES:
 Query structure is single string, with elements separated by periods.
 Uses `post_process_grounded_object_detection`
 Different call structure to `processor` instantiation
+
+Available models:
+IDEA-Research/grounding-dino-tiny
+IDEA-Research/grounding-dino-base
 '''
 import sys
 sys.path.append("../../")
