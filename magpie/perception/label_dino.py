@@ -98,6 +98,7 @@ class LabelDINO(Label):
         pboxes = self.results[0]['boxes'] .detach().numpy()
         scores = self.results[0]['scores'].detach().numpy()
         labels = np.array(self.results[0]['labels'])
+        print(labels)
         # sort labels by score, high to low
         sorted_indices = np.argsort(scores)[::-1]
 
