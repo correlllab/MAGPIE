@@ -22,38 +22,14 @@ class LabelOWLv2(Label):
         super().__init__()
         self.processor = Owlv2Processor.from_pretrained(pth)
         self.model = Owlv2ForObjectDetection.from_pretrained(pth)
-        self.dims = None
-        self.H = None
-        self.W = None
-        self.unnormalized_image = None
         self.SCORE_THRESHOLD = score_threshold
         self.TOP_K = topk
-        self.preds_plot = None
-        self.queries = None
-        self.results = None
-        self.sorted_indices = None
-        self.sorted_labels = None
-        self.sorted_text_labels = None
-        self.sorted_scores = None
-        self.sorted_boxes = None
-        self.sorted_boxes_coords = None
-        self.sorted_labeled_boxes = None
-        self.sorted_labeled_boxes_coords = None
-        self.sorted = None
-        self.boxes = None
 
     def box_coordinates(self, box):
         '''
         @param box params [x_center, y_center, width, height]
         @return list of box corners [x_min, y_min, x_max, y_max]
         '''
-        # cx, cy, w, h = box
-        # x0 = (cx - w/2) * self.W
-        # y0 = (cy - h/2) * self.H
-        # x1 = (cx + w/2) * self.W
-        # y1 = (cy + h/2) * self.H
-        # coordinates = [x0, y0, x1, y1]
-        # return coordinates
         return box
 
     def get_boxes(self, input_image, text_queries, scores, boxes, labels):
