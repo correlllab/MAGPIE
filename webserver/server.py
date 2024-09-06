@@ -34,6 +34,8 @@ from magpie.prompt_planner import task_configs
 # Perception
 from magpie.perception.label import Label
 from magpie.perception.label_owlvit import LabelOWLViT
+from magpie.perception.label_owlv2  import LabelOWLv2
+from magpie.perception.label_dino   import LabelDINO
 # from magpie.perception.mask_sam import MaskSAM
 
 on_robot = platform.system() == "Linux"
@@ -57,7 +59,9 @@ GRASP_TIMESTAMP = 0
 
 # Perception Configuration
 CAMERA = None
-label_models = {'owl-vit': "google/owlvit-base-patch32"}
+label_models = {'owl-vit': "google/owlvit-base-patch32",
+                'owl-v2':'google/owlv2-base-patch16-ensemble',
+                'dino': 'IDEA-Research/grounding-dino-tiny'}
 LABEL = None
 APERTURE = None
 IMAGE = None
