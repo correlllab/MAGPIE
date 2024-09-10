@@ -44,7 +44,7 @@ from task_planning.belief import ObjectMemory
 sys.path.append( "./vision/" )
 from vision.obj_ID_server import Perception_OWLViT
 sys.path.append( "./graphics/" )
-from graphics.draw_beliefs import generate_belief_geo
+from graphics.draw_beliefs import reading_dict_geo
 from graphics.homog_utils import posn_from_xform
 sys.path.append( "./magpie/" )
 from magpie import ur5 as ur5
@@ -74,8 +74,8 @@ def rand_table_pose():
 
 
 def display_belief_geo( beliefList ):
-    geo = generate_belief_geo( beliefList )
-    o3d.visualization.draw_geometries( geo )
+    geo = reading_dict_geo( beliefList )
+    # o3d.visualization.draw_geometries( geo )
 
 
 def entropy_factor( probs ):
@@ -85,8 +85,8 @@ def entropy_factor( probs ):
     tot = 0.0
     # N   = 0
     for p in probs:
-        if p > 0.0:
-            tot -= p * np.log(p)
+        pPos = max( p, 0.00001 )
+        tot -= pPos * np.log( pPos )
             # N   += 1
     return tot / np.log( len( probs ) )
 
@@ -196,7 +196,9 @@ class VisualCortex:
                 print( f"\nWARN: Got a NaN score with count {item['Count']} and distribution {dstrb}\n" )
                 score_i = 0.0
 
-            rtnBel.append( ObjectReading( labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i ) )
+            rtnBel.append( ObjectReading( 
+                labels = dstrb, pose = ObjPose( objPose ), ts = tScan, count = item['Count'], score = score_i 
+            ) )
         return rtnBel
     
 
@@ -420,8 +422,6 @@ class ResponsiveTaskPlanner:
         scan = self.world.full_scan_noisy( xform )
         # LKG and Belief are updated SEPARATELY and merged LATER as symbols
         self.world.rectify_readings( copy_readings_as_LKG( scan ) )
-        if _USE_GRAPHICS:
-            display_belief_geo( self.world.get_last_best_readings() )
         self.memory.belief_update( scan, xform, maxRadius = _MAX_UPDATE_RAD_M )
 
 
@@ -597,6 +597,8 @@ class ResponsiveTaskPlanner:
 
     def most_likely_objects( self, objList, method = "unique-non-null", cutScoreFrac = 0.5 ):
         """ Get the `N` most likely combinations of object classes """
+        # FIXME: THIS IS PROBABLY WRONG WAS APPLICABLE TO THE SIMULATION ONLY BUT NOT 
+        #        A VARIABLE COLLECTION OF OBJECTS, POSSIBLE SOURCE OF BAD BAD ERRORS
 
         def cut_bottom_fraction( objs, frac ):
             """ Return a version of `objs` with the bottom `frac` scores removed """
@@ -810,6 +812,7 @@ class ResponsiveTaskPlanner:
         """ Save the current state of the entire object permanence framework as nested dictionaries """
         return {
             'time'    : now(),
+            'scan'    : copy_readings_dict( self.world.scan ),
             'symbols' : copy_readings_dict( self.symbols ),
             'LKGmem'  : copy_readings_dict( self.world.memory ),
             'beliefs' : copy_readings_dict( self.memory.beliefs ),
