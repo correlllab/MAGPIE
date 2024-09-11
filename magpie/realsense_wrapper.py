@@ -3,9 +3,14 @@ import numpy as np
 import pyrealsense2 as rs
 import matplotlib.pyplot as plt
 from PIL import Image
+import time
+import subprocess
+import os
+import asyncio
+import threading
 
 class RealSense():
-    def __init__(self, zMax=0.5, voxelSize=0.001):
+    def __init__(self, zMax=0.5, voxelSize=0.001, fps=5):
         self.pinholeIntrinsics = None  # set in self.takeImages()
         self.zMax = zMax  # max distance for objects in depth images (m)
         # downsample point cloud with voxel size = 1 mm (0.001 m / 0.04 in)
@@ -13,7 +18,10 @@ class RealSense():
         self.pcd = o3d.geometry.PointCloud()  # current pcd from realsense
         self.extrinsics = np.eye(4)  # extrinsic parameters of the camera frame 4 x 4 numpy array
         self.cameraFrameTransform = np.eye(4)
-        self.pipe, self.config = None, None
+        self.pipe, self.config, self.device = None, None, None
+        self.recording = False
+        self.recording_task = None
+        self.fps = fps # fps can only be: 5, 15, 30, 60, 90
 
     def initConnection(self):
         # Initializes connection to realsense, sets pipe,config values
@@ -22,7 +30,7 @@ class RealSense():
 
         # Getting information about the connected realsense model (device object) - D405
         pipeProfile = self.config.resolve(rs.pipeline_wrapper(self.pipe))
-        device = pipeProfile.get_device()
+        self.device = device = pipeProfile.get_device()
         depth_sensor = device.first_depth_sensor()
         self.depthScale = depth_sensor.get_depth_scale()
         # print(depth_scale)
@@ -33,10 +41,10 @@ class RealSense():
         # Setting attributes for stream
         # Depth Stream (1280 x 720) 5 fps - D405 Sensor has max 1280 x 720
         # (Minimum z depth is between 55-70 mm)
-        self.config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 5)
+        self.config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, self.fps)
 
         # Color and Infrared D405 Streams Available (1280 x 720) 5 fps - D405 Sensor has max 1280 x 720
-        self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, 5)
+        self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, self.fps)
 
         # Starting the pipeline based on the specified configuration
         self.pipe.start(self.config)
@@ -48,7 +56,7 @@ class RealSense():
                                                  intrinsics.fy, intrinsics.ppx,
                                                  intrinsics.ppy)
 
-    def takeImages(self, save=False):
+    async def take_image(self, save=False, filepath=""):
         # Takes RGBD Image using Realsense
         # intrinsic and extrinsic parameters are NOT applied only in getPCD()
         # out: Open3D RGBDImage
@@ -79,10 +87,76 @@ class RealSense():
 
         if save:
             subFix = str(time.time())
-            np.save(f"depthImage{subFix}", rawRGBDImage.depth)
-            np.save(f"colorImage{subFix}", rawRGBDImage.color)
+            # np.save(f"{filepath}depthImage{subFix}", rawRGBDImage.depth)
+            # np.save(f"{filepath}colorImage{subFix}", rawRGBDImage.color)
             colorIM = Image.fromarray(rawColorImage)
-            colorIM.save(f"colorImage{subFix}.jpeg")
+            colorIM.save(f"{filepath}colorImage{subFix}.jpeg")
+        return rawRGBDImage
+
+    async def _record_images(self, filepath=""):
+        # records images to a specified filepath
+        try:
+            while self.recording:
+                await self.take_image(save=True, filepath=filepath)
+                await asyncio.sleep(0.01)
+        except asyncio.CancelledError:
+            print("Recording Task Cancelled")
+
+    def begin_record(self, filepath=""):
+        if not self.recording:
+            self.recording = True
+            self.recording_task = asyncio.create_task(self._record_images(filepath=filepath))
+            print("Recording Started")
+
+    async def stop_record(self):
+        if self.recording:
+            self.recording = False
+            print("Stopping Recording")
+            if self.recording_task is not None:
+                self.recording_task.cancel()
+                try:
+                    await self.recording_task
+                except asyncio.CancelledError:
+                    pass
+                print("Recording Stopped")
+        else:
+            print("Recording inactive")
+
+    def takeImages(self, save=False, filepath=""):
+        # Takes RGBD Image using Realsense
+        # intrinsic and extrinsic parameters are NOT applied only in getPCD()
+        # out: Open3D RGBDImage
+        pipe, config = self.pipe, self.config
+
+        frames = pipe.wait_for_frames()
+        depthFrame = frames.get_depth_frame()  # pyrealsense2.depth_frame
+        colorFrame = frames.get_color_frame()
+
+        # Sets class value for intrinsic pinhole parameters
+        self.pinholeInstrinsics = self.getPinholeInstrinsics(colorFrame)
+        # asign extrinsics here if the camera pose is known
+        # alignOperator maps depth frames to color frames
+        alignOperator = rs.align(rs.stream.color)
+        alignOperator.process(frames)
+        alignedDepthFrame, alignedColorFrame = frames.get_depth_frame(), frames.get_color_frame()
+
+        # unmodified rgb and z images as numpy arrays of 3 and 1 channels
+        rawColorImage = np.array(alignedColorFrame.get_data())
+        rawDepthImage = np.asarray(alignedDepthFrame.get_data())
+
+        rawRGBDImage = o3d.geometry.RGBDImage.create_from_color_and_depth(
+            o3d.geometry.Image(rawColorImage),
+            o3d.geometry.Image(rawDepthImage.astype('uint16')),
+            depth_scale=1.0 / self.depthScale,
+            depth_trunc=self.zMax,
+            convert_rgb_to_intensity=False)
+
+        if save:
+            subFix = str(time.time())
+            np.save(f"{filepath}depthImage{subFix}", rawRGBDImage.depth)
+            np.save(f"{filepath}colorImage{subFix}", rawRGBDImage.color)
+            colorIM = Image.fromarray(rawColorImage)
+            colorIM.save(f"{filepath}colorImage{subFix}.jpeg")
         return rawRGBDImage
 
     def getPCD(self, save=False, adjust_extrinsics=False):
@@ -106,7 +180,7 @@ class RealSense():
             np.save(f"colorImage{subFix}", np.array(rawRGBDImage.color))
             np.save(f"depthImage{subFix}", np.array(rawRGBDImage.depth))
             o3d.io.write_point_cloud(f"pcd{subFix}.pcd", downsampledPCD)
-        
+
         if adjust_extrinsics:
             # create rotation matrix of -pi/2 about z-axis
             rot = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
@@ -116,7 +190,7 @@ class RealSense():
                             [0, 0, 0, 1]])
             pcd.rotate(rot) # account for camera orientation, which is -pi/2 about z-axis relative to ur5 wrist
             pcd.transform(tmat_gripper) # account for camera position relative to ur5 wrist
-            
+
         return pcd, rawRGBDImage
         # return (downsampledPCD,rawRGBDImage)
 
@@ -161,7 +235,7 @@ class RealSense():
         else:
             res = [worldFrame].extend(pcds)
             o3d.visualization.draw_geometries(res)
-    
+
     def display_world(self, world_pcd):
         coordFrame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.05)
         geometry = [coordFrame]
