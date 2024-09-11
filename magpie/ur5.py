@@ -42,10 +42,10 @@ def pose_vector_to_homog_coord( poseVec ):
     return poses.pose_vec_to_mtrx( poseVec )
 
 
-def homog_coord_to_pose_vector( poseMatrix ):
+def homog_coord_to_pose_vector( poseMatrix, epsilon = 1e-6 ):
     """ Converts poseMatrix into a 6 element list of [x, y, z, rX, rY, rZ] """
     # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
-    return poses.pose_mtrx_to_vec( np.array( poseMatrix ) )
+    return poses.pose_mtrx_to_vec( np.array( poseMatrix ), epsilon )
 
 
 def get_USB_port_with_desc( descStr ):

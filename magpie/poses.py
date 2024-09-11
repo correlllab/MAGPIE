@@ -56,6 +56,9 @@ def pose_vec_to_mtrx(vec):
     matrix[:3, :3] = np.array([[r11, r12, r13], [r21, r22, r23], [r31, r32, r33]])
     return matrix
 
+from spatialmath import SO3
+from spatialmath.base import tr2angvec, r2q
+from spatialmath.quaternion import UnitQuaternion
 
 def repair_pose( dodgyHomogPose, getErr = 0 ):
     """ Attempt to construct a pose that passes the test """
@@ -93,6 +96,7 @@ def pose_mtrx_to_vec( matrix ):
     vector: [6,] list
         Vector.\n
         [x, y, z, rX, rY, rZ]
+        position, axis-angle
     """
 
     # Attempt to fix negligible errors, Otherwise complain
@@ -352,20 +356,20 @@ def invert_pose(pose):
     return np.linalg.inv(pose)
 
 
-def is_pose_mtrx(pose):
-    if type(pose) is not np.ndarray:
+def is_pose_mtrx( pose, epsilon = 1e-6 ):
+    if type( pose ) is not np.ndarray:
         return False
     if pose.shape == (4, 4):
         is_4x4 = True
     else:
         is_4x4 = False
-    if is_rotation_mtrx(pose[0:3, 0:3]) and is_4x4:
+    if is_rotation_mtrx( pose[0:3, 0:3], epsilon ) and is_4x4:
         return True
     else:
         return False
 
 
-def is_rotation_mtrx(R):
+def is_rotation_mtrx( R, epsilon = 1e-6 ):
     # Checks if a matrix is a valid rotation matrix.
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
