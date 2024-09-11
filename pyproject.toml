@@ -17,14 +17,18 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  'torch',
+  'dynamixel_sdk',
   'numpy',
-  'transformers',
-  'matplotlib',
-  'Pillow',
-  'opencv-python',
+  'py_trees',
+  'spatialmath',
   'open3d',
-  'scipy'
+  'pyrealsense2',
+  'Pillow',
+  'open3d',
+  'scipy',
+  'rtde_control',
+  'rtde_receive',
+  'serial',
 ]
 
 [project.urls]
