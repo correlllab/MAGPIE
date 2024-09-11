@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magpie"
+version = "2024.9"
+authors = [
+  { name="James Watson", email="james.watson-2@colorado.edu" },
+]
+description = "magpie"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  'torch',
+  'numpy',
+  'transformers',
+  'matplotlib',
+  'Pillow',
+  'opencv-python',
+  'open3d',
+  'scipy'
+]
+
+[project.urls]
+Homepage = "https://github.com/correlllab/magpie"
+Issues = "https://github.com/correlllab/magpie/issues"
