@@ -8,3 +8,4 @@ pyrealsense2==2.54.2.5684
 Pillow==10.1.0
 ur-rtde==1.5.7
 pyserial==3.5
+psutil>=5.0

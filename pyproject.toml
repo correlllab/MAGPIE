@@ -28,7 +28,8 @@ dependencies = [
   'open3d',
   'scipy',
   'ur_rtde',
-  'serial',
+  'pyserial',
+  'psutil',
 ]
 
 [project.urls]
