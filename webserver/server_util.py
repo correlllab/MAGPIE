@@ -62,7 +62,6 @@ async def execute_grasp_and_record_images(code_executor, code, camera, path="rob
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
         grasp_log = await loop.run_in_executor(pool, code_executor, code)
-    print(grasp_log)
     await camera.stop_record()
     return grasp_log
 
