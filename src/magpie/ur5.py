@@ -7,7 +7,6 @@ from numpy import radians
 
 # Spatial Math is used for manipulating geometric primitives
 import spatialmath as sm
-from spatialmath import SE3
 
 # UR Interface
 import rtde_control

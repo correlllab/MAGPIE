@@ -1,7 +1,8 @@
 dynamixel-sdk==3.7.31
 numpy==1.26.1
 py-trees==2.1.6
-spatialmath-python==1.1.8
+spatialmath-python>=1.0
+splines>=0.2
 open3d==0.17.0
 pyrealsense2==2.54.2.5684
 Pillow==10.1.0

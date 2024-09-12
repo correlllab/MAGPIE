@@ -20,14 +20,14 @@ dependencies = [
   'dynamixel_sdk',
   'numpy',
   'py_trees',
-  'spatialmath',
+  'spatialmath_python',
+  'splines',
   'open3d',
   'pyrealsense2',
   'Pillow',
   'open3d',
   'scipy',
-  'rtde_control',
-  'rtde_receive',
+  'ur_rtde',
   'serial',
 ]
 
