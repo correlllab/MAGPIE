@@ -9,10 +9,10 @@ More info: [https://arxiv.org/pdf/2402.06018](https://arxiv.org/pdf/2402.06018)
 ## Required
 1. `git clone git@github.com:correlllab/MAGPIE.git`
 1. `cd MAGPIE`
-1. `python3.11 -m pip install . --user`
+1. `python3.10 -m pip install . --user`
 1. `sudo dpkg -r --force-depends python3-matplotlib`
 
 # Dependencies
-* Python 3.11
+* Python 3.10
 
     
