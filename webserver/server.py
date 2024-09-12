@@ -178,7 +178,7 @@ def connect():
     # Camera Configuration
     try:
         if on_robot:
-            rsc = real.RealSense()
+            rsc = real.RealSense(fps=15)
             rsc.initConnection()
             CAMERA = rsc
         # LABEL = Label(label_models[CONFIG['vlm']])
