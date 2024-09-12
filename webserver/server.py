@@ -57,7 +57,8 @@ CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo", "vlm": "owl-vit
 INTERACTIONS = 0
 MESSAGE_LOG = {}
 CONNECTED = False
-LOG_DIR = "../datasets/trajectories"
+# LOG_DIR = "../datasets/trajectories"
+LOG_DIR = "/home/will/MAGPIE/datasets/trajectories"
 GRASP_TIMESTAMP = 0
 GRASP_LOG_DIR = ""
 
@@ -306,15 +307,20 @@ def grasp_policy():
     return jsonify(messages=messages)
 
 @app.route("/execute", methods=["POST"])
-def execute():
+async def execute():
     global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS, GRASP_LOG_DIR
     pm = PROMPT_MODEL
     if RESPONSE is None:
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
         print("SERVER executing code")
-        stdout = pm.code_executor(RESPONSE)
+        # stdout = pm.code_executor(RESPONSE)
         # grasp_log = stdout.split('\n')[-2] # hardcoded...very brittle...
+        stdout = await su.execute_grasp_and_record_images(pm.code_executor, 
+                                                          RESPONSE, 
+                                                          CAMERA, 
+                                                          path=f"{GRASP_LOG_DIR}/img/1_")
+        print("stdout:", stdout)
         log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
@@ -337,17 +343,12 @@ async def home():
                                       freq=10, # 10Hz frequency
                                       record=True,
                                       record_path=f"{GRASP_LOG_DIR}/home.csv")
-            robot.start()
-            # robot.moveL(HOME_POSE)
-            # time.sleep(SLEEP_RATE * 3)
             await su.move_robot_and_record_images(robot, 
                                             HOME_POSE, 
                                             CAMERA, 
-                                            path=f"{GRASP_LOG_DIR}/home_",
+                                            path=f"{GRASP_LOG_DIR}/img/2_",
                                             move_type="linear")
-            robot.stop_recording()
             AT_GOAL = False
-            robot.stop()
             msg["success"] = True
     except Exception as e:
         print(e)
@@ -369,22 +370,18 @@ async def move():
             GRASP_TIMESTAMP = time.time()
             GRASP_LOG_DIR = f"{LOG_DIR}/{GRASP_TIMESTAMP}_{OBJECT_NAME}_id-{INTERACTIONS}"
             os.mkdir(f"{GRASP_LOG_DIR}")
+            os.mkdir(f"{GRASP_LOG_DIR}/img")
             robot = ur5.UR5_Interface(ROBOT_IP, 
                                       freq=10, # 10Hz frequency
                                       record=True, 
                                       record_path=f"{GRASP_LOG_DIR}/move.csv")
-            robot.start()
-            robot.z_offset = 0.0125 # move 2.5mm closer to object than typical
-            # robot.move_tcp_cartesian(GOAL_POSE)
-            # time.sleep(SLEEP_RATE * 3)
+            robot.z_offset = 0.0120 # move 2.0mm closer to object than typical
             await su.move_robot_and_record_images(robot, 
                                             GOAL_POSE, 
                                             CAMERA, 
-                                            path=f"{GRASP_LOG_DIR}/move_",
+                                            path=f"{GRASP_LOG_DIR}/img/0_",
                                             move_type="cartesian")
             AT_GOAL = True
-            robot.stop_recording()
-            robot.stop()
             msg["success"] = True
         return jsonify(msg)
     except Exception as e:
