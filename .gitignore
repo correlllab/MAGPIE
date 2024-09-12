@@ -9,6 +9,9 @@
 pddlstream/
 webserver/interaction_logs/
 webserver/generations/
+tests/generations
+tests/test_datasets
+tests/test_grasp_json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
