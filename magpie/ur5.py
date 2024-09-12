@@ -81,6 +81,7 @@ class UR5_Interface:
         self.record_path = record_path
         self.gripClos_m = 0.002
         self.camXform   = np.eye(4)
+        self.z_offset   = 0.01
         self.gripper_offset = [0.012, 0.006, 0.231] # x, y, z offset
         if cameraXform is None:
             self.set_tcp_to_camera_xform( _CAMERA_XFORM )
@@ -173,12 +174,12 @@ class UR5_Interface:
             self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd"])
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
 
-    def move_tcp_cartesian(self, poseMatrix, z_offset=0.01):
+    def move_tcp_cartesian(self, poseMatrix):
         # move TCP to a position in cartesian space with user-supplied z_offset, ignoring orientation
         # currently the TCP offset is 0, as in we are operating in the wrist frame
         # apply the true tooltip center position, which is the closed MAGPIE gripper (+231mm) offset back to the wrist
         # empirically determined that we shouldn't have changed the x-axis offset, and that the y-was slightly off
-        gripper_offset = [0.012, 0.006, 0.231 - z_offset] # x, y, z offset
+        gripper_offset = [0.012, 0.006, 0.231 - self.z_offset] # x, y, z offset
         pos = poseMatrix[:3, 3]
         grasp_pos = pos - gripper_offset
         tmat_offset = np.eye(4) # make identity matrix with grasp_pose as translation

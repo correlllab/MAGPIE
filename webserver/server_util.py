@@ -1,6 +1,8 @@
 import ast
+import asyncio
 import base64
 import codecs
+from concurrent.futures import ThreadPoolExecutor
 import dataclasses
 import io
 import json
@@ -21,6 +23,23 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from typing import Any
 sys.path.append("../")
+SLEEP_RATE = 0.5
+
+async def move_robot_and_record_images(robot, pose, camera, path="robot_logs/move.csv", move_type="linear"):
+    # configure move type
+    robot_motion = None
+    move_type = move_type.lower()
+    if move_type == "linear":
+        robot_motion = robot.moveL 
+    elif move_type == "cartesian":
+        robot_motion = robot.move_tcp_cartesian 
+    
+    camera.begin_record(filepath=f"{path}/img/")
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        await loop.run_in_executor(pool, robot_motion, pose)
+        await asyncio.sleep(SLEEP_RATE * 3)
+    await camera.stop_record()
 
 def encode_image(pil_img, decoder='ascii'):
     img_io = io.BytesIO()

@@ -1,5 +1,6 @@
 # general package imports
 import ast
+import asyncio
 import base64
 import codecs
 import dataclasses
@@ -14,7 +15,8 @@ import pandas as pd
 from PIL import Image
 import platform
 import rlds # GDM Reinforcement Learning Dataset
-from server_util import encode_image, parse_object_description, log_grasp, log_to_df, df_to_rlds
+import server_util as su
+from server_util import encode_image, parse_object_description, log_grasp, log_to_df, df_to_rlds, move_robot_and_record_images
 import sys
 import time
 import tensorflow as tf
@@ -55,7 +57,9 @@ CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo", "vlm": "owl-vit
 INTERACTIONS = 0
 MESSAGE_LOG = {}
 CONNECTED = False
+LOG_DIR = "../datasets/trajectories"
 GRASP_TIMESTAMP = 0
+GRASP_LOG_DIR = ""
 
 # Perception Configuration
 CAMERA = None
@@ -303,7 +307,7 @@ def grasp_policy():
 
 @app.route("/execute", methods=["POST"])
 def execute():
-    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS, GRASP_TIMESTAMP
+    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS, GRASP_LOG_DIR
     pm = PROMPT_MODEL
     if RESPONSE is None:
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
@@ -311,7 +315,7 @@ def execute():
         print("SERVER executing code")
         stdout = pm.code_executor(RESPONSE)
         # grasp_log = stdout.split('\n')[-2] # hardcoded...very brittle...
-        log_grasp(stdout, path=f"robot_logs/grasp_log_{GRASP_TIMESTAMP}.json") # still hardcoded...brittle...
+        log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
         # return jsonify({"success": True, "message": "Code executed successfully."})
@@ -324,15 +328,23 @@ def execute():
         return(jsonify(messages=[err_msg]))
 
 @app.route("/home", methods=["POST"])
-def home():
-    global HOME_POSE, AT_GOAL, GRIPPER, ROBOT_IP, GRASP_TIMESTAMP
+async def home():
+    global HOME_POSE, AT_GOAL, GRIPPER, CAMERA, ROBOT_IP, GRASP_TIMESTAMP, GRASP_LOG_DIR
     msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
-            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/home_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
+            robot = ur5.UR5_Interface(ROBOT_IP, 
+                                      freq=10, # 10Hz frequency
+                                      record=True,
+                                      record_path=f"{GRASP_LOG_DIR}/home.csv")
             robot.start()
-            robot.moveL(HOME_POSE)
-            time.sleep(SLEEP_RATE * 3)
+            # robot.moveL(HOME_POSE)
+            # time.sleep(SLEEP_RATE * 3)
+            await su.move_robot_and_record_images(robot, 
+                                            HOME_POSE, 
+                                            CAMERA, 
+                                            path=f"{GRASP_LOG_DIR}/home_",
+                                            move_type="linear")
             robot.stop_recording()
             AT_GOAL = False
             robot.stop()
@@ -342,8 +354,9 @@ def home():
     return jsonify(msg)
 
 @app.route("/move", methods=["POST"])
-def move():
-    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL, GRASP_TIMESTAMP
+async def move():
+    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL, CAMERA
+    global GRASP_TIMESTAMP, LOG_DIR, GRASP_LOG_DIR, OBJECT_NAME
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
         msg["message"] = "No goal pose set."
@@ -354,14 +367,21 @@ def move():
     try:
         if on_robot:
             GRASP_TIMESTAMP = time.time()
-            robot = ur5.UR5_Interface(ROBOT_IP, freq=10, record=True, record_path=f"robot_logs/move_{GRASP_TIMESTAMP}.csv") # 10Hz frequency
+            GRASP_LOG_DIR = f"{LOG_DIR}/{GRASP_TIMESTAMP}_{OBJECT_NAME}_id-{INTERACTIONS}"
+            os.mkdir(f"{GRASP_LOG_DIR}")
+            robot = ur5.UR5_Interface(ROBOT_IP, 
+                                      freq=10, # 10Hz frequency
+                                      record=True, 
+                                      record_path=f"{GRASP_LOG_DIR}/move.csv")
             robot.start()
-            z = 0.0125
-            print(f"z_offset: {z}")
-            # imminently TODO: now that we've sorted out the camera extrinsics, shouldn't need this anymore
-            # gt.move_to_L(np.array(GOAL_POSE)[:3, 3], robot, z_offset=z)
-            robot.move_tcp_cartesian(GOAL_POSE, z_offset=z)
-            time.sleep(SLEEP_RATE * 3)
+            robot.z_offset = 0.0125 # move 2.5mm closer to object than typical
+            # robot.move_tcp_cartesian(GOAL_POSE)
+            # time.sleep(SLEEP_RATE * 3)
+            await su.move_robot_and_record_images(robot, 
+                                            GOAL_POSE, 
+                                            CAMERA, 
+                                            path=f"{GRASP_LOG_DIR}/move_",
+                                            move_type="cartesian")
             AT_GOAL = True
             robot.stop_recording()
             robot.stop()

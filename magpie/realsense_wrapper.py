@@ -90,7 +90,7 @@ class RealSense():
             # np.save(f"{filepath}depthImage{subFix}", rawRGBDImage.depth)
             # np.save(f"{filepath}colorImage{subFix}", rawRGBDImage.color)
             colorIM = Image.fromarray(rawColorImage)
-            colorIM.save(f"{filepath}colorImage{subFix}.jpeg")
+            colorIM.save(f"{filepath}{subFix}.jpeg")
         return rawRGBDImage
 
     async def _record_images(self, filepath=""):
