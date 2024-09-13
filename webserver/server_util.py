@@ -81,8 +81,11 @@ def get_adjective_noun_phrase(token):
     # Get adjectives that modify the token
     adjectives = [child.text for child in dependents if child.dep_ == "amod"]
     
-    # Combine the adjectives and the noun
-    phrase = " ".join(adjectives + [token.text])
+    # Get compound nouns (like 'circuit' in 'circuit board')
+    compounds = [child.text for child in dependents if child.dep_ == "compound"]
+    
+    # Combine compounds, adjectives, and the noun
+    phrase = " ".join(adjectives + compounds + [token.text])
     
     return phrase
 
@@ -91,6 +94,7 @@ def parse_object_description(user_input):
     nlp = spacy.load("en_core_web_sm")
     doc = nlp(user_input)
     query, abbrevq = user_input, user_input
+    
     # Extract the adjective and noun
     for token in doc:
         if token.dep_ == "dobj":  # Direct object dependency
