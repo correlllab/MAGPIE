@@ -8,7 +8,6 @@ import subprocess
 import os
 import asyncio
 import threading
-import cv2
 
 def poll_devices():
     ctx = rs.context()
@@ -105,10 +104,6 @@ class RealSense():
         rawColorImage = np.asanyarray(alignedColorFrame.get_data())
         rawDepthImage = np.asanyarray(alignedDepthFrame.get_data())
 
-        ### test depth
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(rawDepthImage, alpha=0.03), cv2.COLORMAP_JET)
-        ### test
-
         rawRGBDImage = o3d.geometry.RGBDImage.create_from_color_and_depth(
             o3d.geometry.Image(rawColorImage),
             o3d.geometry.Image(rawDepthImage.astype('uint16')),
@@ -126,7 +121,7 @@ class RealSense():
                 colorIM = Image.fromarray(rawColorImage)
                 colorIM.save(f"{filepath}{subFix}.jpeg")
 
-        return rawRGBDImage, depth_colormap, rawDepthImage
+        return rawRGBDImage
 
     async def _record_images(self, filepath=""):
         # records images to a specified filepath
