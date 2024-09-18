@@ -67,7 +67,6 @@ CAMERA_SERIAL_INFO = None
 CAMERA_PATH_DICT = None
 WRIST_CAMERA = None
 WORKSPACE_CAMERA = None
-WORKSPACE_CONNECTED = False
 CAMERA = None
 label_models = {'owl-vit': "google/owlvit-base-patch32",
                 'owl-v2':'google/owlv2-base-patch16-ensemble',
@@ -186,16 +185,17 @@ def connect():
             CAMERA_SERIAL_INFO = real.poll_devices()
             print(CAMERA_SERIAL_INFO)
             if len(CAMERA_SERIAL_INFO) < 2:
-                rsc = real.RealSense(fps=15)
+                rsc = real.RealSense(fps=15, w=640, h=480)
                 rsc.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 WRIST_CAMERA = CAMERA = WORKSPACE_CAMERA = rsc
             else:
-                WRIST_CAMERA = real.RealSense(fps=15)
+                WRIST_CAMERA = real.RealSense(fps=15, w=640, h=480)
                 WRIST_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 print(f"Connected to wrist camera")
-                # WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
-                # WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
-                # print(f"Connected to workspace camera")
+                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15, w=640, h=480)
+                CAMERA_SERIAL_INFO = real.poll_devices()
+                WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
+                print(f"Connected to workspace camera")
         # LABEL = Label(label_models[CONFIG['vlm']])
         LABEL = LabelOWLViT(pth=label_models['owl-vit'])
         connect_msg += "Connected to camera and perception models.\n"
@@ -366,7 +366,7 @@ async def home():
 @app.route("/move", methods=["POST"])
 async def move():
     global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
-    global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA, WORKSPACE_CONNECTED
+    global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA
     global GRASP_TIMESTAMP, LOG_DIR, GRASP_LOG_DIR, OBJECT_NAME
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
@@ -379,13 +379,6 @@ async def move():
         if on_robot:
             GRASP_TIMESTAMP = time.time()
             GRASP_LOG_DIR = f"{LOG_DIR}/{GRASP_TIMESTAMP}_{OBJECT_NAME}_id-{INTERACTIONS}"
-            print(f"Connecting to workspace camera")
-            if not WORKSPACE_CONNECTED:
-                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
-                CAMERA_SERIAL_INFO = real.poll_devices()
-                WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
-                WORKSPACE_CONNECTED = True
-            print(f"Connected to workspace camera")
             os.mkdir(f"{GRASP_LOG_DIR}")
             os.mkdir(f"{GRASP_LOG_DIR}/workspace_img")
             os.mkdir(f"{GRASP_LOG_DIR}/wrist_img")

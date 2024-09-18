@@ -8,6 +8,7 @@ import subprocess
 import os
 import asyncio
 import threading
+import cv2
 
 def poll_devices():
     ctx = rs.context()
@@ -40,6 +41,12 @@ class RealSense():
         self.pipe = rs.pipeline()
         self.config = rs.config()
 
+        # enable specific device, used if multiple devices connected
+        # THIS CALL MUST HAPPEN BEFORE EVERYTHING ELSE
+        # Especially before calling get_device() on config.resolve(...), duh...
+        if device_serial is not None:
+            self.config.enable_device(device_serial)
+
         # Getting information about the connected realsense model (device object) - D405
         pipeProfile = self.config.resolve(rs.pipeline_wrapper(self.pipe))
         self.device = device = pipeProfile.get_device()
@@ -49,10 +56,6 @@ class RealSense():
 
         # 1 - default, 2 - hand, 3 - high accuracy, 4 - high density, 5 - medium density
         depth_sensor.set_option(rs.option.visual_preset, 4)  # 4 corresponds to high-density option
-
-        # enable specific device, used if multiple devices connected
-        if device_serial is not None:
-            self.config.enable_device(device_serial)
 
         # Setting attributes for stream
         # Depth Stream (1280 x 720) 5 fps - D405 Sensor has max 1280 x 720
@@ -99,8 +102,12 @@ class RealSense():
         alignedDepthFrame, alignedColorFrame = frames.get_depth_frame(), frames.get_color_frame()
 
         # unmodified rgb and z images as numpy arrays of 3 and 1 channels
-        rawColorImage = np.array(alignedColorFrame.get_data())
-        rawDepthImage = np.asarray(alignedDepthFrame.get_data())
+        rawColorImage = np.asanyarray(alignedColorFrame.get_data())
+        rawDepthImage = np.asanyarray(alignedDepthFrame.get_data())
+
+        ### test depth
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(rawDepthImage, alpha=0.03), cv2.COLORMAP_JET)
+        ### test
 
         rawRGBDImage = o3d.geometry.RGBDImage.create_from_color_and_depth(
             o3d.geometry.Image(rawColorImage),
@@ -119,7 +126,7 @@ class RealSense():
                 colorIM = Image.fromarray(rawColorImage)
                 colorIM.save(f"{filepath}{subFix}.jpeg")
 
-        return rawRGBDImage
+        return rawRGBDImage, depth_colormap, rawDepthImage
 
     async def _record_images(self, filepath=""):
         # records images to a specified filepath
