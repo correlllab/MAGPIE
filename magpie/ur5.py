@@ -163,7 +163,7 @@ class UR5_Interface:
         # speed is joint velocity (rad/s)
         if self.record:
             # record time, joint pos, 6d pose, joint vel
-            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd"])
+            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd", "target_q", "target_TCP_pose"])
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
 
     def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
@@ -171,7 +171,7 @@ class UR5_Interface:
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
         if self.record:
-            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd"])
+            self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd", "target_q", "target_TCP_pose"])
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
 
     def move_tcp_cartesian(self, poseMatrix):

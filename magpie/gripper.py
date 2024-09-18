@@ -456,7 +456,7 @@ class Gripper:
         # final adjustment
         if complete:
             curr_aperture = self.get_aperture(finger='both')
-            self.set_goal_aperture(curr_aperture, finger='both', record_load=False)
+            self.set_goal_aperture(curr_aperture - dx, finger='both', record_load=False)
         else:
             self.open_gripper()
         if self.debug:

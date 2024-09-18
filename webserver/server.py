@@ -67,6 +67,7 @@ CAMERA_SERIAL_INFO = None
 CAMERA_PATH_DICT = None
 WRIST_CAMERA = None
 WORKSPACE_CAMERA = None
+WORKSPACE_CONNECTED = False
 CAMERA = None
 label_models = {'owl-vit': "google/owlvit-base-patch32",
                 'owl-v2':'google/owlv2-base-patch16-ensemble',
@@ -243,6 +244,7 @@ def chat():
                                         #  method="quat", 
                                          method="iterative", 
                                          display=False)
+        print(f"GOAL_POSE: {GOAL_POSE}")
         APERTURE = pcd.get_minimum_width(ptcld)/1000.0 # convert to meters
     except Exception as e:
         print(e)
@@ -364,7 +366,7 @@ async def home():
 @app.route("/move", methods=["POST"])
 async def move():
     global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
-    global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA
+    global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA, WORKSPACE_CONNECTED
     global GRASP_TIMESTAMP, LOG_DIR, GRASP_LOG_DIR, OBJECT_NAME
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
@@ -378,9 +380,11 @@ async def move():
             GRASP_TIMESTAMP = time.time()
             GRASP_LOG_DIR = f"{LOG_DIR}/{GRASP_TIMESTAMP}_{OBJECT_NAME}_id-{INTERACTIONS}"
             print(f"Connecting to workspace camera")
-            WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
-            CAMERA_SERIAL_INFO = real.poll_devices()
-            WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
+            if not WORKSPACE_CONNECTED:
+                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
+                CAMERA_SERIAL_INFO = real.poll_devices()
+                WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
+                WORKSPACE_CONNECTED = True
             print(f"Connected to workspace camera")
             os.mkdir(f"{GRASP_LOG_DIR}")
             os.mkdir(f"{GRASP_LOG_DIR}/workspace_img")
@@ -400,7 +404,7 @@ async def move():
                                             GOAL_POSE, 
                                             CAMERA_PATH_DICT, 
                                             index=0,
-                                            move_type="linear")
+                                            move_type="cartesian")
             AT_GOAL = True
             msg["success"] = True
         return jsonify(msg)
