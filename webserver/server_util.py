@@ -47,8 +47,9 @@ async def move_robot_and_record_images(robot, pose, cp_dict, index=0, move_type=
     
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    await asyncio.sleep(SLEEP_RATE*2)
-    print("begin record")
+    # await asyncio.sleep(SLEEP_RATE)
+    time.sleep(SLEEP_RATE*2)
+
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
         await loop.run_in_executor(pool, robot_motion, pose)
@@ -66,7 +67,8 @@ async def execute_grasp_and_record_images(code_executor, code, cp_dict, index=0)
     print(cp_dict)
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    await asyncio.sleep(SLEEP_RATE)
+    # await asyncio.sleep(SLEEP_RATE)
+    time.sleep(SLEEP_RATE*2)
 
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:

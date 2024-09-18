@@ -330,7 +330,7 @@ async def execute():
                                                           RESPONSE, 
                                                           CAMERA_PATH_DICT,
                                                           index=1)
-        print("stdout:", stdout)
+        # print("stdout:", stdout)
         log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
@@ -409,7 +409,7 @@ async def move():
             msg["success"] = True
         return jsonify(msg)
     except Exception as e:
-        print(e)
+        print(f"Error: {e}")
         msg["message"] = f"Failed to move to goal pose: {e}"
         return jsonify(msg)
 

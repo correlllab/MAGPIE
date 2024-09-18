@@ -33,6 +33,7 @@ class RealSense():
         self.device_serial = device_serial
         self.w = w
         self.h = h
+        self.buffer_dict = {}
 
     def initConnection(self, device_serial=None, enable_depth=True, enable_color=True):
         # Initializes connection to realsense, sets pipe,config values
@@ -73,7 +74,13 @@ class RealSense():
                                                  intrinsics.fy, intrinsics.ppx,
                                                  intrinsics.ppy)
 
-    async def take_image(self, save=False, filepath=""):
+    def write_buffer(self):
+        for path, im in self.buffer_dict.items():
+            colorIM = Image.fromarray(im)
+            colorIM.save(path)
+        self.buffer_dict = {}
+
+    async def take_image(self, save=False, filepath="", buffer=False):
         # Takes RGBD Image using Realsense
         # intrinsic and extrinsic parameters are NOT applied only in getPCD()
         # out: Open3D RGBDImage
@@ -106,15 +113,19 @@ class RealSense():
             subFix = str(time.time())
             # np.save(f"{filepath}depthImage{subFix}", rawRGBDImage.depth)
             # np.save(f"{filepath}colorImage{subFix}", rawRGBDImage.color)
-            colorIM = Image.fromarray(rawColorImage)
-            colorIM.save(f"{filepath}{subFix}.jpeg")
+            if buffer:
+                self.buffer_dict[f"{filepath}{subFix}.jpeg"] = rawColorImage
+            else:
+                colorIM = Image.fromarray(rawColorImage)
+                colorIM.save(f"{filepath}{subFix}.jpeg")
+
         return rawRGBDImage
 
     async def _record_images(self, filepath=""):
         # records images to a specified filepath
         try:
             while self.recording:
-                await self.take_image(save=True, filepath=filepath)
+                await self.take_image(save=True, filepath=filepath, buffer=True)
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             print("Recording Task Cancelled")
@@ -136,6 +147,7 @@ class RealSense():
                 except asyncio.CancelledError:
                     pass
                 print("Recording Stopped")
+            self.write_buffer()
         else:
             print("Recording inactive")
 
