@@ -34,8 +34,9 @@ def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     with open(path, 'w') as f:
         f.write(json.dumps(gl.tolist()))
 
-async def move_robot_and_record_images(robot, pose, camera, path="robot_logs/move.csv", move_type="linear"):
+async def move_robot_and_record_images(robot, pose, cp_dict, index=0, move_type="linear"):
     # configure move type
+    print(cp_dict)
     robot.start()
     robot_motion = None
     move_type = move_type.lower()
@@ -44,25 +45,34 @@ async def move_robot_and_record_images(robot, pose, camera, path="robot_logs/mov
     elif move_type == "cartesian":
         robot_motion = robot.move_tcp_cartesian 
     
-    camera.begin_record(filepath=f"{path}")
+    for camera in cp_dict:
+        camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
+    await asyncio.sleep(SLEEP_RATE*2)
+    print("begin record")
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
         await loop.run_in_executor(pool, robot_motion, pose)
         await asyncio.sleep(SLEEP_RATE * 3)
     
-    await camera.stop_record()
+    for camera in cp_dict:
+        await camera.stop_record()
     # need to stop robot inside async function
     # if not, i could have generic method
     # execute_function_and_record_images. oh well
     robot.stop_recording()
     robot.stop()
 
-async def execute_grasp_and_record_images(code_executor, code, camera, path="robot_logs/move.csv"):
-    camera.begin_record(filepath=f"{path}")
+async def execute_grasp_and_record_images(code_executor, code, cp_dict, index=0):
+    print(cp_dict)
+    for camera in cp_dict:
+        camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
+    await asyncio.sleep(SLEEP_RATE)
+
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
         grasp_log = await loop.run_in_executor(pool, code_executor, code)
-    await camera.stop_record()
+    for camera in cp_dict:
+        await camera.stop_record()
     return grasp_log
 
 def encode_image(pil_img, decoder='ascii'):

@@ -9,8 +9,16 @@ import os
 import asyncio
 import threading
 
+def poll_devices():
+    ctx = rs.context()
+    devices = ctx.query_devices()
+    models = [d.get_info(rs.camera_info.name).split(' ')[-1] for d in devices]
+    serial = [d.get_info(rs.camera_info.serial_number) for d in devices]
+    info = {i:j for i,j in zip(models, serial)}
+    return info
+
 class RealSense():
-    def __init__(self, zMax=0.5, voxelSize=0.001, fps=5):
+    def __init__(self, w=1280, h=720, zMax=0.5, voxelSize=0.001, fps=5, device_serial=None):
         self.pinholeIntrinsics = None  # set in self.takeImages()
         self.zMax = zMax  # max distance for objects in depth images (m)
         # downsample point cloud with voxel size = 1 mm (0.001 m / 0.04 in)
@@ -22,8 +30,11 @@ class RealSense():
         self.recording = False
         self.recording_task = None
         self.fps = fps # fps can only be: 5, 15, 30, 60, 90
+        self.device_serial = device_serial
+        self.w = w
+        self.h = h
 
-    def initConnection(self):
+    def initConnection(self, device_serial=None, enable_depth=True, enable_color=True):
         # Initializes connection to realsense, sets pipe,config values
         self.pipe = rs.pipeline()
         self.config = rs.config()
@@ -38,13 +49,19 @@ class RealSense():
         # 1 - default, 2 - hand, 3 - high accuracy, 4 - high density, 5 - medium density
         depth_sensor.set_option(rs.option.visual_preset, 4)  # 4 corresponds to high-density option
 
+        # enable specific device, used if multiple devices connected
+        if device_serial is not None:
+            self.config.enable_device(device_serial)
+
         # Setting attributes for stream
         # Depth Stream (1280 x 720) 5 fps - D405 Sensor has max 1280 x 720
         # (Minimum z depth is between 55-70 mm)
-        self.config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, self.fps)
+        if enable_depth:
+            self.config.enable_stream(rs.stream.depth, self.w, self.h, rs.format.z16, self.fps)
 
         # Color and Infrared D405 Streams Available (1280 x 720) 5 fps - D405 Sensor has max 1280 x 720
-        self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, self.fps)
+        if enable_color:
+            self.config.enable_stream(rs.stream.color, self.w, self.h, rs.format.rgb8, self.fps)
 
         # Starting the pipeline based on the specified configuration
         self.pipe.start(self.config)

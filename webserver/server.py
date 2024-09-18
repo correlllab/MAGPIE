@@ -63,6 +63,10 @@ GRASP_TIMESTAMP = 0
 GRASP_LOG_DIR = ""
 
 # Perception Configuration
+CAMERA_SERIAL_INFO = None
+CAMERA_PATH_DICT = None
+WRIST_CAMERA = None
+WORKSPACE_CAMERA = None
 CAMERA = None
 label_models = {'owl-vit': "google/owlvit-base-patch32",
                 'owl-v2':'google/owlv2-base-patch16-ensemble',
@@ -125,7 +129,7 @@ def connect():
     # Robot
     global GRIPPER, SERVO_PORT, HOME_POSE, SLEEP_RATE, on_robot
     # Perception
-    global CAMERA, LABEL
+    global CAMERA, LABEL, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA, CAMERA_SERIAL_INFO 
     # LLM
     global MODEL, TASK_CONFIG, PROMPT_MODEL, PROMPT, CONVERSATION, safe_executor, VISION
 
@@ -157,7 +161,7 @@ def connect():
         connect_msg += f"Failed to create conversation agent: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
 
-    # Hardware Configuration
+    # Robot + Gripper Configuration
     try:
         if on_robot:
             robot = ur5.UR5_Interface(ROBOT_IP)
@@ -175,12 +179,22 @@ def connect():
         connect_msg += f"Failed to connect to robot and gripper: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
 
-    # Camera Configuration
+    # Camera(s) Configuration
     try:
         if on_robot:
-            rsc = real.RealSense(fps=15)
-            rsc.initConnection()
-            CAMERA = rsc
+            CAMERA_SERIAL_INFO = real.poll_devices()
+            print(CAMERA_SERIAL_INFO)
+            if len(CAMERA_SERIAL_INFO) < 2:
+                rsc = real.RealSense(fps=15)
+                rsc.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
+                WRIST_CAMERA = CAMERA = WORKSPACE_CAMERA = rsc
+            else:
+                WRIST_CAMERA = real.RealSense(fps=15)
+                WRIST_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
+                print(f"Connected to wrist camera")
+                # WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
+                # WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
+                # print(f"Connected to workspace camera")
         # LABEL = Label(label_models[CONFIG['vlm']])
         LABEL = LabelOWLViT(pth=label_models['owl-vit'])
         connect_msg += "Connected to camera and perception models.\n"
@@ -196,7 +210,7 @@ def connect():
 def chat():
     global INTERACTIONS, MESSAGE_LOG, CONFIG
     # Perception
-    global CAMERA, LABEL, GOAL_POSE, APERTURE, IMAGE
+    global CAMERA, LABEL, GOAL_POSE, APERTURE, IMAGE, WRIST_CAMERA
     # LLM
     global PROMPT_MODEL, CONVERSATION, RESPONSE, VISION, OBJECT_NAME
 
@@ -209,7 +223,7 @@ def chat():
     # TODO: segment object description from user input
     enc_img = None
     try:
-        p, rgbd_image = CAMERA.getPCD()
+        p, rgbd_image = WRIST_CAMERA.getPCD()
         image = np.array(rgbd_image.color)
         # scale image to 640 x 480
         IMAGE = Image.fromarray(image).resize((640, 480))
@@ -223,7 +237,7 @@ def chat():
         _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes_coords, 
                                          index, 
                                          rgbd_image, 
-                                         CAMERA, 
+                                         WRIST_CAMERA, 
                                          type="box-dbscan", 
                                         #  type="box", 
                                         #  method="quat", 
@@ -235,10 +249,6 @@ def chat():
         msg = "Perception failed. Is the camera connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
         return(jsonify(messages=[err_msg]))
-
-    # print(conv._message_queues)
-    img_path = "static/favicon.jpg"
-    # enc_img = encode_image(Image.open(f'{img_path}'))
 
     messages = [
         {"type": "text",  "role": "llm", "content": "This is a text message."},
@@ -314,21 +324,18 @@ async def execute():
         return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
     try:
         print("SERVER executing code")
-        # stdout = pm.code_executor(RESPONSE)
-        # grasp_log = stdout.split('\n')[-2] # hardcoded...very brittle...
         stdout = await su.execute_grasp_and_record_images(pm.code_executor, 
                                                           RESPONSE, 
-                                                          CAMERA, 
-                                                          path=f"{GRASP_LOG_DIR}/img/1_")
+                                                          CAMERA_PATH_DICT,
+                                                          index=1)
         print("stdout:", stdout)
         log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
-        # return jsonify({"success": True, "message": "Code executed successfully."})
         MESSAGE_LOG[INTERACTIONS] += msg
         print(MESSAGE_LOG[INTERACTIONS])
         return jsonify(messages=[msg])
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         msg = "Execution failed. Is the robot connected? " + str(e) + "\n"
         err_msg = {"type": "text", "role": "system", "content": msg}
         return(jsonify(messages=[err_msg]))
@@ -345,8 +352,8 @@ async def home():
                                       record_path=f"{GRASP_LOG_DIR}/home.csv")
             await su.move_robot_and_record_images(robot, 
                                             HOME_POSE, 
-                                            CAMERA, 
-                                            path=f"{GRASP_LOG_DIR}/img/2_",
+                                            CAMERA_PATH_DICT,
+                                            index=2,
                                             move_type="linear")
             AT_GOAL = False
             msg["success"] = True
@@ -356,7 +363,8 @@ async def home():
 
 @app.route("/move", methods=["POST"])
 async def move():
-    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL, CAMERA
+    global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
+    global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA
     global GRASP_TIMESTAMP, LOG_DIR, GRASP_LOG_DIR, OBJECT_NAME
     msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
     if GOAL_POSE is None:
@@ -369,18 +377,30 @@ async def move():
         if on_robot:
             GRASP_TIMESTAMP = time.time()
             GRASP_LOG_DIR = f"{LOG_DIR}/{GRASP_TIMESTAMP}_{OBJECT_NAME}_id-{INTERACTIONS}"
+            print(f"Connecting to workspace camera")
+            WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15)
+            CAMERA_SERIAL_INFO = real.poll_devices()
+            WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
+            print(f"Connected to workspace camera")
             os.mkdir(f"{GRASP_LOG_DIR}")
-            os.mkdir(f"{GRASP_LOG_DIR}/img")
+            os.mkdir(f"{GRASP_LOG_DIR}/workspace_img")
+            os.mkdir(f"{GRASP_LOG_DIR}/wrist_img")
+            CAMERA_PATH_DICT = {WRIST_CAMERA: f"{GRASP_LOG_DIR}/wrist_img", 
+                                WORKSPACE_CAMERA: f"{GRASP_LOG_DIR}/workspace_img",
+                                # CAMERA: f"{GRASP_LOG_DIR}/img"
+                                }            
+
             robot = ur5.UR5_Interface(ROBOT_IP, 
                                       freq=10, # 10Hz frequency
                                       record=True, 
                                       record_path=f"{GRASP_LOG_DIR}/move.csv")
             robot.z_offset = 0.0120 # move 2.0mm closer to object than typical
+            print("moving robot")
             await su.move_robot_and_record_images(robot, 
-                                            GOAL_POSE, 
-                                            CAMERA, 
-                                            path=f"{GRASP_LOG_DIR}/img/0_",
-                                            move_type="cartesian")
+                                            HOME_POSE, 
+                                            CAMERA_PATH_DICT, 
+                                            index=0,
+                                            move_type="linear")
             AT_GOAL = True
             msg["success"] = True
         return jsonify(msg)
