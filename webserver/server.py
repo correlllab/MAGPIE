@@ -397,7 +397,7 @@ async def move():
             robot.z_offset = 0.0120 # move 2.0mm closer to object than typical
             print("moving robot")
             await su.move_robot_and_record_images(robot, 
-                                            HOME_POSE, 
+                                            GOAL_POSE, 
                                             CAMERA_PATH_DICT, 
                                             index=0,
                                             move_type="linear")
