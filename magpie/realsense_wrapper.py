@@ -18,7 +18,7 @@ def poll_devices():
     return info
 
 class RealSense():
-    def __init__(self, w=1280, h=720, zMax=0.5, voxelSize=0.001, fps=5, device_serial=None):
+    def __init__(self, w=1280, h=720, zMax=0.5, voxelSize=0.001, fps=5, device_serial=None, device_name=None):
         self.pinholeIntrinsics = None  # set in self.takeImages()
         self.zMax = zMax  # max distance for objects in depth images (m)
         # downsample point cloud with voxel size = 1 mm (0.001 m / 0.04 in)
@@ -31,6 +31,7 @@ class RealSense():
         self.recording_task = None
         self.fps = fps # fps can only be: 5, 15, 30, 60, 90
         self.device_serial = device_serial
+        self.device_name = device_name
         self.w = w
         self.h = h
         self.buffer_dict = {}
@@ -50,6 +51,10 @@ class RealSense():
         pipeProfile = self.config.resolve(rs.pipeline_wrapper(self.pipe))
         self.device = device = pipeProfile.get_device()
         depth_sensor = device.first_depth_sensor()
+        depth_sensor.set_option(rs.option.enable_auto_exposure, False)
+        if self.device_name != 'D405':
+            color_sensor = device.first_color_sensor()
+            color_sensor.set_option(rs.option.enable_auto_exposure, False)
         self.depthScale = depth_sensor.get_depth_scale()
         # print(depth_scale)
 
@@ -67,7 +72,7 @@ class RealSense():
             self.config.enable_stream(rs.stream.color, self.w, self.h, rs.format.rgb8, self.fps)
 
         # Starting the pipeline based on the specified configuration
-        self.pipe.start(self.config)
+        p = self.pipe.start(self.config)
 
     def getPinholeInstrinsics(self, frame):
         # frame is a subclass of pyrealsense2.video_frame (depth_frame,etc)
@@ -82,6 +87,11 @@ class RealSense():
             colorIM.save(path)
         self.buffer_dict = {}
 
+    def flush_buffer(self, t=3):
+        start = time.time()
+        while time.time() - start < t:
+            frames = self.pipe.wait_for_frames()
+
     async def take_image(self, save=False, filepath="", buffer=False):
         # Takes RGBD Image using Realsense
         # intrinsic and extrinsic parameters are NOT applied only in getPCD()
@@ -89,39 +99,23 @@ class RealSense():
         pipe, config = self.pipe, self.config
 
         frames = pipe.wait_for_frames()
-        depthFrame = frames.get_depth_frame()  # pyrealsense2.depth_frame
         colorFrame = frames.get_color_frame()
-
-        # Sets class value for intrinsic pinhole parameters
-        self.pinholeInstrinsics = self.getPinholeInstrinsics(colorFrame)
-        # asign extrinsics here if the camera pose is known
-        # alignOperator maps depth frames to color frames
-        alignOperator = rs.align(rs.stream.color)
-        alignOperator.process(frames)
-        alignedDepthFrame, alignedColorFrame = frames.get_depth_frame(), frames.get_color_frame()
-
-        # unmodified rgb and z images as numpy arrays of 3 and 1 channels
-        rawColorImage = np.asanyarray(alignedColorFrame.get_data())
-        rawDepthImage = np.asanyarray(alignedDepthFrame.get_data())
-
-        rawRGBDImage = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            o3d.geometry.Image(rawColorImage),
-            o3d.geometry.Image(rawDepthImage.astype('uint16')),
-            depth_scale=1.0 / self.depthScale,
-            depth_trunc=self.zMax,
-            convert_rgb_to_intensity=False)
+        rawColorImage = np.asanyarray(colorFrame.get_data())
+        timestamp = frames.get_timestamp()
+        # get sensor timestamp
+        ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
+        # move ts decimal 3 places to the right
+        timestamp = timestamp / 1000
+        print(f"{self.device_name}: FW Timestamp: {timestamp}, Sensor Timestamp: {ts}")
 
         if save:
-            subFix = str(time.time())
-            # np.save(f"{filepath}depthImage{subFix}", rawRGBDImage.depth)
-            # np.save(f"{filepath}colorImage{subFix}", rawRGBDImage.color)
+            # subFix = str(time.time())
+            subFix = str(timestamp)
             if buffer:
                 self.buffer_dict[f"{filepath}{subFix}.jpeg"] = rawColorImage
-            else:
-                colorIM = Image.fromarray(rawColorImage)
-                colorIM.save(f"{filepath}{subFix}.jpeg")
 
-        return rawRGBDImage
+        return rawColorImage
+
 
     async def _record_images(self, filepath=""):
         # records images to a specified filepath
@@ -138,7 +132,7 @@ class RealSense():
             self.recording_task = asyncio.create_task(self._record_images(filepath=filepath))
             print("Recording Started")
 
-    async def stop_record(self):
+    async def stop_record(self, flush_time=2):
         if self.recording:
             self.recording = False
             print("Stopping Recording")
@@ -150,6 +144,9 @@ class RealSense():
                     pass
                 print("Recording Stopped")
             self.write_buffer()
+            print("Buffer written")
+            self.flush_buffer(t=flush_time)
+            print("Buffer flushed")
         else:
             print("Recording inactive")
 
