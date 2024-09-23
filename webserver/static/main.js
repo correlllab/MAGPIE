@@ -110,6 +110,7 @@ $(document).ready(function() {
                     console.log("Connected:", connectStatus)
                     $("#connect-status").text("Connected");
                     $("#connect-status").css("color", "green");
+                    propagateChat(data, "robot-chat-window");
                 }
             },
             error: function(jqXHR, textStatus, errorThrown) {
@@ -165,7 +166,6 @@ $(document).ready(function() {
                 $("#chat-status").css("color", "green");
                 console.log("Response:", data);
                 propagateChat(data, "chat-window");
-                // $("#chat-window").append("<hr>");
 
                 // nested post
                 $.ajax({
@@ -178,9 +178,7 @@ $(document).ready(function() {
                         $("#chat-status").text("Grasp Policy");
                         $("#chat-status").css("color", "blue");
                         console.log("Response:", data);
-                        propagateChat(data, "chat-window");
-                        // $("#chat-window").append("<hr>");
-        
+                        propagateChat(data, "chat-window");        
                     }
                 });
                 // end nested post
@@ -213,6 +211,7 @@ $(document).ready(function() {
             url: "/home",
             success: function(data) {
                 console.log("Home:", data);
+                propagateChat(data, "robot-chat-window");
             }
         });
     });
@@ -223,6 +222,7 @@ $(document).ready(function() {
             url: "/move",
             success: function(data) {
                 console.log("Move:", data);
+                propagateChat(data, "robot-chat-window");
             }
         });
     });
@@ -233,6 +233,7 @@ $(document).ready(function() {
             url: "/grasp",
             success: function(data) {
                 console.log("Grasp:", data);
+                propagateChat(data, "robot-chat-window");
             }
         });
     });
@@ -243,6 +244,7 @@ $(document).ready(function() {
             url: "/release",
             success: function(data) {
                 console.log("Release:", data);
+                propagateChat(data, "robot-chat-window");
             }
         });
     });

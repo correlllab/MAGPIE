@@ -142,7 +142,6 @@ def connect():
     CONFIG["vlm"] = new_conf["vlmconf"]
     print(CONFIG)
     MODEL = CONFIG["llm"]
-    # MODEL = "gpt-3.5-turbo"
 
     connect_msg = ""
     # LLM Configuration
@@ -185,14 +184,14 @@ def connect():
             CAMERA_SERIAL_INFO = real.poll_devices()
             print(CAMERA_SERIAL_INFO)
             if len(CAMERA_SERIAL_INFO) < 2:
-                rsc = real.RealSense(fps=15, w=640, h=480)
+                rsc = real.RealSense(fps=15, w=640, h=480, device_name="D405")
                 rsc.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 WRIST_CAMERA = CAMERA = WORKSPACE_CAMERA = rsc
             else:
-                WRIST_CAMERA = real.RealSense(fps=15, w=640, h=480)
+                WRIST_CAMERA = real.RealSense(fps=5, w=640, h=480, device_name="D405")
                 WRIST_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 print(f"Connected to wrist camera")
-                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=15, w=640, h=480)
+                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=6, w=640, h=480)
                 CAMERA_SERIAL_INFO = real.poll_devices()
                 WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
                 print(f"Connected to workspace camera")
@@ -275,6 +274,7 @@ def new_interaction():
 
     # save robot log to rlds
     # assert that grasp_log.json, move.csv, and home.csv exist in robot/logs
+    ''' 
     if not os.path.exists(f"robot_logs/grasp_log_{GRASP_TIMESTAMP}.json"):
         return jsonify({"success": False, "message": "No grasp log found."})
     if not os.path.exists(f"robot_logs/move_{GRASP_TIMESTAMP}.csv"):
@@ -284,7 +284,8 @@ def new_interaction():
     path = f"{timestamp}_id-{INTERACTIONS}"
     df = log_to_df(path=path, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
     dataset = df_to_rlds(df, IMAGE, path=path, obj=OBJECT_NAME)
-    
+    '''
+
     INTERACTIONS += 1
     return jsonify({"success": True, "message": "New interaction started."})
 
@@ -349,7 +350,7 @@ async def home():
     try:
         if on_robot:
             robot = ur5.UR5_Interface(ROBOT_IP, 
-                                      freq=10, # 10Hz frequency
+                                      freq=6, # 6Hz frequency
                                       record=True,
                                       record_path=f"{GRASP_LOG_DIR}/home.csv")
             await su.move_robot_and_record_images(robot, 
