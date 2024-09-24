@@ -51,10 +51,13 @@ class RealSense():
         pipeProfile = self.config.resolve(rs.pipeline_wrapper(self.pipe))
         self.device = device = pipeProfile.get_device()
         depth_sensor = device.first_depth_sensor()
-        depth_sensor.set_option(rs.option.enable_auto_exposure, False)
+        # depth_sensor.set_option(rs.option.enable_auto_exposure, False)
+        # set exposure
+        # depth_sensor.set_option(rs.option.exposure, 400)
         if self.device_name != 'D405':
             color_sensor = device.first_color_sensor()
             color_sensor.set_option(rs.option.enable_auto_exposure, False)
+            color_sensor.set_option(rs.option.exposure, 400)
         self.depthScale = depth_sensor.get_depth_scale()
         # print(depth_scale)
 
