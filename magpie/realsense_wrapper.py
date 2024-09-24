@@ -103,7 +103,7 @@ class RealSense():
 
         frames = pipe.wait_for_frames()
         colorFrame = frames.get_color_frame()
-        rawColorImage = np.asanyarray(colorFrame.get_data())
+        rawColorImage = np.asanyarray(colorFrame.get_data()).copy()
         timestamp = frames.get_timestamp()
         # get sensor timestamp
         ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
