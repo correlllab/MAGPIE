@@ -123,7 +123,7 @@ $(document).ready(function() {
         sendMessage();
     });
 
-    $("#clear-button").click(function() {
+    $("#new-interaction").click(function() {
         $("#chat-window").empty(); // Clear chat window
         $.ajax({
             type: "POST",
@@ -138,6 +138,10 @@ $(document).ready(function() {
                 console.log("Error:", textStatus, errorThrown);
             }
         });
+    });
+
+    $("#clear-chat").click(function() {
+        $("#chat-window").empty(); // Clear chat window
     });
 
     $("#user-input").keypress(function(event) {
@@ -209,6 +213,36 @@ $(document).ready(function() {
         $.ajax({
             type: "POST",
             url: "/home",
+            success: function(data) {
+                console.log("Home:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("#robot-keep-policy").click(function() {
+        // if button is green, change to brown
+        if ($("#robot-keep-policy").css("background-color") == "rgb(0, 128, 0)") {
+            $("#robot-keep-policy").css("background-color", "brown");
+        }
+        else {
+            $("#robot-keep-policy").css("background-color", "green");
+        }
+        $.ajax({
+            type: "POST",
+            url: "/keep_policy",
+            success: function(data) {
+                console.log("Home:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+
+    $("#robot-set-home").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "/set_home",
             success: function(data) {
                 console.log("Home:", data);
                 propagateChat(data, "robot-chat-window");

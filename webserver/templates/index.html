@@ -227,8 +227,8 @@
         <div id="chat-status">Inactive</div>
     </div>
     <div class="col-3 justify-content-end">
-        <button class="btn btn-secondary" id="clear-button">New Interaction</button>
-        <button class="btn btn-success" id="download-chat">Download Chat</button>
+        <button class="btn btn-secondary" id="new-interaction">New Interaction</button>
+        <button class="btn btn-success" id="clear-chat">Clear Chat</button>
     </div>
 </div>
 <div class="outer mt-3">
@@ -236,15 +236,18 @@
 </div>
 
 <div class="row mt-2">
-    <div class="col-6 text-justify">
+    <div class="col-8 text-justify">
         <button class="btn btn-secondary" id="robot-execute">Execute Full Plan</button>
         <div class="vr" style="width: 2px; height: 1.25em;"></div>
         <button class="btn btn-success" id="robot-home">Home</button>
         <button class="btn btn-secondary" id="robot-move">Move</button>
         <button class="btn btn-secondary" id="robot-release">Release</button>
         <button class="btn btn-primary" id="robot-grasp">Grasp</button>
+        <div class="vr" style="width: 2px; height: 1.25em;"></div>
+        <button class="btn btn-secondary" style="background-color:brown" id="robot-set-home">Set Home</button>
+        <button class="btn btn-secondary" style="background-color:brown" id="robot-keep-policy">Keep Policy</button>
     </div>
-    <div class="col-6 text-justify">
+    <div class="col-4 text-justify">
         <div><i>Robot Status: </i></div>
         <div id="robot-status">Inactive</div>
     </div>
@@ -303,5 +306,4 @@
             );
         };
     </script> -->
-
 </html>

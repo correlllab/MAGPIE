@@ -90,6 +90,7 @@ RESPONSE = None
 PROMPT_MODEL = None
 CONVERSATION = None
 OBJECT_NAME = None
+KEEP_POLICY_FLAG = False
 
 # hardware
 SERVO_PORT = "/dev/ttyACM0"
@@ -191,7 +192,7 @@ def connect():
                 WRIST_CAMERA = real.RealSense(fps=5, w=640, h=480, device_name="D405")
                 WRIST_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 print(f"Connected to wrist camera")
-                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=6, w=640, h=480)
+                WORKSPACE_CAMERA = real.RealSense(zMax=5, fps=6, w=640, h=480, device_name="D435")
                 CAMERA_SERIAL_INFO = real.poll_devices()
                 WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
                 print(f"Connected to workspace camera")
@@ -273,32 +274,24 @@ def new_interaction():
         f.write(json.dumps(messages))
 
     # save robot log to rlds
-    # assert that grasp_log.json, move.csv, and home.csv exist in robot/logs
-    ''' 
-    if not os.path.exists(f"robot_logs/grasp_log_{GRASP_TIMESTAMP}.json"):
-        return jsonify({"success": False, "message": "No grasp log found."})
-    if not os.path.exists(f"robot_logs/move_{GRASP_TIMESTAMP}.csv"):
-        return jsonify({"success": False, "message": "No move log found."})
-    if not os.path.exists(f"robot_logs/home_{GRASP_TIMESTAMP}.csv"):
-        return jsonify({"success": False, "message": "No home log found."})
-    path = f"{timestamp}_id-{INTERACTIONS}"
-    df = log_to_df(path=path, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
-    dataset = df_to_rlds(df, IMAGE, path=path, obj=OBJECT_NAME)
-    '''
+    # assert that GRASP_LOG_DIR exists
+    if not os.path.exists(GRASP_LOG_DIR):
+        return jsonify({"success": False, "message": "No grasp log directory found."})
+    log_to_df(path=GRASP_LOG_DIR, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
 
     INTERACTIONS += 1
     return jsonify({"success": True, "message": "New interaction started."})
 
 @app.route("/grasp_policy", methods=["POST"])
 def grasp_policy():
-    global PROMPT_MODEL, CONVERSATION, RESPONSE, IMAGE, VISION, MESSAGE_LOG, INTERACTIONS
+    global PROMPT_MODEL, CONVERSATION, RESPONSE, IMAGE, VISION, MESSAGE_LOG, INTERACTIONS, KEEP_POLICY_FLAG
 
     user_command = request.get_json()['message']
     conv = CONVERSATION
     pm = PROMPT_MODEL
     desc, code = None, None
 
-    if CONFIG["grasp"] == "dg" or VISION:
+    if (CONFIG["grasp"] == "dg" or VISION) and not KEEP_POLICY_FLAG:
         try:
             if VISION:
                 b64img = encode_image(IMAGE, decoder='utf-8')
@@ -389,7 +382,7 @@ async def move():
                                 }            
 
             robot = ur5.UR5_Interface(ROBOT_IP, 
-                                      freq=10, # 10Hz frequency
+                                      freq=6, # 10Hz frequency
                                       record=True, 
                                       record_path=f"{GRASP_LOG_DIR}/move.csv")
             robot.z_offset = 0.0120 # move 2.0mm closer to object than typical
@@ -413,8 +406,6 @@ def release():
     msg = {"operation": "release", "success": False}
     try:
         if on_robot:
-            # GRIPPER.release()
-            # GRIPPER.open_gripper()
             GRIPPER.reset_parameters()
             msg["success"] = True
     except Exception as e:
@@ -428,7 +419,6 @@ def grasp():
     msg = {"operation": "grasp", "success": False}
     try:
         if on_robot:
-            # GRIPPER.grasp()
             if CONFIG["grasp"] == "cag":
                 GRIPPER.adaptive_grasp()
             else:
@@ -438,6 +428,27 @@ def grasp():
         print(e)
 
     return jsonify(msg)
+
+@app.route("/set_home", methods=["POST"])
+def set_home():
+    global HOME_POSE
+    global AT_GOAL
+    try:
+        if on_robot and not AT_GOAL:
+            robot = ur5.UR5_Interface(ROBOT_IP)
+            robot.start()
+            HOME_POSE = robot.getPose()
+            robot.stop()
+    except Exception as e:
+        print(e)
+    return jsonify({"message": "Home pose set to current robot pose."})
+
+@app.route("/keep_policy", methods=["POST"])
+def keep_policy():
+    global KEEP_POLICY_FLAG, RESPONSE
+    if RESPONSE is not None:
+        KEEP_POLICY_FLAG = not KEEP_POLICY_FLAG
+    return jsonify({"messages": "Reusing DeliGrasp policy."})
 
 if __name__ == "__main__":
     app.run(debug=True)
