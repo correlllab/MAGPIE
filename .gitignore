@@ -12,6 +12,7 @@ webserver/generations/
 tests/generations
 tests/test_datasets
 tests/test_grasp_json
+datasets/npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
