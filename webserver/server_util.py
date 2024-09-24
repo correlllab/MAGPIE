@@ -47,7 +47,7 @@ async def move_robot_and_record_images(robot, pose, cp_dict, index=0, move_type=
     
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    time.sleep(SLEEP_RATE*2)
+    time.sleep(SLEEP_RATE*1)
 
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
@@ -66,7 +66,7 @@ async def execute_grasp_and_record_images(code_executor, code, cp_dict, index=0)
     print(cp_dict)
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    time.sleep(SLEEP_RATE*2)
+    time.sleep(SLEEP_RATE*1)
 
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
@@ -114,14 +114,14 @@ def parse_object_description(user_input):
             abbrevq = token.text
     return query, abbrevq
 
-def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
+def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     '''
     combine 3 logs:
     1. move (csv)
     2. grasp_log (json)
     3. home (csv)
-    into one dataframe
     '''
+    global IMAGE
     # required format
     # observation: 6x joint velocities, gripper velocity, gripper force
     # camera: 640x480x3 RGB image
@@ -130,18 +130,36 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
     # list of dictionaries to tfds
     # https://stackoverflow.com/questions/68567630/converting-a-list-of-dictionaries-to-a-tf-dataset
 
+    # parse out object from path
+    obj = path.split('_id-')[0].split('_')[1:]
+    obj = ' '.join(obj)
+
+    # parse out timestamp from path
+    if timestamp == 0:
+        timestamp = path.split('_')[0].split('/')[-1]
+    
     # load csv to pd df
-    home = pd.read_csv(f"robot_logs/home_{timestamp}.csv")
-    move = pd.read_csv(f"robot_logs/move_{timestamp}.csv")
+    home = pd.read_csv(f"{path}/home.csv")
+    move = pd.read_csv(f"{path}/move.csv")
     
     # extract 6d poses, x, y, z, rx, ry, rz from actual_TCP_pose_0 to actual_TCP_pose_5
     home_tcp = home[['actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5']]
     move_tcp = move[['actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5']]
-
-    # extract timestamp columns and actual_qd columns from actual_qd_0 to actual_qd_5
-    home = home[['timestamp']]
-    move = move[['timestamp']]
-
+    # calculate delta TCP pose from 'target_TCP_pose_0' to 'target_TCP_pose_5' vs 'actual_TCP_pose_0' to 'actual_TCP_pose_5'
+    home_tcp_target = home[['target_TCP_pose_0', 'target_TCP_pose_1', 'target_TCP_pose_2', 'target_TCP_pose_3', 'target_TCP_pose_4', 'target_TCP_pose_5']]
+    move_tcp_target = move[['target_TCP_pose_0', 'target_TCP_pose_1', 'target_TCP_pose_2', 'target_TCP_pose_3', 'target_TCP_pose_4', 'target_TCP_pose_5']]
+    
+    def axis_angle_to_quat(pose):
+        # convert 6d pose to matrix
+        tmat = poses.pose_vec_to_mtrx(pose)
+        # convert rot to roll, pitch, yaw
+        quat = poses.rotMatx_2_quat(tmat[:3, :3])
+        quat = np.array([quat.scalar, quat.vector[0], quat.vector[1], quat.vector[2]])
+        p = np.concatenate((pose[:3], quat))
+        return p
+    
+    # very annoyed. bridge uses rpy/delta rpy
+    # autolab uses quat for state, delta rpy for action. freaks!
     def axis_angle_to_rpy(pose):
         # convert 6d pose to matrix
         tmat = poses.pose_vec_to_mtrx(pose)
@@ -150,71 +168,166 @@ def log_to_df(path="robot_logs/df_combined.csv", timestamp=0, obj=""):
         # combine with translation, the first 3 elements of pose
         rpy = np.concatenate((pose[:3], rpy))
         return rpy
+
     # convert 6d axis-angle pose to 6d rpy pose for home_tcp and move_tcp
     home_tcp = home_tcp.apply(axis_angle_to_rpy, axis=1)
     move_tcp = move_tcp.apply(axis_angle_to_rpy, axis=1)
+    home_tcp_target = home_tcp_target.apply(axis_angle_to_rpy, axis=1)
+    move_tcp_target = move_tcp_target.apply(axis_angle_to_rpy, axis=1)
+
+    home_tcp_delta = home_tcp_target - home_tcp
+    move_tcp_delta = move_tcp_target - move_tcp
+
+    # extract timestamp columns and actual_qd columns from actual_q_0 to actual_q_5
+    home = home[['timestamp', 'actual_q_0', 'actual_q_1', 'actual_q_2', 'actual_q_3', 'actual_q_4', 'actual_q_5']]
+    move = move[['timestamp', 'actual_q_0', 'actual_q_1', 'actual_q_2', 'actual_q_3', 'actual_q_4', 'actual_q_5']]
+    # rename actual_q_0 to actual_q_5 to q0 to q5
+    home.rename(columns={'actual_q_0': 'q0', 'actual_q_1': 'q1', 'actual_q_2': 'q2', 'actual_q_3': 'q3', 'actual_q_4': 'q4', 'actual_q_5': 'q5'}, inplace=True)
+    move.rename(columns={'actual_q_0': 'q0', 'actual_q_1': 'q1', 'actual_q_2': 'q2', 'actual_q_3': 'q3', 'actual_q_4': 'q4', 'actual_q_5': 'q5'}, inplace=True)
+    # home = home[['timestamp']]
+    # move = move[['timestamp']]
+
     
     # assign to home and move dfs
     # home tcp has become a single column df, each cell containing a 6-element list, need to split back into 'actual_TCP_pose_0', 'actual_TCP_pose_1', 'actual_TCP_pose_2', 'actual_TCP_pose_3', 'actual_TCP_pose_4', 'actual_TCP_pose_5'
     home_tcp = pd.DataFrame(home_tcp.tolist(), columns=['x', 'y', 'z', 'rx', 'ry', 'rz'])
     move_tcp = pd.DataFrame(move_tcp.tolist(), columns=['x', 'y', 'z', 'rx', 'ry', 'rz'])
+    home_tcp_delta = pd.DataFrame(home_tcp_delta.tolist(), columns=['dx', 'dy', 'dz', 'drx', 'dry', 'drz'])
+    move_tcp_delta = pd.DataFrame(move_tcp_delta.tolist(), columns=['dx', 'dy', 'dz', 'drx', 'dry', 'drz'])
+    print(home_tcp)
+    print(type(home_tcp))
 
     home[['x', 'y', 'z', 'rx', 'ry', 'rz']] = home_tcp
     move[['x', 'y', 'z', 'rx', 'ry', 'rz']] = move_tcp
+    home[['dx', 'dy', 'dz', 'drx', 'dry', 'drz']] = home_tcp_delta
+    move[['dx', 'dy', 'dz', 'drx', 'dry', 'drz']] = move_tcp_delta
 
     # load json
-    grasp_pth = f"robot_logs/grasp_log_{timestamp}.json"
+    grasp_pth = f"{path}/grasp.json"
     obj_text = codecs.open(grasp_pth, 'r', encoding='utf-8').read()
     gl = np.array(json.loads(obj_text))
     grasp_log = pd.DataFrame(gl.tolist()) # convert to pd df
     # keep only timestamp, aperture, gripper_vel, and contact_force cols, add actual_qd columns from actual_qd_0 to actual_qd_6 from the last row of move to grasp_log
 
-    grasp_log = grasp_log[['timestamp', 'aperture', 'gripper_vel', 'contact_force', 'applied_force']]
-    # grasp_log[['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']] = move.iloc[-1][['actual_qd_0', 'actual_qd_1', 'actual_qd_2', 'actual_qd_3', 'actual_qd_4', 'actual_qd_5']]
-    grasp_log[['x', 'y', 'z', 'rx', 'ry', 'rz']] = move.iloc[-1][['x', 'y', 'z', 'rx', 'ry', 'rz']]
-    grasp_log = grasp_log[['timestamp', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'aperture', 'gripper_vel', 'contact_force', 'applied_force']]
+    gl_copy = grasp_log.copy()
+    grasp_log = grasp_log[['timestamp', 'aperture', 'applied_force', 'contact_force']]
+    # look one row ahead to get the n+1 aperture and applied_force, subtract current aperture and applied force, and set to d_aperture, d_applied_force
+    grasp_log['d_aperture'] = grasp_log['aperture'].diff().shift(-1)
+    grasp_log['d_applied_force'] = grasp_log['applied_force'].diff().shift(-1)
+    # set the last row's d_aperture and d_applied_force to 0
+    grasp_log.iloc[-1, -2:] = 0.0
+    grasp_log[['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz']] = move.iloc[-1][['q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz']]
+    grasp_log[['dx', 'dy', 'dz', 'drx', 'dry', 'drz']] = 0.0
+    # reorder columns so that it is: timestamp, x, y, z, qx, qy, qz, qw, dx, dy, dz, dqx, dqy, dqz, dqw, aperture, d_aperture, applied_force, d_applied_force
+    grasp_log = grasp_log[['timestamp', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'dx', 'dy', 'dz', 'drx', 'dry', 'drz', 'aperture', 'd_aperture', 'applied_force', 'd_applied_force', 'contact_force']]
     
-    # add columns to move and home dfs, zeroed out
-    move['aperture'] = 0.0
-    move['gripper_vel'] = 0.0
+    # add columns to move and home dfs
+    move['aperture'] = grasp_log['aperture'].iloc[0]
+    move['d_aperture'] = 0.0
     move['contact_force'] = 0.0
     move['applied_force'] = 0.0
-    home['aperture'] = 0.0
-    home['gripper_vel'] = 0.0
-    home['contact_force'] = 0.0
-    home['applied_force'] = 0.0
+    move['d_applied_force'] = 0.0
+    home['aperture'] = grasp_log['aperture'].iloc[-1]
+    home['d_aperture'] = 0.0
+    home['contact_force'] = grasp_log['contact_force'].iloc[-1]
+    home['applied_force'] = grasp_log['applied_force'].iloc[-1]
+    home['d_applied_force'] = 0.0
 
+    # add task column to move, grasp_log, and home
+    move_task = f"moving to grasp {obj}"
+    grasp_task = f"grasping {obj}"
+    home_task = f"moving back to original position with {obj}"
+    move['task'] = move_task
+    grasp_log['task'] = grasp_task
+    home['task'] = home_task
 
-    # get initial values, iteratively subtract 0.1s from ti and assign to to move timestamps, from last to first
-    ti = gl[0]['timestamp']
-    ai = gl[0]['aperture']
+    def extract_timestamp(filename):
+        # extracting the float
+        img = filename.split('_')[1].split('.')[:2]
+        return float(f"{img[0]}.{img[1]}")
+
+    # # get initial values, iteratively subtract 0.1s from last_move and last_home and assign to to move and home timestamps, from last to first
+    move_workspace_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/workspace_img") if f.startswith("0_")])
+    move_wrist_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/wrist_img") if f.startswith("0_")])
+    last_move_workspace_img = move_workspace_img[-1]
+    last_move_wrist_img = move_wrist_img[-1]
+    last_move = max(last_move_workspace_img, last_move_wrist_img)
+
+    home_workspace_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/workspace_img") if f.startswith("2_")])
+    home_wrist_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/wrist_img") if f.startswith("2_")])
+    last_home_workspace_img = home_workspace_img[-1]
+    last_home_wrist_img = home_wrist_img[-1]
+    last_home = max(last_home_workspace_img, last_home_wrist_img)
 
     for i in np.arange(len(move)-1, -1, -1):
         # iterate backwards through move timestamps
-        ti -= 0.1
-        move.loc[i, 'timestamp'] = ti
-        move.loc[i, 'aperture'] = ai
+        move.loc[i, 'timestamp'] = last_move
+        last_move -= 0.096
+    
+    for i in np.arange(len(home)-1, -1, -1):
+        # iterate backwards through home timestamps
+        home.loc[i, 'timestamp'] = last_home
+        last_home -= 0.096
 
-    # get last timestamp tf, iteratively add 0.1s to tf and assign to to home timestamps, from first to last
-    tf = gl[-1]['timestamp']
-    af = gl[-1]['aperture']
-    cff = gl[-1]['contact_force']
-    aff = gl[-1]['applied_force']
 
-    for i in np.arange(len(home)):
-        # iterate forwards through home timestamps
-        tf += 0.1
-        home.loc[i, 'timestamp'] = tf
-        home.loc[i, 'aperture'] = af
-        home.loc[i, 'contact_force'] = cff
-        home.loc[i, 'applied_force'] = aff
+    grasp_workspace_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/workspace_img") if f.startswith("1_")])
+    grasp_wrist_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/wrist_img") if f.startswith("1_")])
+    
+    def timestamp_to_filename(timestamp, index):
+        # converting the float to a string
+        return f"{index}_{str(timestamp)}.jpeg"
 
-    # combine dataframes vertically
+    move_workspace_interpolated = []
+    grasp_workspace_interpolated = []
+    home_workspace_interpolated = []
+    move_wrist_interpolated = []
+    grasp_wrist_interpolated = []
+    home_wrist_interpolated = []
+    # go thropugh each timestamp in move, grasp, and home
+    # find the closest img timestamp and append to move_interpolated, grasp_interpolated, and home_interpolated
+    for m in move['timestamp']:
+        move_workspace_interpolated.append(timestamp_to_filename(min(move_workspace_img, key=lambda x:abs(x-m)), 0))
+        move_wrist_interpolated.append(timestamp_to_filename(min(move_wrist_img, key=lambda x:abs(x-m)), 0))
+    for g in grasp_log['timestamp']:
+        grasp_workspace_interpolated.append(timestamp_to_filename(min(grasp_workspace_img, key=lambda x:abs(x-g)), 1))
+        grasp_wrist_interpolated.append(timestamp_to_filename(min(grasp_wrist_img, key=lambda x:abs(x-g)), 1))
+    for h in home['timestamp']:
+        home_workspace_interpolated.append(timestamp_to_filename(min(home_workspace_img, key=lambda x:abs(x-h)), 2))
+        home_wrist_interpolated.append(timestamp_to_filename(min(home_wrist_img, key=lambda x:abs(x-h)), 2))
+
+    # make new columns in dataframes
+    move['img'] = move_workspace_interpolated
+    move['wrist_img'] = move_wrist_interpolated
+    grasp_log['img'] = grasp_workspace_interpolated
+    grasp_log['wrist_img'] = grasp_wrist_interpolated
+    home['img'] = home_workspace_interpolated
+    home['wrist_img'] = home_wrist_interpolated
+
+    # load actual image, not just the filename, cast from jpeg to numpy array
+    move['img'] = [np.array(Image.open(f"{path}/workspace_img/{i}")) for i in move['img']]
+    move['wrist_img'] = [np.array(Image.open(f"{path}/wrist_img/{i}")) for i in move['wrist_img']]
+    grasp_log['img'] = [np.array(Image.open(f"{path}/workspace_img/{i}")) for i in grasp_log['img']]
+    grasp_log['wrist_img'] = [np.array(Image.open(f"{path}/wrist_img/{i}")) for i in grasp_log['wrist_img']]
+    home['img'] = [np.array(Image.open(f"{path}/workspace_img/{i}")) for i in home['img']]
+    home['wrist_img'] = [np.array(Image.open(f"{path}/wrist_img/{i}")) for i in home['wrist_img']]
+    
+    # write move, grasp_log, and home to csv files
+    # move.to_csv(f"{path}/0.csv", index=False)
+    # grasp_log.to_csv(f"{path}/1.csv", index=False)
+    # home.to_csv(f"{path}/2.csv", index=False)
+
+    # # combine dataframes vertically
     df = pd.concat([move, grasp_log, home], axis=0)
-    # save df to csv
-    df.to_csv(f"robot_logs/df_{path}_{obj}.csv", index=False)
+    # # round all float columns to 6 decimal places
+    df = df.round(6)
+    # # save df to csv
+    # df.to_csv(f"{path}/trajectory.csv", index=False)
 
-    return df
+    # return df as pickled np array
+    df_pkl = df.to_numpy()
+    np.save(f"{path}/episode_{obj}_trajectory_{timestamp}.npy", df_pkl)
+
+    return move, grasp_log, home
 
 def df_to_rlds(df, img, language_instruction="", path="robot_logs/episode.tfds", obj=""):
     episode_steps = df.to_dict(orient='records')
