@@ -109,7 +109,6 @@ class RealSense():
         ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
         # move ts decimal 3 places to the right
         timestamp = timestamp / 1000
-        print(f"{self.device_name}: FW Timestamp: {timestamp}, Sensor Timestamp: {ts}")
 
         if save:
             # subFix = str(time.time())
@@ -127,29 +126,28 @@ class RealSense():
                 await self.take_image(save=True, filepath=filepath, buffer=True)
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
-            print("Recording Task Cancelled")
+            print(f"{self.device_name} Recording Task Cancelled")
 
     def begin_record(self, filepath=""):
         if not self.recording:
             self.recording = True
             self.recording_task = asyncio.create_task(self._record_images(filepath=filepath))
-            print("Recording Started")
+            print(f"{self.device_name} Recording Started")
 
     async def stop_record(self, flush_time=2):
         if self.recording:
             self.recording = False
-            print("Stopping Recording")
             if self.recording_task is not None:
                 self.recording_task.cancel()
                 try:
                     await self.recording_task
                 except asyncio.CancelledError:
                     pass
-                print("Recording Stopped")
+                print(f"{self.device_name} Recording Stopped")
             self.write_buffer()
-            print("Buffer written")
-            self.flush_buffer(t=flush_time)
-            print("Buffer flushed")
+            print(f"{self.device_name} Buffer written")
+            # self.flush_buffer(t=flush_time)
+            # print("Buffer flushed")
         else:
             print("Recording inactive")
 
