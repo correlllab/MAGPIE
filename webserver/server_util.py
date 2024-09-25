@@ -237,9 +237,13 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     move_task = f"moving to grasp {obj}"
     grasp_task = f"grasping {obj}"
     home_task = f"moving back to original position with {obj}"
-    move['task'] = move_task
-    grasp_log['task'] = grasp_task
-    home['task'] = home_task
+    task = f"grasping {obj} and returning to original position"
+    move['subtask'] = move_task
+    move['task'] = task
+    grasp_log['subtask'] = grasp_task
+    grasp_log['task'] = task
+    home['subtask'] = home_task
+    home['task'] = task
 
     def extract_timestamp(filename):
         # extracting the float
@@ -325,7 +329,7 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
 
     # return df as pickled np array
     df_pkl = df.to_numpy()
-    np.save(f"{path}/episode_{obj}_trajectory_{timestamp}.npy", df_pkl)
+    np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
 
     return move, grasp_log, home
 
