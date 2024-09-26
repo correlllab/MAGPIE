@@ -18,7 +18,7 @@ def poll_devices():
     return info
 
 class RealSense():
-    def __init__(self, w=1280, h=720, zMax=0.5, voxelSize=0.001, fps=5, device_serial=None, device_name=None):
+    def __init__(self, w=1280, h=720, zMax=0.5, voxelSize=0.001, fps=5, device_serial=None, device_name='D405'):
         self.pinholeIntrinsics = None  # set in self.takeImages()
         self.zMax = zMax  # max distance for objects in depth images (m)
         # downsample point cloud with voxel size = 1 mm (0.001 m / 0.04 in)
@@ -30,8 +30,15 @@ class RealSense():
         self.recording = False
         self.recording_task = None
         self.fps = fps # fps can only be: 5, 15, 30, 60, 90
-        self.device_serial = device_serial
         self.device_name = device_name
+        if self.device_name is not None:
+            try:
+                self.device_serial = poll_devices()[self.device_name]
+            except KeyError:
+                print("Device not found. Please check device name. Default is D405")
+                self.device_serial = None
+        else:
+            self.device_serial = device_serial
         self.w = w
         self.h = h
         self.buffer_dict = {}
@@ -44,8 +51,9 @@ class RealSense():
         # enable specific device, used if multiple devices connected
         # THIS CALL MUST HAPPEN BEFORE EVERYTHING ELSE
         # Especially before calling get_device() on config.resolve(...), duh...
-        if device_serial is not None:
-            self.config.enable_device(device_serial)
+        if self.device_serial is None and device_serial is not None:
+            self.device_serial = device_serial
+        self.config.enable_device(self.device_serial)
 
         # Getting information about the connected realsense model (device object) - D405
         pipeProfile = self.config.resolve(rs.pipeline_wrapper(self.pipe))
