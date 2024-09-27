@@ -385,7 +385,7 @@ async def move():
                                       freq=6, # 10Hz frequency
                                       record=True, 
                                       record_path=f"{GRASP_LOG_DIR}/move.csv")
-            robot.z_offset = 0.014 # 1.4cm, move 4.0mm closer to object than typical
+            robot.z_offset = 0.0125 # 1.2cm, move 4.0mm closer to object than typical
             print("moving robot")
             await su.move_robot_and_record_images(robot, 
                                             GOAL_POSE, 
