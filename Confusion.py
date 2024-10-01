@@ -378,12 +378,12 @@ if __name__ == "__main__":
             make_program_poses( bgnTrgt, vec_unit( [-0.200,0.200,dist] )*(dist+_BLOCK_RAD_M), [0,-1,0], 0.050, 11 )
         )
 
-    # actBlc = list( zip(['ylw','blu','NOT'], _CONF_BLC_POSES) ) # Config 1
+    actBlc = list( zip(['ylw','blu','NOT'], _CONF_BLC_POSES) ) # Config 1
     # actBlc = list( zip(['blu','grn','NOT'], _CONF_BLC_POSES) ) # Config 2
     # actBlc = list( zip(['ylw','grn','NOT'], _CONF_BLC_POSES) ) # Config 3
     # actBlc = list( zip(['blu','ylw','NOT'], _CONF_BLC_POSES) ) # Config 4
     # actBlc = list( zip(['grn','blu','NOT'], _CONF_BLC_POSES) ) # Config 5
-    actBlc = list( zip(['grn','ylw','NOT'], _CONF_BLC_POSES) ) # Config 6
+    # actBlc = list( zip(['grn','ylw','NOT'], _CONF_BLC_POSES) ) # Config 6
 
     # camTst = camera_pose_from_target_offset( _CONF_BLC_POSES[0], vec_unit( [-1,1,1] )*0.200 )
     # print( camTst )
@@ -411,22 +411,22 @@ if __name__ == "__main__":
     # ctrl.run_shot_program( prog, openNext = False, userCheck = True )
     # ctrl.shutdown()
 
-    poseData = read_program_output( "data/ConfMatx/Confusion-Data_07-29-2024_17-14-35.txt" )
-    cnfPoses = []
+    # poseData = read_program_output( "data/ConfMatx/Confusion-Data_07-29-2024_17-14-35.txt" )
+    # cnfPoses = []
 
     
 
-    for shot in poseData:
-        for obs in shot['obs']:
-            pose_j = obs['Pose']
-            found  = False
-            for pose_k in cnfPoses:
-                if translation_diff( pose_j, pose_k ) <= _ACCEPT_RAD:
-                    found = True
-                    pose_k[0:3,3] = (posn_from_xform( pose_j ) + posn_from_xform( pose_k ))/2.0
-                    break
-            if (not found) and p_symbol_inside_workspace_bounds( pose_j ):
-                cnfPoses.append( pose_j )
-    for pose_k in cnfPoses:
-        print( pose_k )
-        print()
+    # for shot in poseData:
+    #     for obs in shot['obs']:
+    #         pose_j = obs['Pose']
+    #         found  = False
+    #         for pose_k in cnfPoses:
+    #             if translation_diff( pose_j, pose_k ) <= _ACCEPT_RAD:
+    #                 found = True
+    #                 pose_k[0:3,3] = (posn_from_xform( pose_j ) + posn_from_xform( pose_k ))/2.0
+    #                 break
+    #         if (not found) and p_symbol_inside_workspace_bounds( pose_j ):
+    #             cnfPoses.append( pose_j )
+    # for pose_k in cnfPoses:
+    #     print( pose_k )
+    #     print()
