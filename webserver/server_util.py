@@ -13,7 +13,6 @@ import os
 import pandas as pd
 from PIL import Image
 import platform
-import rlds # GDM Reinforcement Learning Dataset
 import spacy
 import sys
 sys.path.append("../")
@@ -24,6 +23,58 @@ import tensorflow_datasets as tfds
 from typing import Any
 sys.path.append("../")
 SLEEP_RATE = 0.5
+
+async def get_observation(sensors={}, obs_queue=[], last_obs={}):
+    # get observation from sensors. this will be abstracted later
+    # for now, we explicitly transform
+    first_obs = len(obs_queue) == 0
+    obs = {}
+    obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
+    # scale to mm/100 and N/100
+    obs["robot_state/gripper_position"]   = np.array([sensors["gripper"].get_aperture()])/100.0
+    obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
+    obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
+
+    def process_image(image):
+        # reshape image from 640x480x3 to 3x480x640 (W, H, C) --> (C, H, W)
+        # might need to double check this
+        image = np.transpose(image, (2, 0, 1))
+        # resize image to 128x128 with numpy
+        image = np.array(Image.fromarray(image).resize((128, 128)))
+    
+    obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
+    obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
+
+    # window=2 so observations with shape (N, ...) become (2, N)
+    if first_obs:
+        # double the observation
+        obs = {k: np.array([v, v]) for k, v in obs.items()}
+    else:
+        # take the last_obs and append the new observation to it
+        obs = {k: np.append(last_obs[k], v, axis=0) for k, v in obs.items()}
+
+    obs_queue.append(obs)
+
+    # create a lang_command.txt if it does not exist and write the observation to it
+    # delete lang_command.txt if it exists
+    os.remove("lang_command.txt") if os.path.exists("lang_command.txt") else None
+    with open("lang_command.txt", "w") as f:
+        f.write(sensors["language_instruction"])
+
+    return obs_queue, obs
+
+def apply_action(actions=[], actuators={}, action_flag=[], record_load=False):
+    # apply action to actuators
+    # actions is a dictionary of action objects
+    if "go" not in action_flag:
+        delta_pos = actions[:3]
+        delta_rot = actions[3:6] # not gonna use rotation for now
+        actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
+    if "nf" not in action_flag:
+        actuators["gripper"].set_force(actions[-1])
+        actuators["gripper"].set_goal_aperture(actions[-2], record_load=record_load)
+    else:
+        actuators["gripper"].set_goal_aperture(actions[-1], record_load=record_load)
 
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json

@@ -92,6 +92,29 @@ CONVERSATION = None
 OBJECT_NAME = None
 KEEP_POLICY_FLAG = False
 
+# VLA Mode
+import policy as pol
+VLA_MODE = False
+ACTED = False
+POLICY = None
+# by default we will run receding horizon control, i.e. act once, observe
+# this cannot do anything yet because DROID:DiffusionPolicy 
+# is hardcoded to T_a=1 in eval_mode
+T_a = 1
+LAST_OBS  = {}
+ACT = []
+OBS_QUEUE = []
+ACT_QUEUE = []
+# I should set up a config file for this
+MODEL_CKPT_DICT = {
+    "dp": "dp_ckpt",
+    "dp_nf": "dp_nf_ckpt",
+    "dp_go": "dp_go_ckpt",
+    "dp_go_nf": "dp_go_nf_ckpt",
+    "octo_ft": "octo_ft_ckpt",
+    "octo_ft_nf": "octo_ft_nf_ckpt",
+}
+
 # hardware
 SERVO_PORT = "/dev/ttyACM0"
 GRIPPER = None
@@ -100,6 +123,54 @@ HOME_POSE = None
 SLEEP_RATE = 0.5
 GOAL_POSE = None
 AT_GOAL = False
+
+@app.route("/vla_reset_policy", methods=["GET", "POST"])
+def vla_reset_policy():
+    global POLICY
+    pol.reset_policy(POLICY)
+    return jsonify({"success": True, "message": "Policy reset."})
+
+@app.route("/vla_obs", methods=["GET", "POST"])
+def vla_obs():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED
+    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    if not ACTED and len(OBS_QUEUE) > 0:
+        return(jsonify({"success": False, "message": "Have not acted, cannot observe."}))
+    ACTED = False
+    robot = ur5.UR5_Interface(ROBOT_IP, record=False)
+    robot.start()
+    sensors = {
+        "robot": robot,
+        "gripper": GRIPPER,
+        "wrist_camera": WRIST_CAMERA,
+        "workspace_camera": WORKSPACE_CAMERA
+    }
+    OBS_QUEUE, LAST_OBS = su.get_obs(sensors, OBS_QUEUE, LAST_OBS)
+    robot.stop()
+    ACTED = False
+    return jsonify({"success": True, "message": f"obs: {LAST_OBS}"})
+
+@app.route("/vla_act", methods=["GET", "POST"])
+def vla_act():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY
+    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP, CONFIG
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    if ACTED or len(OBS_QUEUE) == 0:
+        return(jsonify({"success": False, "message": "Already acted or no observation, cannot act."}))
+    robot = ur5.UR5_Interface(ROBOT_IP, record=False)
+    robot.start()
+    actuators = {
+        "robot": robot,
+        "gripper": GRIPPER,
+    }
+    actions = POLICY(OBS_QUEUE[-1])
+    su.apply_action(actions, actuators, action_flag=CONFIG["grasp"])
+    robot.stop()
+    ACTED = True
+    return jsonify({"success": True, "message": f"act: {actions}"})
 
 def handle_prompt_name(policy):
     global VISION
@@ -205,6 +276,17 @@ def connect():
         connect_msg += f"Failed to connect to camera or perception models: {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
     
+    # VLA Mode Configuration
+    try:
+        global POLICY, VLA_MODE
+        VLA_MODE = True
+        ckpt = MODEL_CKPT_DICT[CONFIG["policy"]]
+        POLICY, _ = pol.create_policy(ckpt)
+        connect_msg += "Connected to VLA policy.\n"
+    except Exception as e:
+        connect_msg += "No VLA policy found.\n"
+        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+
     return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
 
 @app.route("/chat", methods=["POST"])
