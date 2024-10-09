@@ -36,11 +36,10 @@ async def get_observation(sensors={}, obs_queue=[], last_obs={}):
     obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
 
     def process_image(image):
-        # reshape image from 640x480x3 to 3x480x640 (W, H, C) --> (C, H, W)
-        # might need to double check this
-        image = np.transpose(image, (2, 0, 1))
-        # resize image to 128x128 with numpy
+        # reshape image from 640x480x3 to 3x480x640 (H, W, C) --> (C, H, W)
         image = np.array(Image.fromarray(image).resize((128, 128)))
+        image = np.transpose(image, (2, 0, 1))
+        return image
     
     obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
     obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
@@ -48,33 +47,54 @@ async def get_observation(sensors={}, obs_queue=[], last_obs={}):
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:
         # double the observation
-        obs = {k: np.array([v, v]) for k, v in obs.items()}
+        obs_queue.append({k: np.array([v, v]) for k, v in obs.items()})
     else:
         # take the last_obs and append the new observation to it
-        obs = {k: np.append(last_obs[k], v, axis=0) for k, v in obs.items()}
+        obs_queue.append({k: np.array([last_obs[k], v]) for k, v in obs.items()})
 
-    obs_queue.append(obs)
 
     # create a lang_command.txt if it does not exist and write the observation to it
     # delete lang_command.txt if it exists
-    os.remove("lang_command.txt") if os.path.exists("lang_command.txt") else None
-    with open("lang_command.txt", "w") as f:
+    os.remove("eval_params/lang_command.txt") if os.path.exists("eval_params/lang_command.txt") else None
+    with open("eval_params/lang_command.txt", "w") as f:
         f.write(sensors["language_instruction"])
 
     return obs_queue, obs
 
-def apply_action(actions=[], actuators={}, action_flag=[], record_load=False):
+def parse_dp_action(actions, action_flag="dp"):
+    '''
+    @param actions: list of actions, containing up [dx, dy, dz, drx, dry, drz, d_aperture, d_force]
+    '''
+    ad = {}
+    actions = np.array(actions)
+    if "go" not in action_flag:
+        ad['rel_pos'] = actions[:3]
+        ad['rel_rot'] = actions[3:6] # not gonna use rotation for now
+    if "nf" not in action_flag:
+        ad['gripper_force'] = actions[-1]*100
+        ad['gripper_position'] = actions[-2]*100
+    else:
+        ad['gripper_position'] = actions[-1]*100
+    
+    return ad
+
+def apply_action(actions=[], actuators={}, action_flag="dp", record_load=False):
     # apply action to actuators
     # actions is a dictionary of action objects
+    actions = np.array(actions)
+    scale = 1000
     if "go" not in action_flag:
+        scale = 100
         delta_pos = actions[:3]
         delta_rot = actions[3:6] # not gonna use rotation for now
         actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
+    curr_aperture = actuators["gripper"].get_aperture()
     if "nf" not in action_flag:
-        actuators["gripper"].set_force(actions[-1])
-        actuators["gripper"].set_goal_aperture(actions[-2], record_load=record_load)
+        curr_force = actuators["gripper"].applied_force
+        actuators["gripper"].set_force(curr_force + actions[-1]*scale)
+        actuators["gripper"].set_goal_aperture(curr_aperture + actions[-2]*scale, record_load=record_load)
     else:
-        actuators["gripper"].set_goal_aperture(actions[-1], record_load=record_load)
+        actuators["gripper"].set_goal_aperture(curr_aperture + actions[-1]*scale, record_load=record_load)
 
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json

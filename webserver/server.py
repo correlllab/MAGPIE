@@ -53,7 +53,7 @@ if on_robot:
 app = Flask(__name__)
 
 # metadata / logging
-CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo", "vlm": "owl-vit"}
+CONFIG = {"move": "3D Pos", "grasp": "dg", "llm": "gpt-4-turbo", "vlm": "owl-vit", "vla": "dp"}
 INTERACTIONS = 0
 MESSAGE_LOG = {}
 CONNECTED = False
@@ -95,6 +95,8 @@ KEEP_POLICY_FLAG = False
 # VLA Mode
 import policy as pol
 VLA_MODE = False
+VLA_ROBOT = None
+ROBOT_TOGGLE = False
 ACTED = False
 POLICY = None
 # by default we will run receding horizon control, i.e. act once, observe
@@ -106,14 +108,16 @@ ACT = []
 OBS_QUEUE = []
 ACT_QUEUE = []
 # I should set up a config file for this
+hmpth = "/home/will/workspace/dp_models"
 MODEL_CKPT_DICT = {
-    "dp": "dp_ckpt",
-    "dp_nf": "dp_nf_ckpt",
-    "dp_go": "dp_go_ckpt",
-    "dp_go_nf": "dp_go_nf_ckpt",
+    "dp": f"{hmpth}/DG.PTH",
+    "dp_nf": f"{hmpth}/DGNF.PTH",
+    "dp_go": f"{hmpth}/DGGO.PTH",
+    "dp_go_nf": f"{hmpth}/DGGONF.PTH",
     "octo_ft": "octo_ft_ckpt",
     "octo_ft_nf": "octo_ft_nf_ckpt",
 }
+RECORD_LOAD = False
 
 # hardware
 SERVO_PORT = "/dev/ttyACM0"
@@ -123,54 +127,6 @@ HOME_POSE = None
 SLEEP_RATE = 0.5
 GOAL_POSE = None
 AT_GOAL = False
-
-@app.route("/vla_reset_policy", methods=["GET", "POST"])
-def vla_reset_policy():
-    global POLICY
-    pol.reset_policy(POLICY)
-    return jsonify({"success": True, "message": "Policy reset."})
-
-@app.route("/vla_obs", methods=["GET", "POST"])
-def vla_obs():
-    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED
-    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP
-    if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
-    if not ACTED and len(OBS_QUEUE) > 0:
-        return(jsonify({"success": False, "message": "Have not acted, cannot observe."}))
-    ACTED = False
-    robot = ur5.UR5_Interface(ROBOT_IP, record=False)
-    robot.start()
-    sensors = {
-        "robot": robot,
-        "gripper": GRIPPER,
-        "wrist_camera": WRIST_CAMERA,
-        "workspace_camera": WORKSPACE_CAMERA
-    }
-    OBS_QUEUE, LAST_OBS = su.get_obs(sensors, OBS_QUEUE, LAST_OBS)
-    robot.stop()
-    ACTED = False
-    return jsonify({"success": True, "message": f"obs: {LAST_OBS}"})
-
-@app.route("/vla_act", methods=["GET", "POST"])
-def vla_act():
-    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY
-    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP, CONFIG
-    if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
-    if ACTED or len(OBS_QUEUE) == 0:
-        return(jsonify({"success": False, "message": "Already acted or no observation, cannot act."}))
-    robot = ur5.UR5_Interface(ROBOT_IP, record=False)
-    robot.start()
-    actuators = {
-        "robot": robot,
-        "gripper": GRIPPER,
-    }
-    actions = POLICY(OBS_QUEUE[-1])
-    su.apply_action(actions, actuators, action_flag=CONFIG["grasp"])
-    robot.stop()
-    ACTED = True
-    return jsonify({"success": True, "message": f"act: {actions}"})
 
 def handle_prompt_name(policy):
     global VISION
@@ -187,6 +143,112 @@ def handle_prompt_name(policy):
         prompt_stub += "_phys"
     print(f"Prompt policy: {prompt_stub}")
     return prompt_stub
+
+
+@app.route("/vla_robot_toggle", methods=["GET", "POST"])
+def vla_robot_toggle():
+    global VLA_MODE, VLA_ROBOT, ROBOT_TOGGLE, ROBOT_IP
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    if ROBOT_TOGGLE:
+        VLA_ROBOT.stop()
+        ROBOT_TOGGLE = False
+        return(jsonify({"success": True, "message": "Robot stopped."}))
+    else:
+        VLA_ROBOT = ur5.UR5_Interface(ROBOT_IP, record=False)
+        VLA_ROBOT.start()
+        ROBOT_TOGGLE = True
+        return(jsonify({"success": True, "message": "Robot started."}))
+
+@app.route("/vla_record_load", methods=["GET", "POST"])
+def vla_record_load():
+    global RECORD_LOAD
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    RECORD_LOAD = not RECORD_LOAD
+    return jsonify({"success": True, "message": f"Record load set to {RECORD_LOAD}."})
+
+@app.route("/vla_reset_policy", methods=["GET", "POST"])
+def vla_reset_policy():
+    global POLICY, VLA_MODE, ACTED, OBS_QUEUE, ACT_QUEUE, LAST_OBS, ACT
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    ACTED = False
+    OBS_QUEUE = []
+    ACT_QUEUE = []
+    LAST_OBS = {}
+    ACT = []
+    pol.reset_policy(POLICY)
+    return jsonify({"success": True, "message": "Policy reset."})
+
+@app.route("/vla_obs", methods=["GET", "POST"])
+async def vla_obs():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
+    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, OBJECT_NAME, CONFIG
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    if not ACTED and len(OBS_QUEUE) > 0:
+        return(jsonify({"success": False, "message": "Have not acted, cannot observe."}))
+    try:
+        sensors = {
+            "robot": VLA_ROBOT,
+            "gripper": GRIPPER,
+            "wrist_camera": WRIST_CAMERA,
+            "workspace_camera": WORKSPACE_CAMERA,
+            "language_instruction": f"grasp {OBJECT_NAME} {'and return to original position' if 'go' not in CONFIG['vla'] else ''}",
+        }
+        OBS_QUEUE, LAST_OBS = await su.get_observation(sensors, OBS_QUEUE, LAST_OBS)
+        print(f"Observation queue length: {len(OBS_QUEUE)}")
+        for i in range(len(OBS_QUEUE)):
+            print(f"Observation {i}:")
+            o = OBS_QUEUE[i]
+            for k in o:
+                print(f"{k} shape: {o[k].shape}")
+        ACT = POLICY(OBS_QUEUE[-1])
+        print(f"Policy generated action: {ACT}")
+        ad = su.parse_dp_action(ACT, CONFIG["vla"])
+        print(f"action dictionary: {ad}")
+        print(f"Policy generated action: \n{[f'{k}: {ad[k]}' for k in ad]}")
+        ACT_QUEUE.append(ACT)
+    except Exception as e:
+        print(e)
+        return(jsonify({"success": False, "message": f"Failed to observe: {e}"}))
+    ACTED = False
+    return jsonify({"success": True, "message": f"obs: {LAST_OBS}"})
+
+
+@app.route("/vla_act", methods=["GET", "POST"])
+def vla_act():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
+    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, CONFIG, RECORD_LOAD
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    if ACTED or len(OBS_QUEUE) == 0:
+        return(jsonify({"success": False, "message": "Already acted or no observation, cannot act."}))
+    try:
+        actuators = {
+            "robot": VLA_ROBOT,
+            "gripper": GRIPPER,
+        }
+        su.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD)
+    except Exception as e:
+        print(e)
+        return(jsonify({"success": False, "message": f"Failed to act: {e}"}))
+    ACTED = True
+    return jsonify({"success": True, "message": f"act: {ACT}"})
+
+@app.route("/vla_obs_act", methods=["GET", "POST"])
+async def vla_obs_act():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
+    global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP, CONFIG, RECORD_LOAD
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    cycles = int(request.get_json()['message'])
+    for i in range(int(cycles)):
+        await vla_obs()
+        time.sleep(0.05)
+        vla_act()
+        time.sleep(0.22)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -212,6 +274,7 @@ def connect():
     CONFIG["policy"] = new_conf["policyconf"]
     CONFIG["llm"] = new_conf["llmconf"]
     CONFIG["vlm"] = new_conf["vlmconf"]
+    CONFIG["vla"] = new_conf["vlaconf"]
     print(CONFIG)
     MODEL = CONFIG["llm"]
 
@@ -278,13 +341,17 @@ def connect():
     
     # VLA Mode Configuration
     try:
-        global POLICY, VLA_MODE
+        global POLICY, VLA_MODE, VLA_ROBOT
         VLA_MODE = True
-        ckpt = MODEL_CKPT_DICT[CONFIG["policy"]]
+        print(f"VLA mode enabled: {VLA_MODE}")
+        print(f"config vla: {CONFIG['vla']}")
+        print(f"model ckpt: {MODEL_CKPT_DICT[CONFIG['vla']]}")
+        ckpt = MODEL_CKPT_DICT[CONFIG["vla"]]
         POLICY, _ = pol.create_policy(ckpt)
+        print(f"Created policy: {POLICY}")
         connect_msg += "Connected to VLA policy.\n"
     except Exception as e:
-        connect_msg += "No VLA policy found.\n"
+        connect_msg += f"No VLA policy found: exception {e}.\n"
         return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
 
     return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
