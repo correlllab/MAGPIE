@@ -92,7 +92,8 @@ $(document).ready(function() {
             // policyconf: $("input[name='policyconf']:checked").val(),
             policyconf: policyconfValues,
             llmconf: $("input[name='llmconf']:checked").val(),
-            vlmconf: $("input[name='vlmconf']:checked").val()
+            vlmconf: $("input[name='vlmconf']:checked").val(),
+            vlaconf: $("input[name='vlaconf']:checked").val(),
         };
         $("#connect-status").text("Configuring & Connecting");
         $("#connect-status").css("color", "gray");
@@ -278,6 +279,39 @@ $(document).ready(function() {
             url: "/release",
             success: function(data) {
                 console.log("Release:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("vla-observe").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "/vla_obs",
+            success: function(data) {
+                console.log("VLA Observe:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("vla-act").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "/vla_act",
+            success: function(data) {
+                console.log("VLA Act:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("vla-reset").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "/vla_reset_policy",
+            success: function(data) {
+                console.log("VLA Reset:", data);
                 propagateChat(data, "robot-chat-window");
             }
         });
