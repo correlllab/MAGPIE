@@ -86,6 +86,14 @@ class Gripper:
         self.offset_finger_x = -24.32 # difference between crank x-pos and finger base x-pos
         self.offset_finger_y = 1.32 # difference between crank y-pos and finger base y-pos
 
+        # force observations
+        self.applied_force = 0.0
+        self.applied_force_l = 0.0
+        self.applied_force_r = 0.0
+        self.recorded_contact_force = 0.0
+        self.recorded_contact_force_l = 0.0
+        self.recorded_contact_force_r = 0.0
+        # 
     #this is before you attach your motors to the gripper
     def setup(self):
         self.Finger1.set_goal_position(0)
@@ -296,6 +304,7 @@ class Gripper:
         # convert N to unitless load value
         force = min(force, 16.1)
         force = max(force, 0.15)
+        self.applied_force = force
         load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
@@ -538,10 +547,23 @@ class Gripper:
             pos_load_l = [[], []]
             pos_load_r = [[], []]
             self.record_load_both_helper(stop_ax12, sign, [pos_load_l, pos_load_r], debug)
+            # left load
+            load_l = np.array(pos_load_l[1])
+            load_l[load_l > 1023] -= 1023
+            self.recorded_contact_force_l = self.load_to_N(np.mean(load_l))
+            load_r = np.array(pos_load_r[1])
+            load_r[load_r > 1023] -= 1023
+            self.recorded_contact_force_r = self.load_to_N(np.mean(load_r))
+            self.recorded_contact_force = np.mean([self.recorded_contact_force_l, self.recorded_contact_force_r])
             return pos_load_l, pos_load_r
         else:
             pos_load = [[], []]
             self.record_load_helper(stop_ax12, sign, pos_load, finger=finger, debug=debug)
+            load = np.array(pos_load[1])
+            if finger=='left':
+                self.recorded_contact_force_l = self.load_to_N(np.mean(load))
+            else:
+                self.recorded_contact_force_r = self.load_to_N(np.mean(load))
             return pos_load
 
     # only for left or right finger, not both

@@ -158,35 +158,49 @@ class UR5_Interface:
         )
 
 
-    def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
+    def moveJ( self, qGoal, rotSpeed = 1.05, rotAccel = 1.4, asynch = True, record=None ):
         """ qGoal is a 6 element numpy array of joint angles (radians) """
         # speed is joint velocity (rad/s)
-        if self.record:
+        rec = record if record is not None else self.record
+        if rec:
             # record time, joint pos, 6d pose, joint vel
             self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd", "target_q", "target_TCP_pose"])
         self.ctrl.moveJ( list( qGoal ), rotSpeed, rotAccel, asynch )
 
-    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True ):
+    def moveL( self, poseMatrix, linSpeed = 0.25, linAccel = 0.5, asynch = True, record=None ):
         """ Moves tool tip pose linearly in cartesian space to goal pose (requires tool pose to be configured) """
         # poseMatrix is a SE3 Object (4 x 4 Homegenous Transform) or numpy array
         # tool pose defined relative to the end of the gripper when closed
-        if self.record:
+        rec = record if record is not None else self.record
+        if rec:
             self.recv.startFileRecording(self.record_path, ["timestamp", "actual_q", "actual_TCP_pose", "actual_qd", "target_q", "target_TCP_pose"])
         self.ctrl.moveL( homog_coord_to_pose_vector( poseMatrix ), linSpeed, linAccel, asynch )
 
-    def move_tcp_cartesian(self, poseMatrix):
+    def move_tcp_cartesian(self, poseMatrix, z_offset=None, record=None):
         # move TCP to a position in cartesian space with user-supplied z_offset, ignoring orientation
         # currently the TCP offset is 0, as in we are operating in the wrist frame
         # apply the true tooltip center position, which is the closed MAGPIE gripper (+231mm) offset back to the wrist
         # empirically determined that we shouldn't have changed the x-axis offset, and that the y-was slightly off
-        gripper_offset = [0.012, 0.006, 0.231 - self.z_offset] # x, y, z offset
+        zoff = self.z_offset if z_offset is None else z_offset
+        gripper_offset = [0.012, 0.006, 0.231 - zoff] # x, y, z offset
         pos = poseMatrix[:3, 3]
         grasp_pos = pos - gripper_offset
         tmat_offset = np.eye(4) # make identity matrix with grasp_pose as translation
         tmat_offset[:3, 3] = grasp_pos
         wrist = np.array(self.getPose())
         pose = wrist @ tmat_offset
-        self.moveL(pose)
+        self.moveL(pose, record=record)
+
+    def move_tcp_cartesian_delta(self, delta, z_offset=0.0, record=False):
+        '''
+        @param delta: 3 element list of x, y, z offset
+        '''
+        tmat_offset = np.eye(4)
+        delta[-1] -= self.z_offset if z_offset is None else z_offset
+        tmat_offset[:3, 3] = delta
+        wrist = np.array(self.getPose())
+        pose = wrist @ tmat_offset
+        self.moveL(pose, record=record)
 
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ Moves the arm linearly in joint space to home pose """
