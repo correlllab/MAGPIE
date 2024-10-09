@@ -196,11 +196,18 @@ class UR5_Interface:
         @param delta: 3 element list of x, y, z offset
         '''
         tmat_offset = np.eye(4)
+        print("3d delta: ", delta)
         delta[-1] -= self.z_offset if z_offset is None else z_offset
         tmat_offset[:3, 3] = delta
+        # print(f"tmat: {tmat_offset}")
         wrist = np.array(self.getPose())
+        print(f"Current pose: {wrist}")
+        wrist[:3, 3] = wrist[:3, 3] + delta
         pose = wrist @ tmat_offset
-        self.moveL(pose, record=record)
+        print(f"Delta to wrist {wrist}")
+        # print(f"wrist @ tmat {pose}")
+        # self.moveL(pose, record=record)
+        self.moveL(wrist, record=record)
 
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ Moves the arm linearly in joint space to home pose """
