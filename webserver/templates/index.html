@@ -299,11 +299,26 @@
 <hr>
 
 <div class="row mt-2">
-    <div class="col-8 text-justify">
+    <div class="col-6 text-justify">
         VLA Controls: 
         <button class="btn btn-secondary" id="vla-observe">Observe</button>
-        <button class="btn btn-primary" id="vla-act">Act</button>
-        <button class="btn btn-secondary" style="background-color:brown" id="vla-reset">Reset</button>
+        <button class="btn btn-primary"   id="vla-act">Act</button>
+        <button class="btn btn-secondary" style="background-color:brown" id="vla-reset">Policy Toggle</button>
+        <button class="btn btn-secondary" style="background-color:brown" id="vla-robot-toggle">Robot Toggle</button>
+        <button class="btn btn-secondary" style="background-color:brown" id="vla-record-load-toggle">Record Load</button>
+    </div>
+    <div class="col-2 text-justify">
+        <div class="row">
+            <div class="col-4">
+                <label for="vla-obs-act">ObsAct Cycles </label>
+            </div> 
+            <div class="col-6" style="padding-left: 25px;">
+                <input type="number" class="form-control" id="vla-obs-act" placeholder=5 value=5></input>
+            </div>
+            <div class="col-2 text-justify">
+                <button class="btn btn-primary" id="vla-send-obs-act">Run</button>
+            </div>        
+        </div>
     </div>
 </div>
 
