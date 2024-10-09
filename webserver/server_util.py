@@ -165,7 +165,7 @@ def parse_object_description(user_input):
             abbrevq = token.text
     return query, abbrevq
 
-def log_to_df(path="robot_logs/", timestamp=0, obj=""):
+def log_to_df(path="robot_logs/", grasp_only=False, timestamp=0, obj=""):
     '''
     combine 3 logs:
     1. move (csv)
@@ -189,6 +189,9 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     if timestamp == 0:
         timestamp = path.split('_')[0].split('/')[-1]
     
+    if "FAIL" in path:
+        fail_reason = path.split('-')[-1]
+
     # load csv to pd df
     home = pd.read_csv(f"{path}/home.csv")
     move = pd.read_csv(f"{path}/move.csv")
@@ -245,8 +248,6 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     move_tcp = pd.DataFrame(move_tcp.tolist(), columns=['x', 'y', 'z', 'rx', 'ry', 'rz'])
     home_tcp_delta = pd.DataFrame(home_tcp_delta.tolist(), columns=['dx', 'dy', 'dz', 'drx', 'dry', 'drz'])
     move_tcp_delta = pd.DataFrame(move_tcp_delta.tolist(), columns=['dx', 'dy', 'dz', 'drx', 'dry', 'drz'])
-    print(home_tcp)
-    print(type(home_tcp))
 
     home[['x', 'y', 'z', 'rx', 'ry', 'rz']] = home_tcp
     move[['x', 'y', 'z', 'rx', 'ry', 'rz']] = move_tcp
@@ -262,6 +263,8 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
 
     gl_copy = grasp_log.copy()
     grasp_log = grasp_log[['timestamp', 'aperture', 'applied_force', 'contact_force']]
+    # set the ceiling of applied_force to be 32.4N
+    grasp_log['applied_force'] = grasp_log['applied_force'].clip(0.0, 32.4)
     # look one row ahead to get the n+1 aperture and applied_force, subtract current aperture and applied force, and set to d_aperture, d_applied_force
     grasp_log['d_aperture'] = grasp_log['aperture'].diff().shift(-1)
     grasp_log['d_applied_force'] = grasp_log['applied_force'].diff().shift(-1)
@@ -271,30 +274,44 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     grasp_log[['dx', 'dy', 'dz', 'drx', 'dry', 'drz']] = 0.0
     # reorder columns so that it is: timestamp, x, y, z, qx, qy, qz, qw, dx, dy, dz, dqx, dqy, dqz, dqw, aperture, d_aperture, applied_force, d_applied_force
     grasp_log = grasp_log[['timestamp', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'dx', 'dy', 'dz', 'drx', 'dry', 'drz', 'aperture', 'd_aperture', 'applied_force', 'd_applied_force', 'contact_force']]
-    
+    # grasp_log.fillna(0.0, inplace=True)
+    # df = grasp_log
+    # print(grasp_log[['applied_force', 'd_applied_force', 'aperture', 'd_aperture']])
+
     # add columns to move and home dfs
-    move['aperture'] = grasp_log['aperture'].iloc[0]
+    move['aperture'] = 100.0 # set to 100.0mm
     move['d_aperture'] = 0.0
-    move['contact_force'] = 0.0
     move['applied_force'] = 0.0
     move['d_applied_force'] = 0.0
+    move['contact_force'] = 0.0
+    
     home['aperture'] = grasp_log['aperture'].iloc[-1]
     home['d_aperture'] = 0.0
-    home['contact_force'] = grasp_log['contact_force'].iloc[-1]
     home['applied_force'] = grasp_log['applied_force'].iloc[-1]
     home['d_applied_force'] = 0.0
+    home['contact_force'] = grasp_log['contact_force'].iloc[-1]
+
+    # make last 'd_applied_force' of move be 0 + first 'applied_force' of grasp_log
+    move['d_applied_force'].iloc[-1] = grasp_log['applied_force'].iloc[0]
+    # make last 'd_aperture' of move be  first 'aperture' of grasp_log - 100mm
+    move['d_aperture'].iloc[-1] = grasp_log['aperture'].iloc[0] - 100
 
     # add task column to move, grasp_log, and home
-    move_task = f"moving to grasp {obj}"
-    grasp_task = f"grasping {obj}"
-    home_task = f"moving back to original position with {obj}"
-    task = f"grasping {obj} and returning to original position"
+    move_task = f"move to grasp {obj}"
+    grasp_task = f"grasp {obj}"
+    home_task = f"move back to original position with {obj}"
+    task = f"grasp {obj} and return to original position"
+    if grasp_only:
+        task = grasp_task
     move['subtask'] = move_task
     move['task'] = task
     grasp_log['subtask'] = grasp_task
     grasp_log['task'] = task
     home['subtask'] = home_task
     home['task'] = task
+
+    # make last subtask of move be grasp_task
+    move['subtask'].iloc[-1] = grasp_task
 
     def extract_timestamp(filename):
         # extracting the float
@@ -323,7 +340,6 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
         # iterate backwards through home timestamps
         home.loc[i, 'timestamp'] = last_home
         last_home -= 0.096
-
 
     grasp_workspace_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/workspace_img") if f.startswith("1_")])
     grasp_wrist_img = sorted([extract_timestamp(f) for f in os.listdir(f"{path}/wrist_img") if f.startswith("1_")])
@@ -358,6 +374,11 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     home['img'] = home_workspace_interpolated
     home['wrist_img'] = home_wrist_interpolated
 
+    # write move, grasp_log, and home to csv files
+    move.to_csv(f"{path}/0.csv", index=False)
+    grasp_log.to_csv(f"{path}/1.csv", index=False)
+    home.to_csv(f"{path}/2.csv", index=False)
+
     # load actual image, not just the filename, cast from jpeg to numpy array
     move['img'] = [np.array(Image.open(f"{path}/workspace_img/{i}")) for i in move['img']]
     move['wrist_img'] = [np.array(Image.open(f"{path}/wrist_img/{i}")) for i in move['wrist_img']]
@@ -378,10 +399,39 @@ def log_to_df(path="robot_logs/", timestamp=0, obj=""):
     # # save df to csv
     # df.to_csv(f"{path}/trajectory.csv", index=False)
 
+    # now we normalize aperture, d_aperture, applied_force, d_applied force, and contact_force
+    # aperture: 0 - 100mm
+    # force: 0 - 16.2N
+    # scale aperture and d_aperture
+    df['aperture'] = df['aperture']/100.0 # mm to dm
+    df['d_aperture'] = df['d_aperture']/100.0 # mm to dm
+    # scale force and d_force
+    df['applied_force'] = df['applied_force']/100.0 #N to daN
+    df['contact_force'] = df['contact_force']/100.0 #N to daN
+    df['d_applied_force'] = df['d_applied_force']/100.0 #N to daN
+
+    # print if any of d_aperture or d_applied_force > 1.0 or < -1.0
+    print(df[(df['d_aperture'] > 1.0) | (df['d_aperture'] < -1.0)])
+    print(df[(df['d_applied_force'] > 1.0) | (df['d_applied_force'] < -1.0)])
+    columns = ['timestamp', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'dx', 'dy', 'dz', 'drx', 'dry', 'drz', 'aperture', 'd_aperture', 'applied_force', 'd_applied_force', 'contact_force', 'subtask', 'task', 'img', 'wrist_img']
+    # make sure columns are in the right order
+    df = df[columns]
+    # df['applied_force']   = (df['applied_force']/ 16.2).clip(0.0, 1.0)
+    # df['d_applied_force'] = (df['d_applied_force']/ 16.2).clip(0.0, 1.0)
+    # df['contact_force'] = (df['contact_force']/16.2).clip(0.0, 1.0)
+    # print(df[['applied_force', 'd_applied_force', 'aperture', 'd_aperture']])
+
+    # get rows where subtask is grasp_task
+    grasp_df = df[df['subtask'] == grasp_task]
+    if grasp_only: df = grasp_df
+
     # return df as pickled np array
     df_pkl = df.to_numpy()
-    np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
+    # np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
+    np.save(f"data/train/episode_{obj}_{timestamp}.npy", df_pkl)
+    # np.save(f"data/fails/episode_{obj}_{timestamp}_FAIL-{fail_reason}.npy", df_pkl)
 
+    return move, grasp_log, home
     return move, grasp_log, home
 
 def df_to_rlds(df, img, language_instruction="", path="robot_logs/episode.tfds", obj=""):
