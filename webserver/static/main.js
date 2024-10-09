@@ -239,7 +239,6 @@ $(document).ready(function() {
         });
     });
 
-
     $("#robot-set-home").click(function() {
         $.ajax({
             type: "POST",
@@ -284,18 +283,18 @@ $(document).ready(function() {
         });
     });
 
-    $("vla-observe").click(function() {
+    $("#vla-observe").click(function() {
         $.ajax({
             type: "POST",
             url: "/vla_obs",
             success: function(data) {
-                console.log("VLA Observe:", data);
+                console.log("Home:", data);
                 propagateChat(data, "robot-chat-window");
             }
         });
     });
 
-    $("vla-act").click(function() {
+    $("#vla-act").click(function() {
         $.ajax({
             type: "POST",
             url: "/vla_act",
@@ -306,7 +305,7 @@ $(document).ready(function() {
         });
     });
 
-    $("vla-reset").click(function() {
+    $("#vla-reset").click(function() {
         $.ajax({
             type: "POST",
             url: "/vla_reset_policy",
@@ -316,4 +315,77 @@ $(document).ready(function() {
             }
         });
     });
+
+    $("#vla-robot-toggle").click(function() {
+        // if button is green, change to brown
+        if ($("#vla-robot-toggle").css("background-color") == "rgb(0, 128, 0)") {
+            $("#vla-robot-toggle").css("background-color", "brown");
+        }
+        else {
+            $("#vla-robot-toggle").css("background-color", "green");
+        }
+        $.ajax({
+            type: "POST",
+            url: "/vla_robot_toggle",
+            success: function(data) {
+                console.log("VLA Robot Toggle:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("#vla-record-load-toggle").click(function() {
+        if ($("#vla-record-load-toggle").css("background-color") == "rgb(0, 128, 0)") {
+            $("#vla-record-load-toggle").css("background-color", "brown");
+        }
+        else {
+            $("#vla-record-load-toggle").css("background-color", "green");
+        }
+        $.ajax({
+            type: "POST",
+            url: "/vla_record_load",
+            success: function(data) {
+                console.log("VLA Record Load Toggle:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("#vla-send-obs-act").click(function() {
+        var message = $("#vla-obs-act").val();
+        if (message === "") {
+            return;
+        }
+        $.ajax({
+            type: "POST",
+            url: "/vla_obs_act",
+            data: JSON.stringify({ message: message }),
+            contentType: "application/json; charset=utf-8",
+            success: function(data) {
+                console.log("VLA Send Obs Action:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("#vla-obs-act").keypress(function(event) {
+        if (event.which == 13) { // Enter key
+            var message = $("#vla-obs-act").val();
+            if (message === "") {
+                return;
+            }
+            $.ajax({
+                type: "POST",
+                url: "/vla_obs_act",
+                data: JSON.stringify({ message: message }),
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+                    console.log("VLA Send Obs Action:", data);
+                    propagateChat(data, "robot-chat-window");
+                }
+            });
+    
+        }
+    });
+
 });
