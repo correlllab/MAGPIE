@@ -1,4 +1,4 @@
-# Four Diffusion Policies
+# Diffusion policies overview
 
 I've trained 4 diffusion policy models on the 130 trajectories with force feedback. I train each for only 30 epochs (about 3000 steps), super short but the loss curves look flat. 
 
@@ -22,7 +22,7 @@ On the other hand, the grasp only policies produce actions of very small magnitu
 
 Anyway to reconcile all this, I want to do stationary testing on a small set of objects, to save your time and to see if any of this work yieled even a crumb of something interesting. We'll keep the robot at the object, stationary, and do grasp-only testing with the models. the A/B testing of force v no-force will hopefully show some difference in performance.
 
-Experiment Protocol:
+## Experiment Protocol
 - Object placed arbitrarily on the grid
 - Robot gripper placed at a viable (you determine) position for grasp, at an arbitrary orientation about the object.
 - For consistency, do 10x grasps per object
@@ -59,19 +59,22 @@ python server.py
 In the browser, use this config and press the `Connect` button. The `Status` text below the button should show `Connecting & Configuring`, wait until it shows `Connected`. 
 ![image](config.png)
 
-In the user input, use the phrasing `"pick up the {object}"` for whatever `object` you are grasping. Upon pressing enter, it'll query the OWL-ViT for the object. It doesn't matter if it can't find it because we're not using OWL-ViT, this is just how we ingest the `object` to pass to the DP, but OWLViT might also hang the entire webserver if it decides to segment the entire scene, which is often enough.
+In the user input, use the phrasing `"pick up the {object}"` for whatever `object` you are grasping. Upon pressing enter, it'll query the OWL-ViT for the object. It doesn't matter if it can't find it because we're not using OWL-ViT, this is just how we ingest the `object` string to pass to the DP, but OWLViT might also hang the entire webserver if it decides to segment the entire scene, which is often enough.
 
 Onto the diffusion policy rollouts. By default, it should look like this:
 ![dp init config](dp_init_config.png)
-In the second column, `VLA Policy`, the described four policies are listed. 
 
 Press `Robot Toggle` to start the robot:
 ![dp robot toggle](dp_robot_toggle_config.png)
 If you start and restart the server the color will stay the same, but the value will be reset to False. Sorry.
 
-You can then either do single `Observe` <--> `Act` cycles (the policy module from DROID forces receding horizon control, i.e. it will only let you observe once, act once) to test it out, or use the `ObsAct Cycles` input to the right to run `N` consecutive Obs-Act cycles.
+You can then either do single `Observe` <--> `Act` cycles (the policy module from DROID forces receding horizon control, i.e. it will only let you observe once, act once) to test it out, or use the `ObsAct Cycles` input to the right to run `N` consecutive Obs-Act cycles. This is how you tune the number of rollouts.
 
 ![dp obsact cycles](dp_obsact_config.png)
 I sleep the robot ~0.25s between each action, so 4Hz control at best. If you want to change this, see the last line of `webserver/server.py:vla_obs_act()`.
 
-To reload the config, turn off and back on the cameras (I wrote something to not have to do this but it didn't work so this is where we're at), toggle the `Robot Toggle` off (this stops the RTDE connection), and select the desired `VLA Policy`, and press `Connect` again. Not sure how to handle garbage collection of the loaded policies, because after reloading ~4 times you will run out of VRAM and have to close the terminal you're operating in. If you change any code or something hangs (which changing the code will do, unlike what the `server reloading` message tells you), just kill the webserver.
+## Loading a new policy
+
+In the second column, `VLA Policy`, the described four policies are listed. To reload the config with a different policy, turn off and back on the cameras (I wrote something to not have to do this but it didn't work so this is where we're at), toggle the `Robot Toggle` off (this stops the RTDE connection), select the desired `VLA Policy`, and press `Connect` again. Not sure how to handle garbage collection of the loaded policies, because after reloading ~4 times you will run out of VRAM and have to close the terminal you're operating in. If you change any code or something hangs (which changing the code will do, unlike what the `server reloading` message tells you), just kill the webserver.
+
+Let me know if you run into any issues--will try my best to resolve.
