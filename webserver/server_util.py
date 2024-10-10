@@ -71,10 +71,10 @@ def parse_dp_action(actions, action_flag="dp"):
         ad['rel_pos'] = actions[:3]
         ad['rel_rot'] = actions[3:6] # not gonna use rotation for now
     if "nf" not in action_flag:
-        ad['gripper_force'] = actions[-1]*100
-        ad['gripper_position'] = actions[-2]*100
+        ad['gripper_force'] = max(actions[-1]*100, 0)
+        ad['gripper_position'] = min(actions[-2]*100, 0)
     else:
-        ad['gripper_position'] = actions[-1]*100
+        ad['gripper_position'] = min(actions[-1]*100, 0)
     
     return ad
 
@@ -82,19 +82,19 @@ def apply_action(actions=[], actuators={}, action_flag="dp", record_load=False):
     # apply action to actuators
     # actions is a dictionary of action objects
     actions = np.array(actions)
-    scale = 1000
+    scale = 1000 # hack for grasp only
     if "go" not in action_flag:
-        scale = 100
+        scale = 100 # need to re-scale the actions
         delta_pos = actions[:3]
         delta_rot = actions[3:6] # not gonna use rotation for now
         actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
     curr_aperture = actuators["gripper"].get_aperture()
     if "nf" not in action_flag:
         curr_force = actuators["gripper"].applied_force
-        actuators["gripper"].set_force(curr_force + actions[-1]*scale)
-        actuators["gripper"].set_goal_aperture(curr_aperture + actions[-2]*scale, record_load=record_load)
+        actuators["gripper"].set_force(curr_force + max(actions[-1]*scale, 0))
+        actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-2]*scale, 0), record_load=record_load)
     else:
-        actuators["gripper"].set_goal_aperture(curr_aperture + actions[-1]*scale, record_load=record_load)
+        actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-1]*scale, 0), record_load=record_load)
 
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json
