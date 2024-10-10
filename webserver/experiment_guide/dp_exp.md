@@ -5,7 +5,7 @@ I've trained 4 diffusion policy models on the 130 trajectories with force feedba
 The breakdown:
 1. DG: Observes: 
 {6D pose, images, gripper pos, force, contact force}, 
-Acts: delta {robot position, gripper position, gripper force}
+Acts: delta {robot 3D position, gripper position, gripper force}
 2. DGNF (no force): 
 Observes: {6D pose, images, gripper pos}, 
 Acts: delta {robot position, gripper position}
@@ -16,9 +16,9 @@ Acts: delta {gripper pos, force}
 Observes: {images, gripper pos}, 
 Acts: delta {gripper pos}
 
-In my limited testing, the non-grasp only policies do not produce meaningful trajectories, and are as useful as the grasp-only policies. Trajectories either oscillate or are too aggressive, and no sequence temporality is learned: delta gripper closure is generated on the first observation. Either 5Hz is too slow a poll rate, or the robot moves too quickly.
+In my limited testing, the non-grasp only policies do not produce meaningful trajectories, and are as useful as the grasp-only policies. I've turned off orientation trajectories because those are just dangerously bad. Trajectories either oscillate or are too aggressive, and no sequence temporality is learned: delta gripper closure is generated on the first observation. Either 5Hz is too slow a poll rate, or the robot moves too quickly.
 
-On the other hand, the grasp only policies produce actions of very small magnitude and often negative/positive deltas when the training data was always positive/negative (d_applied_force, d_gripper_position, respectively). Right now I patch this hole by scaling the grasp-only actions up 10x and bounding the relevant actions. Perhaps I should've normalized these values, or at the very least bounded them to the correct ranges in the model config.
+On the other hand, the grasp only policies produce actions of very small magnitude and often negative/positive deltas when the training data was always positive/negative (d_applied_force, d_gripper_position, respectively). Right now I patch this hole by scaling the grasp-only actions up 10x and zeroing out actions with the wrong sign (sue me). Perhaps I should've normalized these values, or at the very least bounded them to the correct ranges in the model config.
 
 Anyway to reconcile all this, I want to do stationary testing on a small set of objects, to save your time and to see if any of this work yieled even a crumb of something interesting. We'll keep the robot at the object, stationary, and do grasp-only testing with the models. the A/B testing of force v no-force will hopefully show some difference in performance.
 
@@ -29,7 +29,7 @@ Experiment Protocol:
 - 1 grasp corresponds to let's say ~10 rollouts of the diffusion policy. The average grasponly trajectory was around there, but you can tune this number in the web UI.
 - After performing the grasp, put the robot in teach mode and move the gripper up. Not super fast but don't have to be slow. I think just try to be consistent.
 
-Testing on the train set:
+Testing on the train set xd:
 - Paper cup, empty
 - Paper cup, filled with water (in the tote box next to the table, there should be a big non-stick pan. I would put the filled cup in there)
 - The big needle roller bearing on the desk--if not there it should be somewhere on my desk
