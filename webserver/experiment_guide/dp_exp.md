@@ -65,12 +65,12 @@ Onto the diffusion policy rollouts. By default, it should look like this:
 ![dp init config](dp_init_config.png)
 
 Press `Robot Toggle` to start the robot:
-![dp robot toggle](dp_robot_toggle_config.png)
+![dp robot toggle](dp_robot_toggle.png)
 If you start and restart the server the color will stay the same, but the value will be reset to False. Sorry.
 
 You can then either do single `Observe` <--> `Act` cycles (the policy module from DROID forces receding horizon control, i.e. it will only let you observe once, act once) to test it out, or use the `ObsAct Cycles` input to the right to run `N` consecutive Obs-Act cycles. This is how you tune the number of rollouts.
 
-![dp obsact cycles](dp_obsact_config.png)
+![dp obsact cycles](dp_obsact.png)
 I sleep the robot ~0.25s between each action, so 4Hz control at best. If you want to change this, see the last line of `webserver/server.py:vla_obs_act()`.
 
 ## Loading a new policy
