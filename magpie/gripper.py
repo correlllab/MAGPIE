@@ -87,9 +87,9 @@ class Gripper:
         self.offset_finger_y = 1.32 # difference between crank y-pos and finger base y-pos
 
         # force observations
-        self.applied_force = 0.0
-        self.applied_force_l = 0.0
-        self.applied_force_r = 0.0
+        self.applied_force = 0.15
+        self.applied_force_l = 0.075
+        self.applied_force_r = 0.075
         self.recorded_contact_force = 0.0
         self.recorded_contact_force_l = 0.0
         self.recorded_contact_force_r = 0.0
@@ -106,6 +106,12 @@ class Gripper:
         self.apply_to_fingers('set_ccw_compliance_margin', self.default_parameters['compliance_margin'], finger='both', noarg=False)
         self.apply_to_fingers('set_cw_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
         self.apply_to_fingers('set_ccw_compliance_slope', self.default_parameters['compliance_slope'], finger='both', noarg=False)
+        self.applied_force = 0.15
+        self.applied_force_l = 0.075
+        self.applied_force_r = 0.075
+        self.recorded_contact_force = 0.0
+        self.recorded_contact_force_l = 0.0
+        self.recorded_contact_force_r = 0.0
         self.open_gripper()
         time.sleep(0.0025)
 
@@ -303,11 +309,11 @@ class Gripper:
         # see comments in check_slip as to why we need to halve the force
         # tbh, we might not actually need to halve the force here
         # so long as check_slip halves the force.
+        self.applied_force = force
         force = force / 2.0 if finger=='both' else force
         # convert N to unitless load value
         force = min(force, 16.1)
         force = max(force, 0.15)
-        self.applied_force = force
         load = int(self.N_to_load(force))
         if debug:
             print(f'converted load: {load}')
