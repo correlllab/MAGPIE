@@ -106,7 +106,9 @@ T_a = 1
 LAST_OBS  = {}
 ACT = []
 OBS_QUEUE = []
+LAST_OBS_QUEUE = []
 ACT_QUEUE = []
+ACT_DICT_QUEUE = []
 # I should set up a config file for this
 hmpth = "/home/will/workspace/dp_models"
 MODEL_CKPT_DICT = {
@@ -127,6 +129,7 @@ HOME_POSE = None
 SLEEP_RATE = 0.5
 GOAL_POSE = None
 AT_GOAL = False
+UR5_TEACH_MODE = False
 
 def handle_prompt_name(policy):
     global VISION
@@ -144,6 +147,24 @@ def handle_prompt_name(policy):
     print(f"Prompt policy: {prompt_stub}")
     return prompt_stub
 
+
+@app.route("/teach_mode", methods=["GET", "POST"])
+def teach_mode():
+    global UR5_TEACH_MODE, ROBOT_IP
+    try:
+        robot = ur5.UR5_Interface(ROBOT_IP)
+        if not UR5_TEACH_MODE:
+            robot.start()
+            time.sleep(0.1)
+            robot.ctrl.teachMode()
+        else:
+            robot.ctrl.endTeachMode()
+            robot.stop()
+        time.sleep(0.1)
+        UR5_TEACH_MODE = not UR5_TEACH_MODE
+        return jsonify({"success": True, "message": f"UR5 teach mode enabled: {UR5_TEACH_MODE}."})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Failed to toggle UR5 teach mode: {e}."})
 
 @app.route("/vla_robot_toggle", methods=["GET", "POST"])
 def vla_robot_toggle():
@@ -170,20 +191,27 @@ def vla_record_load():
 
 @app.route("/vla_reset_policy", methods=["GET", "POST"])
 def vla_reset_policy():
-    global POLICY, VLA_MODE, ACTED, OBS_QUEUE, ACT_QUEUE, LAST_OBS, ACT
+    global POLICY, VLA_MODE, ACTED, OBS_QUEUE, ACT_QUEUE, LAST_OBS, LAST_OBS_QUEUE, ACT, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG, GRIPPER
     if not VLA_MODE:
         return(jsonify({"success": False, "message": "VLA mode not enabled."}))
     ACTED = False
+    # write obs and act to file
+    if len(LAST_OBS_QUEUE) > 0:
+        dp_log_pth = "/home/will/MAGPIE/datasets/dp_grasp_logs"
+        su.dp_log(LAST_OBS_QUEUE, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG["vla"], dp_log_pth)
+    GRIPPER.reset_parameters()
+    LAST_OBS_QUEUE = []
     OBS_QUEUE = []
     ACT_QUEUE = []
+    ACT_DICT_QUEUE = []
     LAST_OBS = {}
     ACT = []
     pol.reset_policy(POLICY)
     return jsonify({"success": True, "message": "Policy reset."})
 
 @app.route("/vla_obs", methods=["GET", "POST"])
-async def vla_obs():
-    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
+def vla_obs():
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, LAST_OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, ACT_DICT_QUEUE
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, OBJECT_NAME, CONFIG
     if not VLA_MODE:
         return(jsonify({"success": False, "message": "VLA mode not enabled."}))
@@ -197,18 +225,20 @@ async def vla_obs():
             "workspace_camera": WORKSPACE_CAMERA,
             "language_instruction": f"grasp {OBJECT_NAME} {'and return to original position' if 'go' not in CONFIG['vla'] else ''}",
         }
-        OBS_QUEUE, LAST_OBS = await su.get_observation(sensors, OBS_QUEUE, LAST_OBS)
+        OBS_QUEUE, LAST_OBS = su.get_observation(sensors, OBS_QUEUE, LAST_OBS, CONFIG["vla"])
+        LAST_OBS_QUEUE.append(LAST_OBS)
         print(f"Observation queue length: {len(OBS_QUEUE)}")
-        for i in range(len(OBS_QUEUE)):
-            print(f"Observation {i}:")
-            o = OBS_QUEUE[i]
-            for k in o:
-                print(f"{k} shape: {o[k].shape}")
+        # for i in range(len(OBS_QUEUE)):
+        #     print(f"Observation {i}:")
+        #     o = OBS_QUEUE[i]
+        #     for k in o:
+        #         print(f"{k} shape: {o[k].shape}")
         ACT = POLICY(OBS_QUEUE[-1])
         print(f"Policy generated action: {ACT}")
         ad = su.parse_dp_action(ACT, CONFIG["vla"])
-        print(f"action dictionary: {ad}")
-        print(f"Policy generated action: \n{[f'{k}: {ad[k]}' for k in ad]}")
+        # print(f"action dictionary: {ad}")
+        # print(f"Policy generated action: \n{[f'{k}: {ad[k]}' for k in ad]}")
+        ACT_DICT_QUEUE.append(ad)
         ACT_QUEUE.append(ACT)
     except Exception as e:
         print(e)
@@ -238,17 +268,18 @@ def vla_act():
     return jsonify({"success": True, "message": f"act: {ACT}"})
 
 @app.route("/vla_obs_act", methods=["GET", "POST"])
-async def vla_obs_act():
+def vla_obs_act():
     global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP, CONFIG, RECORD_LOAD
     if not VLA_MODE:
         return(jsonify({"success": False, "message": "VLA mode not enabled."}))
     cycles = int(request.get_json()['message'])
     for i in range(int(cycles)):
-        await vla_obs()
+        vla_obs()
         time.sleep(0.05)
         vla_act()
         time.sleep(0.22)
+    return jsonify({"success": True, "message": f"obs_act: {cycles} cycles"})
 
 @app.route("/", methods=["GET", "POST"])
 def index():

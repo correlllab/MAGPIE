@@ -24,16 +24,41 @@ from typing import Any
 sys.path.append("../")
 SLEEP_RATE = 0.5
 
-async def get_observation(sensors={}, obs_queue=[], last_obs={}):
+def dp_log(obs, act, obj, cfg, pth=""):
+    fn = f"{pth}/cfg-{cfg}_obj-{obj}_{time.time()}.csv"
+    history = min(len(obs), len(act))
+    okeys = ["robot_state/gripper_position"]
+    akeys = ["gripper_position"]
+    if "nf" not in cfg:
+        okeys.append("robot_state/applied_force")
+        okeys.append("robot_state/contact_force")
+        akeys.append("gripper_force")
+    keys = okeys + akeys
+    data = []
+    for i in range(history):
+        d = []
+        for ok in okeys:
+            scale = 100.0 if "contact" not in ok else 1.0
+            d.append(np.round(obs[i][ok][0]*scale, 3))
+        for ak in akeys:
+            d.append(np.round(act[i][ak], 3))
+        data.append(d)
+    df = pd.DataFrame(data, columns=keys)
+    df.to_csv(fn, index=False)
+    return df
+
+def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
     # get observation from sensors. this will be abstracted later
     # for now, we explicitly transform
     first_obs = len(obs_queue) == 0
     obs = {}
-    obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
-    # scale to mm/100 and N/100
     obs["robot_state/gripper_position"]   = np.array([sensors["gripper"].get_aperture()])/100.0
-    obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
-    obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
+    if "go" not in cfg:
+        obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
+    # scale to mm/100 and N/100
+    if "nf" not in cfg:
+        obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
+        obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
 
     def process_image(image):
         # reshape image from 640x480x3 to 3x480x640 (H, W, C) --> (C, H, W)
@@ -41,8 +66,10 @@ async def get_observation(sensors={}, obs_queue=[], last_obs={}):
         image = np.transpose(image, (2, 0, 1))
         return image
     
-    obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
-    obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
+    # obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
+    obs["camera/image/varied_camera_1_left_image"] = process_image(sensors["workspace_camera"].take_image_blocking())
+    # obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
+    obs["camera/image/varied_camera_2_left_image"] = process_image(sensors["wrist_camera"].take_image_blocking())
 
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:
@@ -67,14 +94,16 @@ def parse_dp_action(actions, action_flag="dp"):
     '''
     ad = {}
     actions = np.array(actions)
+    scale = 1000 # hack for grasp only
     if "go" not in action_flag:
+        scale = 100 # need to re-scale the actions
         ad['rel_pos'] = actions[:3]
         ad['rel_rot'] = actions[3:6] # not gonna use rotation for now
     if "nf" not in action_flag:
-        ad['gripper_force'] = max(actions[-1]*100, 0)
-        ad['gripper_position'] = min(actions[-2]*100, 0)
+        ad['gripper_force'] = max(actions[-1]*100.0, 0)
+        ad['gripper_position'] = min(actions[-2]*scale, 0)
     else:
-        ad['gripper_position'] = min(actions[-1]*100, 0)
+        ad['gripper_position'] = min(actions[-1]*scale, 0)
     
     return ad
 
@@ -91,7 +120,10 @@ def apply_action(actions=[], actuators={}, action_flag="dp", record_load=False):
     curr_aperture = actuators["gripper"].get_aperture()
     if "nf" not in action_flag:
         curr_force = actuators["gripper"].applied_force
-        actuators["gripper"].set_force(curr_force + max(actions[-1]*scale, 0))
+        print(f"curr_force: {curr_force}")
+        actuators["gripper"].set_force(curr_force + max(actions[-1]*100.0, 0))
+        print(f"action: {max(actions[-1]*100.0, 0)}")
+        print(f"curr_force after set: {actuators['gripper'].applied_force}")
         actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-2]*scale, 0), record_load=record_load)
     else:
         actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-1]*scale, 0), record_load=record_load)
