@@ -57,7 +57,7 @@ $(document).ready(function() {
             type: "POST",
             url: "/generate",
             dataType: "json",
-            contentType: "application/json; charset=utf-8",    
+            contentType: "application/json; charset=utf-8",
             data: JSON.stringify(promptEditor.getValue()),
             success: function(data) {
                 // console.log(data.completion)
@@ -178,12 +178,12 @@ $(document).ready(function() {
                     url: "/grasp_policy",
                     data: JSON.stringify({ message: message }),
                     contentType: "application/json; charset=utf-8",
-                    dataType: "json",        
+                    dataType: "json",
                     success: function(data) {
                         $("#chat-status").text("Grasp Policy");
                         $("#chat-status").css("color", "blue");
                         console.log("Response:", data);
-                        propagateChat(data, "chat-window");        
+                        propagateChat(data, "chat-window");
                     }
                 });
                 // end nested post
@@ -232,6 +232,24 @@ $(document).ready(function() {
         $.ajax({
             type: "POST",
             url: "/keep_policy",
+            success: function(data) {
+                console.log("Home:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
+    $("#robot-teach-mode").click(function() {
+        // if button is green, change to brown
+        if ($("#robot-teach-mode").css("background-color") == "rgb(0, 128, 0)") {
+            $("#robot-teach-mode").css("background-color", "brown");
+        }
+        else {
+            $("#robot-teach-mode").css("background-color", "green");
+        }
+        $.ajax({
+            type: "POST",
+            url: "/teach_mode",
             success: function(data) {
                 console.log("Home:", data);
                 propagateChat(data, "robot-chat-window");
@@ -384,7 +402,7 @@ $(document).ready(function() {
                     propagateChat(data, "robot-chat-window");
                 }
             });
-    
+
         }
     });
 
