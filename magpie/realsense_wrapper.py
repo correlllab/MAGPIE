@@ -129,6 +129,29 @@ class RealSense():
 
         return rawColorImage
 
+    def take_image_blocking(self, save=False, filepath="", buffer=False):
+        # Takes RGBD Image using Realsense
+        # intrinsic and extrinsic parameters are NOT applied only in getPCD()
+        # out: Open3D RGBDImage
+        pipe, config = self.pipe, self.config
+
+        frames = pipe.wait_for_frames()
+        colorFrame = frames.get_color_frame()
+        rawColorImage = np.asanyarray(colorFrame.get_data()).copy()
+        timestamp = frames.get_timestamp()
+        # get sensor timestamp
+        ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
+        # move ts decimal 3 places to the right
+        timestamp = timestamp / 1000
+
+        if save:
+            # subFix = str(time.time())
+            subFix = str(timestamp)
+            if buffer:
+                self.buffer_dict[f"{filepath}{subFix}.jpeg"] = rawColorImage
+
+        return rawColorImage
+
 
     async def _record_images(self, filepath=""):
         # records images to a specified filepath
