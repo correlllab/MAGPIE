@@ -152,15 +152,15 @@ def handle_prompt_name(policy):
 def teach_mode():
     global UR5_TEACH_MODE, ROBOT_IP
     try:
-        robot = ur5.UR5_Interface(ROBOT_IP)
-        if not UR5_TEACH_MODE:
+        if VLA_ROBOT is None:
+            robot = ur5.UR5_Interface(ROBOT_IP)
             robot.start()
-            time.sleep(0.1)
+        else: robot = VLA_ROBOT
+        if not UR5_TEACH_MODE:
             robot.ctrl.teachMode()
         else:
             robot.ctrl.endTeachMode()
-            robot.stop()
-        time.sleep(0.1)
+            if VLA_ROBOT is None: robot.stop()
         UR5_TEACH_MODE = not UR5_TEACH_MODE
         return jsonify({"success": True, "message": f"UR5 teach mode enabled: {UR5_TEACH_MODE}."})
     except Exception as e:
@@ -228,16 +228,9 @@ def vla_obs():
         OBS_QUEUE, LAST_OBS = su.get_observation(sensors, OBS_QUEUE, LAST_OBS, CONFIG["vla"])
         LAST_OBS_QUEUE.append(LAST_OBS)
         print(f"Observation queue length: {len(OBS_QUEUE)}")
-        # for i in range(len(OBS_QUEUE)):
-        #     print(f"Observation {i}:")
-        #     o = OBS_QUEUE[i]
-        #     for k in o:
-        #         print(f"{k} shape: {o[k].shape}")
         ACT = POLICY(OBS_QUEUE[-1])
         print(f"Policy generated action: {ACT}")
         ad = su.parse_dp_action(ACT, CONFIG["vla"])
-        # print(f"action dictionary: {ad}")
-        # print(f"Policy generated action: \n{[f'{k}: {ad[k]}' for k in ad]}")
         ACT_DICT_QUEUE.append(ad)
         ACT_QUEUE.append(ACT)
     except Exception as e:
