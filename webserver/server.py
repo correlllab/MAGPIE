@@ -170,14 +170,16 @@ def teach_mode():
 def vla_robot_toggle():
     global VLA_MODE, VLA_ROBOT, ROBOT_TOGGLE, ROBOT_IP
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "message": "VLA mode not enabled"}))
     if ROBOT_TOGGLE:
         VLA_ROBOT.stop()
+        time.sleep(0.1)
         ROBOT_TOGGLE = False
         return(jsonify({"success": True, "message": "Robot stopped."}))
     else:
         VLA_ROBOT = ur5.UR5_Interface(ROBOT_IP, record=False)
         VLA_ROBOT.start()
+        time.sleep(0.1)
         ROBOT_TOGGLE = True
         return(jsonify({"success": True, "message": "Robot started."}))
 
@@ -269,9 +271,9 @@ def vla_obs_act():
     cycles = int(request.get_json()['message'])
     for i in range(int(cycles)):
         vla_obs()
-        time.sleep(0.05)
+        # time.sleep(0.05)
         vla_act()
-        time.sleep(0.22)
+        # time.sleep(0.22)
     return jsonify({"success": True, "message": f"obs_act: {cycles} cycles"})
 
 @app.route("/", methods=["GET", "POST"])
