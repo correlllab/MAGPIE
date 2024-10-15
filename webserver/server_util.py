@@ -25,8 +25,18 @@ sys.path.append("../")
 SLEEP_RATE = 0.5
 
 def dp_log(obs, act, obj, cfg, pth=""):
-    fn = f"{pth}/cfg-{cfg}_obj-{obj}_{time.time()}.csv"
+    dir = f"{pth}/cfg-{cfg}_obj-{obj}_{time.time()}"
+    wrist_dir = f"{dir}/wrist_img"
+    workspace_dir = f"{dir}/workspace_img"
+    # make dir if does not exist
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        os.makedirs(wrist_dir)
+        os.makedirs(workspace_dir)
+    fn = f"{dir}/obsact.csv"
     history = min(len(obs), len(act))
+    ikeys = ["camera/image/varied_camera_1_left_image", 
+             "camera/image/varied_camera_2_left_image"]
     okeys = ["robot_state/gripper_position"]
     akeys = ["gripper_position"]
     if "nf" not in cfg:
@@ -42,6 +52,10 @@ def dp_log(obs, act, obj, cfg, pth=""):
             d.append(np.round(obs[i][ok][0]*scale, 3))
         for ak in akeys:
             d.append(np.round(act[i][ak], 3))
+        workspace_img = Image.fromarray(obs[i][ikeys[0]].transpose(1, 2, 0))
+        workspace_img.save(f"{workspace_dir}/{i}.jpeg")
+        wrist_img = Image.fromarray(obs[i][ikeys[1]].transpose(1, 2, 0))
+        wrist_img.save(f"{wrist_dir}/{i}.jpeg")
         data.append(d)
     df = pd.DataFrame(data, columns=keys)
     df.to_csv(fn, index=False)
