@@ -97,8 +97,11 @@ class RealSense():
 
     def write_buffer(self):
         for path, im in self.buffer_dict.items():
-            colorIM = Image.fromarray(im)
-            colorIM.save(path)
+            if ".npy" in path:
+                np.save(path, im)
+            elif ".jpeg" in path:
+                colorIM = Image.fromarray(im)
+                colorIM.save(path)
         self.buffer_dict = {}
 
     def flush_buffer(self, t=3):
@@ -115,11 +118,7 @@ class RealSense():
         frames = pipe.wait_for_frames()
         colorFrame = frames.get_color_frame()
         rawColorImage = np.asanyarray(colorFrame.get_data()).copy()
-        timestamp = frames.get_timestamp()
-        # get sensor timestamp
-        ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
-        # move ts decimal 3 places to the right
-        timestamp = timestamp / 1000
+        timestamp = frames.get_timestamp() / 1000
 
         if save:
             # subFix = str(time.time())
@@ -129,7 +128,10 @@ class RealSense():
 
         return rawColorImage
 
-    def take_image_blocking(self, save=False, filepath="", buffer=False):
+    async def take_image_async(self, save=False, buffer=False, depth=False, filepath=""):
+        return self.take_image_blocking(save=save, buffer=buffer, depth=depth, filepath=filepath)
+
+    def take_image_blocking(self, save=False, filepath="", buffer=False, depth=False):
         # Takes RGBD Image using Realsense
         # intrinsic and extrinsic parameters are NOT applied only in getPCD()
         # out: Open3D RGBDImage
@@ -138,19 +140,39 @@ class RealSense():
         frames = pipe.wait_for_frames()
         colorFrame = frames.get_color_frame()
         rawColorImage = np.asanyarray(colorFrame.get_data()).copy()
-        timestamp = frames.get_timestamp()
-        # get sensor timestamp
-        ts = frames.get_frame_metadata(rs.frame_metadata_value.sensor_timestamp)
-        # move ts decimal 3 places to the right
-        timestamp = timestamp / 1000
+        timestamp = frames.get_timestamp() / 1000
 
-        if save:
-            # subFix = str(time.time())
+        rgbd = None
+        if depth:
+            # Sets class value for intrinsic pinhole parameters
+            self.pinholeInstrinsics = self.getPinholeInstrinsics(colorFrame)
+            # asign extrinsics here if the camera pose is known
+            # alignOperator maps depth frames to color frames
+            alignOperator = rs.align(rs.stream.color)
+            alignOperator.process(frames)
+            alignedDepthFrame, alignedColorFrame = frames.get_depth_frame(), frames.get_color_frame()
+
+            # unmodified rgb and z images as numpy arrays of 3 and 1 channels
+            rawColorImage = np.array(alignedColorFrame.get_data()).copy()
+            rawDepthImage = np.asarray(alignedDepthFrame.get_data())
+
+            rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+                o3d.geometry.Image(rawColorImage),
+                o3d.geometry.Image(rawDepthImage.astype('uint16')),
+                depth_scale=1.0 / self.depthScale,
+                depth_trunc=self.zMax,
+                convert_rgb_to_intensity=False)
+        
+        if save: # functionally, will not save unless buffer is True. not going to bother changing
             subFix = str(timestamp)
             if buffer:
-                self.buffer_dict[f"{filepath}{subFix}.jpeg"] = rawColorImage
+                if depth:
+                    self.buffer_dict[f"{filepath}{subFix}.jpeg"] = np.array(rgbd.color).copy()
+                    self.buffer_dict[f"{filepath}{subFix}.npy"]  = np.array(rgbd.depth).copy()
+                else:
+                    self.buffer_dict[f"{filepath}{subFix}.jpeg"] = rawColorImage
 
-        return rawColorImage
+        return rawColorImage if not depth else rgbd
 
 
     async def _record_images(self, filepath=""):
