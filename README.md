@@ -1,11 +1,9 @@
-# MAGPIE $^2$
-#### **M**ultiple **A**pplication **G**ripper made of **P**LA for **I**nexpensive **E**xperiments
-(The beak)
-#### **M**anipulation **A**rchitecture for **G**oal **P**lanning, **I**nference, and **E**xecution
-(The brains)
+# DeliGrasp
+
+
 
 # Dependencies
-* Python 3.9
+* Python 3.10
 * `ur_rtde`
     1. `sudo add-apt-repository ppa:sdurobotics/ur-rtde` 
     1. `sudo apt-get update`
