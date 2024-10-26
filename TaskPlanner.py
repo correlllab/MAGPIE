@@ -320,7 +320,12 @@ class VisualCortex:
 ##### Planning Params #####################################################
 
 _poseGrn = np.eye(4)
-_poseGrn[0:3,3] = [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 0.5*_BLOCK_SCALE, ]
+# _poseGrn[0:3,3] = [ _MIN_X_OFFSET+_X_WRK_SPAN/2.0, _MIN_Y_OFFSET+_Y_WRK_SPAN/2.0, 0.5*_BLOCK_SCALE, ]
+
+_poseGrn[0:3,3] = [ -0.091-0.070, # env_var("_MIN_X_OFFSET")+env_var("_X_WRK_SPAN")/2.0, 
+                    -0.304, # env_var("_MIN_Y_OFFSET")+env_var("_Y_WRK_SPAN")/2.0, 
+                     0.5*_BLOCK_SCALE, ]
+
 _trgtGrn = ObjPose( _poseGrn )
 
 
@@ -1205,7 +1210,7 @@ def responsive_experiment_prep( beginPlanPose = None ):
 
 _TROUBLESHOOT   = 0
 _VISION_TEST    = 0
-_EXP_BGN_POSE   = _HIGH_VIEW_POSE
+
 
 
 _CONF_CAM_POSE_ANGLED1 = repair_pose( np.array( [[ 0.55 , -0.479,  0.684, -0.45 ],
@@ -1218,7 +1223,18 @@ _YCB_LANDSCAPE_CLOSE_BGN = repair_pose( np.array( [[-0.698,  0.378,  0.608, -0.5
                                                    [-0.666, -0.029, -0.746,  0.262],
                                                    [ 0.   ,  0.   ,  0.   ,  1.   ],] ) )
 
+_SHOT_1 = repair_pose( np.array( [[-0.635,  0.251,  0.731, -0.615,],
+                                  [ 0.172,  0.968, -0.182, -0.18 ,],
+                                  [-0.753,  0.011, -0.658,  0.302,],
+                                  [ 0.   ,  0.   ,  0.   ,  1.   ,],] ) )
 
+
+_SHOT_3 = repair_pose( np.array( [[-0.824,  0.078,  0.562, -0.498,],
+                                  [ 0.1  ,  0.995,  0.008, -0.26 ,],
+                                  [-0.558,  0.063, -0.827,  0.379,],
+                                  [ 0.   ,  0.   ,  0.   ,  1.   ,],] ) )
+
+_EXP_BGN_POSE   = _SHOT_3
 
 if __name__ == "__main__":
 
@@ -1295,8 +1311,8 @@ if __name__ == "__main__":
         print( f"########## Running Planner at {dateStr} ##########" )
 
         try:
-            planner = responsive_experiment_prep( _YCB_LANDSCAPE_CLOSE_BGN ) # _EXP_BGN_POSE
-            planner.solve_task( maxIter = 30, beginPlanPose = _YCB_LANDSCAPE_CLOSE_BGN )
+            planner = responsive_experiment_prep( _EXP_BGN_POSE ) # _EXP_BGN_POSE
+            planner.solve_task( maxIter = 30, beginPlanPose = _EXP_BGN_POSE )
             sleep( 2.5 )
             planner.shutdown()
             
