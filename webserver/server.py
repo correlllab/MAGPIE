@@ -109,18 +109,19 @@ LAST_OBS_QUEUE = []
 ACT_QUEUE = []
 ACT_DICT_QUEUE = []
 # I should set up a config file for this
-hmpth = "/home/will/workspace/dp_models"
+hmpth = "/home/will/workspace/models"
 MODEL_CKPT_DICT = {
     "dp": f"{hmpth}/DG.PTH",
     "dp_nf": f"{hmpth}/DGNF.PTH",
     "dp_go": f"{hmpth}/DGGO.PTH",
     "dp_go_nf": f"{hmpth}/DGGONF.PTH",
-    "octo_ft": "octo_ft_ckpt",
-    "octo_ft_nf": "octo_ft_nf_ckpt",
+    "octo_sm_ft": f"{hmpth}/octo_sm_dg",
+    "octo_ba_ft": f"{hmpth}/octo_ba_dg",
+    "octo_sm_go": f"{hmpth}/octo_sm_dggo",
 }
 RECORD_LOAD = False
 
-# hardware
+# HARDWARE
 SERVO_PORT = "/dev/ttyACM0"
 GRIPPER = None
 ROBOT_IP = "192.168.0.4"
@@ -372,7 +373,7 @@ def connect():
         print(f"config vla: {CONFIG['vla']}")
         print(f"model ckpt: {MODEL_CKPT_DICT[CONFIG['vla']]}")
         ckpt = MODEL_CKPT_DICT[CONFIG["vla"]]
-        POLICY, _ = pol.create_policy(ckpt)
+        POLICY, _ = pol.create_policy(ckpt, cfg=CONFIG["vla"], task=None)
         print(f"Created policy: {POLICY}")
         connect_msg += "Connected to VLA policy.\n"
     except Exception as e:

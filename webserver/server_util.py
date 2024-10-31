@@ -69,19 +69,22 @@ def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
     obs["robot_state/gripper_position"]   = np.array([sensors["gripper"].get_aperture()])/100.0
     if "go" not in cfg:
         obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
+    if "octo" in cfg:
+        obs["robot_state/joint_positions"] = sensors["robot"].get_joint_angles()
     # scale to mm/100 and N/100
     if "nf" not in cfg:
         obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
         obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
 
-    def process_image(image):
+    def process_image(image, size=(128, 128)):
         # reshape image from 640x480x3 to 3x480x640 (H, W, C) --> (C, H, W)
-        image = np.array(Image.fromarray(image).resize((128, 128)))
+        image = np.array(Image.fromarray(image).resize(size))
         image = np.transpose(image, (2, 0, 1))
         return image
     
     # obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
-    obs["camera/image/varied_camera_1_left_image"] = process_image(sensors["workspace_camera"].take_image_blocking())
+    wksp_size = (256, 256) if "octo" in cfg else (128, 128)
+    obs["camera/image/varied_camera_1_left_image"] = process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size)
     # obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
     obs["camera/image/varied_camera_2_left_image"] = process_image(sensors["wrist_camera"].take_image_blocking())
 
