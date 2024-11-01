@@ -39,6 +39,8 @@ def dp_log(obs, act, obj, cfg, pth=""):
              "camera/image/varied_camera_2_left_image"]
     okeys = ["robot_state/gripper_position"]
     akeys = ["gripper_position"]
+    if "octo" in cfg:
+        okeys.append("robot_state/joint_positions")
     if "nf" not in cfg:
         okeys.append("robot_state/applied_force")
         okeys.append("robot_state/contact_force")
@@ -66,27 +68,41 @@ def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
     # for now, we explicitly transform
     first_obs = len(obs_queue) == 0
     obs = {}
-    obs["robot_state/gripper_position"]   = np.array([sensors["gripper"].get_aperture()])/100.0
-    if "go" not in cfg:
-        obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
-    if "octo" in cfg:
-        obs["robot_state/joint_positions"] = sensors["robot"].get_joint_angles()
-    # scale to mm/100 and N/100
-    if "nf" not in cfg:
-        obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
-        obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
-
-    def process_image(image, size=(128, 128)):
+    wksp_size = (256, 256) if "octo" in cfg else (128, 128)
+    def process_image(image, size=(128, 128), order=(2, 0, 1)):
         # reshape image from 640x480x3 to 3x480x640 (H, W, C) --> (C, H, W)
         image = np.array(Image.fromarray(image).resize(size))
-        image = np.transpose(image, (2, 0, 1))
+        image = np.transpose(image, order)
         return image
-    
-    # obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
-    wksp_size = (256, 256) if "octo" in cfg else (128, 128)
-    obs["camera/image/varied_camera_1_left_image"] = process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size)
-    # obs["camera/image/varied_camera_2_left_image"] = process_image(await sensors["wrist_camera"].take_image())
-    obs["camera/image/varied_camera_2_left_image"] = process_image(sensors["wrist_camera"].take_image_blocking())
+    if "dp" in cfg:
+        obs["robot_state/gripper_position"]   = np.array([sensors["gripper"].get_aperture()])/100.0
+        if "go" not in cfg:
+            obs["robot_state/cartesian_position"] = np.array(sensors["robot"].recv.getActualTCPPose())
+        # scale to mm/100 and N/100
+        if "nf" not in cfg:
+            obs["robot_state/applied_force"]      = np.array([sensors["gripper"].applied_force])/100.0
+            obs["robot_state/contact_force"]      = np.array([sensors["gripper"].recorded_contact_force]) # I forgot to scale this in training, so wont scale here xd
+                # obs["camera/image/varied_camera_1_left_image"] = process_image(await sensors["workspace_camera"].take_image())
+        obs["camera/image/varied_camera_1_left_image"] = process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size)
+        obs["camera/image/varied_camera_2_left_image"] = process_image(sensors["wrist_camera"].take_image_blocking())
+
+    elif "octo" in cfg:
+        joints = sensors["robot"].get_joint_angles()
+        tcp = np.array(sensors["robot"].recv.getActualTCPPose())
+        gripper_pos = np.array([sensors["gripper"].get_aperture()])/100.0
+        applied_force = np.array([sensors["gripper"].applied_force])/100.0
+        contact_force = np.array([sensors["gripper"].recorded_contact_force])
+        action_blocked = np.array([False])
+        obs["proprio"] = np.array([np.concatenate((joints, tcp, gripper_pos, applied_force, contact_force, action_blocked))])
+        obs["image_primary"] = np.array([process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size, order=(0, 1, 2))])
+        obs["image_wrist"] = np.array([process_image(sensors["wrist_camera"].take_image_blocking(), order=(0, 1, 2))])
+        # obs["pad_mask_dict/timestep"] = False
+        # obs["pad_mask_dict/proprio"] = True
+        # obs["pad_mask_dict/image_primary"] = True
+        # obs["pad_mask_dict/image_wrist"] = True
+        # obs["task_completed"] = False
+        # obs["timestep"] = time.time()
+        obs["timestep_pad_mask"] = False if first_obs else True
 
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:
@@ -111,6 +127,7 @@ def parse_dp_action(actions, action_flag="dp"):
     '''
     ad = {}
     actions = np.array(actions)
+    print(f"{len(actions)=}")
     scale = 1000 # hack for grasp only
     if "go" not in action_flag:
         scale = 100 # need to re-scale the actions

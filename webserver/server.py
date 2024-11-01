@@ -120,6 +120,7 @@ MODEL_CKPT_DICT = {
     "octo_sm_go": f"{hmpth}/octo_sm_dggo",
 }
 RECORD_LOAD = False
+OCTO_MODEL = None
 
 # HARDWARE
 SERVO_PORT = "/dev/ttyACM0"
@@ -208,35 +209,53 @@ def vla_reset_policy():
     ACT_DICT_QUEUE = []
     LAST_OBS = {}
     ACT = []
-    pol.reset_policy(POLICY)
+    if "dp" in CONFIG["vla"]: pol.reset_policy(POLICY)
     return jsonify({"success": True, "message": "Policy reset."})
 
 @app.route("/vla_obs", methods=["GET", "POST"])
 def vla_obs():
-    global VLA_MODE, LAST_OBS, OBS_QUEUE, LAST_OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, ACT_DICT_QUEUE
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, LAST_OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, ACT_DICT_QUEUE, OCTO_MODEL
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, OBJECT_NAME, CONFIG
     if not VLA_MODE:
         return(jsonify({"success": False, "message": "VLA mode not enabled."}))
     if not ACTED and len(OBS_QUEUE) > 0:
         return(jsonify({"success": False, "message": "Have not acted, cannot observe."}))
     try:
+        lang_task = f"grasp {OBJECT_NAME} {'and return to original position' if 'go' not in CONFIG['vla'] else ''}"
         sensors = {
             "robot": VLA_ROBOT,
             "gripper": GRIPPER,
             "wrist_camera": WRIST_CAMERA,
             "workspace_camera": WORKSPACE_CAMERA,
-            "language_instruction": f"grasp {OBJECT_NAME} {'and return to original position' if 'go' not in CONFIG['vla'] else ''}",
+            "language_instruction": lang_task,
         }
         OBS_QUEUE, LAST_OBS = su.get_observation(sensors, OBS_QUEUE, LAST_OBS, CONFIG["vla"])
         LAST_OBS_QUEUE.append(LAST_OBS)
         print(f"Observation queue length: {len(OBS_QUEUE)}")
-        ACT = POLICY(OBS_QUEUE[-1])
+        args = [OBS_QUEUE[-1]]
+        if "octo" in CONFIG["vla"]: 
+            task = OCTO_MODEL.create_tasks(texts=lang_task)
+            args.append(task)
+        print(f"creating policy action with args")
+        # ACT = pol.get_action(POLICY, *args)
+        obs = OBS_QUEUE[-1]
+        if "octo" in CONFIG["vla"]:
+            actions = OCTO_MODEL.sample_actions(
+                obs, 
+                task,
+                unnormalization_statistics=OCTO_MODEL.dataset_statistics["action"])
+            # ACT = POLICY(obs, task)
+            print(f"Octo Policy generated action: {actions}")
+            # print(f"Octo Policy generated action: {ACT}")
+        else:
+            ACT = POLICY(OBS_QUEUE[-1])
         print(f"Policy generated action: {ACT}")
         ad = su.parse_dp_action(ACT, CONFIG["vla"])
         ACT_DICT_QUEUE.append(ad)
         ACT_QUEUE.append(ACT)
     except Exception as e:
-        print(e)
+        print(f"error: {e}")
+        del OCTO_MODEL
         return(jsonify({"success": False, "message": f"Failed to observe: {e}"}))
     ACTED = False
     return jsonify({"success": True, "message": f"obs: {LAST_OBS}"})
@@ -292,6 +311,8 @@ def connect():
     global CAMERA, LABEL, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA, CAMERA_SERIAL_INFO 
     # LLM
     global MODEL, TASK_CONFIG, PROMPT_MODEL, PROMPT, CONVERSATION, safe_executor, VISION
+    # VLA
+    global OCTO_MODEL
 
     new_conf = request.get_json()
     print(new_conf['policyconf'])
@@ -373,7 +394,11 @@ def connect():
         print(f"config vla: {CONFIG['vla']}")
         print(f"model ckpt: {MODEL_CKPT_DICT[CONFIG['vla']]}")
         ckpt = MODEL_CKPT_DICT[CONFIG["vla"]]
-        POLICY, _ = pol.create_policy(ckpt, cfg=CONFIG["vla"], task=None)
+        POLICY, model, _ = pol.create_policy(ckpt, cfg=CONFIG["vla"], task=None)
+        print(f"{CONFIG['vla']=}")
+        if "octo" in CONFIG["vla"]:
+            print(f"Creating Octo model for VLA.")
+            OCTO_MODEL = model
         print(f"Created policy: {POLICY}")
         connect_msg += "Connected to VLA policy.\n"
     except Exception as e:

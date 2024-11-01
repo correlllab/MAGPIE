@@ -38,7 +38,7 @@ def reset_policy(policy):
     policy.eval_mode = True
 
 def create_policy(ckpt_path, cfg="dp", task=None):
-    ckpt_dict = None
+    ckpt_dict, model = None, None
     if "dp" in cfg:
         device = TorchUtils.get_torch_device(try_to_use_cuda=True)
         # restore policy
@@ -46,23 +46,16 @@ def create_policy(ckpt_path, cfg="dp", task=None):
         reset_policy(policy)
         return policy, ckpt_dict
     elif "octo" in cfg:
-        if task is None:
-            print("No task provided for Octo policy, passing")
-            pass
-        else:
-            model = OctoModel.load_pretrained(ckpt_path)
-            pass
-        #     policy = supply_rng(
-        #         partial(
-        #             model.sample_actions,
-        #             unnormalization_statistics=model.dataset_statistics["action"],
-        #         ),
-        #     )
-        #     task = model.create_tasks(texts=)
-        # return policy, ckpt_dict
+        model = OctoModel.load_pretrained(ckpt_path)
+        policy = supply_rng(
+            partial(
+                model.sample_actions,
+                unnormalization_statistics=model.dataset_statistics["action"],
+            ),
+        )
+        return policy, model, ckpt_dict
 
-
-def run_action(policy, obs):
+def get_action(policy, *args):
     # run policy
-    action = policy(obs)
+    action = policy(*args)
     return action
