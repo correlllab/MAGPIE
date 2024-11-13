@@ -202,6 +202,7 @@ class UR5_Interface:
         # print(f"tmat: {tmat_offset}")
         wrist = np.array(self.getPose())
         print(f"Current pose: {wrist}")
+        # TODO: why? go back to correct pose computation
         wrist[:3, 3] = wrist[:3, 3] + delta
         pose = wrist @ tmat_offset
         print(f"Delta to wrist {wrist}")
