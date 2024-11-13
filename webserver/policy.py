@@ -59,3 +59,6 @@ def get_action(policy, *args):
     # run policy
     action = policy(*args)
     return action
+
+def tree_map(obs):
+    return jax.tree_map(lambda x: x[None], obs)

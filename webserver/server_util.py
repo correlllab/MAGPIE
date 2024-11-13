@@ -93,18 +93,10 @@ def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
         applied_force = np.array([sensors["gripper"].applied_force])/100.0
         contact_force = np.array([sensors["gripper"].recorded_contact_force])
         action_blocked = np.array([False])
-        obs["proprio"] = np.array([np.concatenate((joints, tcp, gripper_pos, applied_force, contact_force, action_blocked))])
-        obs["image_primary"] = np.array([process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size, order=(0, 1, 2))])
-        obs["image_wrist"] = np.array([process_image(sensors["wrist_camera"].take_image_blocking(), order=(0, 1, 2))])
-        # obs["pad_mask_dict/timestep"] = False
-        # obs["pad_mask_dict/proprio"] = True
-        # obs["pad_mask_dict/image_primary"] = True
-        # obs["pad_mask_dict/image_wrist"] = True
-        # obs["task_completed"] = False
-        # obs["timestep"] = time.time()
-        obs["timestep_pad_mask"] = np.array([False]) if first_obs else np.array([True])
-        for k in obs:
-            print(f"{k}: {obs[k].shape}")
+        obs["proprio"] = np.concatenate((joints, tcp, gripper_pos, applied_force, contact_force, action_blocked))
+        obs["image_primary"] = process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size, order=(0, 1, 2))
+        obs["image_wrist"] = process_image(sensors["wrist_camera"].take_image_blocking(), order=(0, 1, 2))
+        obs["timestep_pad_mask"] = False if first_obs else True
 
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:
@@ -143,7 +135,7 @@ def parse_dp_action(actions, action_flag="dp"):
     
     return ad
 
-def apply_action(actions=[], actuators={}, action_flag="dp", record_load=False):
+def apply_action(actions=[], actuators={}, action_flag="dp", nograsp=False, record_load=False):
     # apply action to actuators
     # actions is a dictionary of action objects
     actions = np.array(actions)
@@ -153,6 +145,9 @@ def apply_action(actions=[], actuators={}, action_flag="dp", record_load=False):
         delta_pos = actions[:3]
         delta_rot = actions[3:6] # not gonna use rotation for now
         actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
+    
+    if nograsp: return
+
     curr_aperture = actuators["gripper"].get_aperture()
     if "nf" not in action_flag:
         curr_force = actuators["gripper"].applied_force

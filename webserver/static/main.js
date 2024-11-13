@@ -369,6 +369,23 @@ $(document).ready(function() {
         });
     });
 
+    $("#vla-no-grasp-toggle").click(function() {
+        if ($("#vla-no-grasp-toggle").css("background-color") == "rgb(0, 128, 0)") {
+            $("#vla-no-grasp-toggle").css("background-color", "brown");
+        }
+        else {
+            $("#vla-no-grasp-toggle").css("background-color", "green");
+        }
+        $.ajax({
+            type: "POST",
+            url: "/vla_no_grasp",
+            success: function(data) {
+                console.log("VLA No Grasp Toggle:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
     $("#vla-send-obs-act").click(function() {
         var message = $("#vla-obs-act").val();
         if (message === "") {

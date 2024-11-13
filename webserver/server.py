@@ -98,6 +98,7 @@ VLA_ROBOT = None
 ROBOT_TOGGLE = False
 ACTED = False
 POLICY = None
+NOGRASP = False
 # by default we will run receding horizon control, i.e. act once, observe
 # this cannot do anything yet because DROID:DiffusionPolicy 
 # is hardcoded to T_a=1 in eval_mode
@@ -192,6 +193,14 @@ def vla_record_load():
     RECORD_LOAD = not RECORD_LOAD
     return jsonify({"success": True, "message": f"Record load set to {RECORD_LOAD}."})
 
+@app.route("/vla_no_grasp", methods=["GET", "POST"])
+def vla_no_grasp():
+    global NOGRASP
+    if not VLA_MODE:
+        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+    NOGRASP = not NOGRASP
+    return jsonify({"success": True, "message": f"No Grasp set to {NOGRASP}."})
+
 @app.route("/vla_reset_policy", methods=["GET", "POST"])
 def vla_reset_policy():
     global POLICY, VLA_MODE, ACTED, OBS_QUEUE, ACT_QUEUE, LAST_OBS, LAST_OBS_QUEUE, ACT, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG, GRIPPER
@@ -240,12 +249,14 @@ def vla_obs():
         # ACT = pol.get_action(POLICY, *args)
         obs = OBS_QUEUE[-1]
         if "octo" in CONFIG["vla"]:
-            # actions = OCTO_MODEL.sample_actions(
+            # ACT = OCTO_MODEL.sample_actions(
             #     obs, 
             #     task,
             #     unnormalization_statistics=OCTO_MODEL.dataset_statistics["action"])
-            ACT = POLICY(obs, task)
-            # print(f"Octo Policy generated action: {actions}")
+            act_horizon = 1
+            obs = pol.tree_map(obs)
+            # we also trim the last terminate episode action, idk what to do with that
+            ACT = np.array(POLICY(obs, task), dtype=np.float64)[0][:act_horizon, :-1][0]
             print(f"Octo Policy generated action: {ACT}")
         else:
             ACT = POLICY(OBS_QUEUE[-1])
@@ -263,7 +274,7 @@ def vla_obs():
 
 @app.route("/vla_act", methods=["GET", "POST"])
 def vla_act():
-    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
+    global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, NOGRASP
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, CONFIG, RECORD_LOAD
     if not VLA_MODE:
         return(jsonify({"success": False, "message": "VLA mode not enabled."}))
@@ -274,7 +285,7 @@ def vla_act():
             "robot": VLA_ROBOT,
             "gripper": GRIPPER,
         }
-        su.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD)
+        su.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD, nograsp=NOGRASP)
     except Exception as e:
         print(e)
         return(jsonify({"success": False, "message": f"Failed to act: {e}"}))
