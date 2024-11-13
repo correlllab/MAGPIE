@@ -234,19 +234,19 @@ def vla_obs():
         print(f"Observation queue length: {len(OBS_QUEUE)}")
         args = [OBS_QUEUE[-1]]
         if "octo" in CONFIG["vla"]: 
-            task = OCTO_MODEL.create_tasks(texts=lang_task)
+            task = OCTO_MODEL.create_tasks(texts=[lang_task])
             args.append(task)
         print(f"creating policy action with args")
         # ACT = pol.get_action(POLICY, *args)
         obs = OBS_QUEUE[-1]
         if "octo" in CONFIG["vla"]:
-            actions = OCTO_MODEL.sample_actions(
-                obs, 
-                task,
-                unnormalization_statistics=OCTO_MODEL.dataset_statistics["action"])
-            # ACT = POLICY(obs, task)
-            print(f"Octo Policy generated action: {actions}")
-            # print(f"Octo Policy generated action: {ACT}")
+            # actions = OCTO_MODEL.sample_actions(
+            #     obs, 
+            #     task,
+            #     unnormalization_statistics=OCTO_MODEL.dataset_statistics["action"])
+            ACT = POLICY(obs, task)
+            # print(f"Octo Policy generated action: {actions}")
+            print(f"Octo Policy generated action: {ACT}")
         else:
             ACT = POLICY(OBS_QUEUE[-1])
         print(f"Policy generated action: {ACT}")
