@@ -102,7 +102,9 @@ def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
         # obs["pad_mask_dict/image_wrist"] = True
         # obs["task_completed"] = False
         # obs["timestep"] = time.time()
-        obs["timestep_pad_mask"] = False if first_obs else True
+        obs["timestep_pad_mask"] = np.array([False]) if first_obs else np.array([True])
+        for k in obs:
+            print(f"{k}: {obs[k].shape}")
 
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:

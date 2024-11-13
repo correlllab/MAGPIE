@@ -1,0 +1,1 @@
+grasp blue_block and return to original position
