@@ -205,10 +205,11 @@ class UR5_Interface:
         # TODO: why? go back to correct pose computation
         wrist[:3, 3] = wrist[:3, 3] + delta
         pose = wrist @ tmat_offset
-        print(f"Delta to wrist {wrist}")
+        print(f"Delta to wrist: {wrist}")
+        print(f"New pose: {pose}")
         # print(f"wrist @ tmat {pose}")
-        # self.moveL(pose, record=record)
-        self.moveL(wrist, record=record)
+        self.moveL(pose, record=record)
+        # self.moveL(wrist, record=record)
 
     def move_safe( self, rotSpeed = 1.05, rotAccel = 1.4, asynch = True ):
         """ Moves the arm linearly in joint space to home pose """
