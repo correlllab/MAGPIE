@@ -93,10 +93,12 @@ def get_observation(sensors={}, obs_queue=[], last_obs={}, cfg="dp"):
         applied_force = np.array([sensors["gripper"].applied_force])/100.0
         contact_force = np.array([sensors["gripper"].recorded_contact_force])
         action_blocked = np.array([False])
-        obs["proprio"] = np.concatenate((joints, tcp, gripper_pos, applied_force, contact_force, action_blocked))
         obs["image_primary"] = process_image(sensors["workspace_camera"].take_image_blocking(), size=wksp_size, order=(0, 1, 2))
         obs["image_wrist"] = process_image(sensors["wrist_camera"].take_image_blocking(), order=(0, 1, 2))
         obs["timestep_pad_mask"] = False if first_obs else True
+        if "ft" in cfg:
+            obs["proprio"] = np.concatenate((joints, tcp, gripper_pos, applied_force, contact_force, action_blocked))
+
 
     # window=2 so observations with shape (N, ...) become (2, N)
     if first_obs:
@@ -127,6 +129,10 @@ def parse_dp_action(actions, action_flag="dp"):
         scale = 100 # need to re-scale the actions
         ad['rel_pos'] = actions[:3]
         ad['rel_rot'] = actions[3:6] # not gonna use rotation for now
+    if "octo" in action_flag and "ft" not in action_flag:
+        ad['close_gripper'] = actions[-1]
+        return ad
+
     if "nf" not in action_flag:
         ad['gripper_force'] = max(actions[-1]*100.0, 0)
         ad['gripper_position'] = min(actions[-2]*scale, 0)
@@ -147,6 +153,14 @@ def apply_action(actions=[], actuators={}, action_flag="dp", nograsp=False, reco
         actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
     
     if nograsp: return
+
+    if "octo" in action_flag and "ft" not in action_flag:
+        close_gripper = actions[-1]
+        if close_gripper:
+            actuators["gripper"].close_gripper()
+        else:
+            actuators["gripper"].open_gripper()
+        return
 
     curr_aperture = actuators["gripper"].get_aperture()
     if "nf" not in action_flag:

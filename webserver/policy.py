@@ -47,10 +47,15 @@ def create_policy(ckpt_path, cfg="dp", task=None):
         return policy, ckpt_dict
     elif "octo" in cfg:
         model = OctoModel.load_pretrained(ckpt_path)
+        unnorm_stats = None
+        if "ft" in cfg:
+            unnorm_stats = model.dataset_statistics["action"]
+        else:
+            unnorm_stats = model.dataset_statistics["berkeley_autolab_ur5"]["action"]
         policy = supply_rng(
             partial(
                 model.sample_actions,
-                unnormalization_statistics=model.dataset_statistics["action"],
+                unnormalization_statistics=unnorm_stats,
             ),
         )
         return policy, model, ckpt_dict

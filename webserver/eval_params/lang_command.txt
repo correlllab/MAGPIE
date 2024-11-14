@@ -1,1 +1,1 @@
-grasp blue_block and return to original position
+grasp screwdriver and return to original position

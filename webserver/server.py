@@ -118,7 +118,9 @@ MODEL_CKPT_DICT = {
     "dp_go_nf": f"{hmpth}/DGGONF.PTH",
     "octo_sm_ft": f"{hmpth}/octo_sm_dg",
     "octo_ba_ft": f"{hmpth}/octo_ba_dg",
-    "octo_sm_go": f"{hmpth}/octo_sm_dggo",
+    "octo_sm_ft_go": f"{hmpth}/octo_sm_dggo",
+    "octo_sm": f"hf://rail-berkeley/octo-small-1.5",
+    "octo_ba": f"hf://rail-berkeley/octo-base-1.5",
 }
 RECORD_LOAD = False
 OCTO_MODEL = None
@@ -255,8 +257,8 @@ def vla_obs():
             #     unnormalization_statistics=OCTO_MODEL.dataset_statistics["action"])
             act_horizon = 1
             obs = pol.tree_map(obs)
-            # we also trim the last terminate episode action, idk what to do with that
-            ACT = np.array(POLICY(obs, task), dtype=np.float64)[0][:act_horizon, :-1][0]
+            trim_dim = -1 if "ft" in CONFIG["vla"] else None # ft has terminate episode action. oops
+            ACT = np.array(POLICY(obs, task), dtype=np.float64)[0][:act_horizon, :trim_dim][0]
             print(f"Octo Policy generated action: {ACT}")
         else:
             ACT = POLICY(OBS_QUEUE[-1])
