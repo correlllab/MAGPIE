@@ -116,6 +116,7 @@ MODEL_CKPT_DICT = {
     "dp_nf": f"{hmpth}/DGNF.PTH",
     "dp_go": f"{hmpth}/DGGO.PTH",
     "dp_go_nf": f"{hmpth}/DGGONF.PTH",
+    "dp_go_fo": f"{hmpth}/DGGO.PTH",
     "octo_sm_ft": f"{hmpth}/octo_sm_dg",
     "octo_ba_ft": f"{hmpth}/octo_ba_dg",
     "octo_sm_ft_go": f"{hmpth}/octo_sm_dggo",
@@ -627,7 +628,7 @@ def release():
 
 @app.route("/grasp", methods=["POST"])
 def grasp():
-    global GRIPPER
+    global GRIPPER, NOGRASP
     global CONFIG
     msg = {"operation": "grasp", "success": False}
     try:
@@ -635,6 +636,8 @@ def grasp():
             if CONFIG["grasp"] == "cag":
                 GRIPPER.adaptive_grasp()
             else:
+                # doing really terrible circuitry to avoid adding buttons to UI
+                GRIPPER.set_force(0.15) if NOGRASP else GRIPPER.set_force(2.0)
                 GRIPPER.close_gripper()
             msg["success"] = True
     except Exception as e:

@@ -169,7 +169,8 @@ def apply_action(actions=[], actuators={}, action_flag="dp", nograsp=False, reco
         actuators["gripper"].set_force(curr_force + max(actions[-1]*100.0, 0))
         print(f"action: {max(actions[-1]*100.0, 0)}")
         print(f"curr_force after set: {actuators['gripper'].applied_force}")
-        actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-2]*scale, 0), record_load=record_load)
+        if "fo" not in action_flag: # not force only
+            actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-2]*scale, 0), record_load=record_load)
     else:
         actuators["gripper"].set_goal_aperture(curr_aperture + min(actions[-1]*scale, 0), record_load=record_load)
 
