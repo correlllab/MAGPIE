@@ -25,12 +25,6 @@ from robomimic.algo import RolloutPolicy
 import urllib.request
 
 ### Octo/Jax imports
-import jax
-import jax.numpy as jnp
-from octo.model.octo_model import OctoModel
-from octo.utils.gym_wrappers import HistoryWrapper, TemporalEnsembleWrapper
-from octo.utils.train_callbacks import supply_rng
-
 def reset_policy(policy):
     policy.start_episode()
     policy.goal_mode = None
@@ -44,8 +38,14 @@ def create_policy(ckpt_path, cfg="dp", task=None):
         # restore policy
         policy, ckpt_dict = FileUtils.policy_from_checkpoint(ckpt_path=ckpt_path, device=device, verbose=True)
         reset_policy(policy)
-        return policy, ckpt_dict
+        return policy, model, ckpt_dict
     elif "octo" in cfg:
+        import jax
+        import jax.numpy as jnp
+        from octo.model.octo_model import OctoModel
+        from octo.utils.gym_wrappers import HistoryWrapper, TemporalEnsembleWrapper
+        from octo.utils.train_callbacks import supply_rng
+
         model = OctoModel.load_pretrained(ckpt_path)
         unnorm_stats = None
         if "ft" in cfg:
@@ -66,4 +66,5 @@ def get_action(policy, *args):
     return action
 
 def tree_map(obs):
+    import jax
     return jax.tree_map(lambda x: x[None], obs)
