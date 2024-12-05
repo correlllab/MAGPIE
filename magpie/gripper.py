@@ -10,6 +10,7 @@ import numpy as np
 from multiprocessing import Process
 import threading
 import itertools
+import matplotlib.pyplot as plt
 
 class Gripper:
     def __init__(self, servoport = '/dev/ttyACM0', debug=False):
@@ -129,6 +130,7 @@ class Gripper:
         self.Finger2.set_goal_position(close2)
         time.sleep(0.1) # 100ms
     
+    # measure contact force at specified intervals
     def interval_force_measure(self, delay, iterations, finger='both'):
         # @param delay: time in seconds to wait between each force measurement
         # @param iterations: number of force measurements to take
@@ -139,21 +141,28 @@ class Gripper:
             time.sleep(delay)
         return np.mean(forces)
 
-    def adaptive_grasp(self, kp_F=0.1, kp_x=0.1, f_err_threshold=0.05, init_force=1.5, init__aperture=20, duration=10):
+    def adaptive_grasp(self, kp_F=0.1, kp_x=0.1, f_err_threshold=0.05, init_force=1.5, init_aperture=20, duration=10, plot=False):
         # @param kp_F: proportional gain on applied force for the adaptive grasp controller
         # @param kp_x: proportional gain on goal aperture for the adaptive grasp controller
         # @param f_err_threshold: threshold for error in force measurement
         # initial aperture 20mm, dx 1mm, df 0.2N
-        self.deligrasp(init__aperture, init_force, 1, 0.2)
+        self.deligrasp(init_aperture, init_force, 1, 0.2)
         fa = init_force
         fc = self.interval_force_measure(self.latency, 5) # 5x 1666 Hz measurements
+        contact_force = [fc]
+        force_error = [0]
+        applied_force = [fa]
+        applied_position = [0]
         start = time.time()
         # while True: # this is running on ~80hz
         while time.time() - start < duration: # this is running on ~80hz
             x   = self.get_aperture(finger='both')
             f   = self.interval_force_measure(self.latency, 5) # 0.003s, 333hz measurement
             # err = np.abs(fc - f) if fc - f > f_err_threshold else 0
-            err = fc - f if fc - f > f_err_threshold else 0
+            err = fc - f if abs(fc - f) > f_err_threshold else 0
+            # err = max(err, init_force/2 - f)
+            print(f"relative error: {err}")
+            print(f"init force error: {init_force/2 - f}")
             err = max(err, init_force/2 - f)
             if self.debug:
                 print(f'Prev force: {fc}')
@@ -168,12 +177,23 @@ class Gripper:
                 print(f'Applied force: {fa}')
                 print(f'Aperture: {x}')
                 print(f'Goal Aperture: {x - dx}')
+            if plot:
+                contact_force.append(f)
+                force_error.append(err)
+                applied_force.append(fa)
+                applied_position.append(dx)
             self.set_force(fa, finger='both')
             self.set_goal_aperture(x - dx, finger='both')
             time.sleep(0.0122) # 0.0122 + 0.003 = 80hz loop
         print('Final contact force: ', self.interval_force_measure(self.latency, 5))
         print('Final aperture: ', self.get_aperture(finger='both'))
         print('Final applied force: ', fa)
+        if plot:
+            plt.plot(contact_force, label='contact force')
+            plt.plot(force_error, label='force error')
+            plt.plot(applied_force, label='applied force')
+            plt.legend()
+            plt.show()
 
     def reset_packet_overload(self, finger='both'):
         self.Finger1.set_torque_enable(True)
