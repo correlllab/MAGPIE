@@ -213,7 +213,7 @@ def vla_reset_policy():
     # write obs and act to file
     if len(LAST_OBS_QUEUE) > 0:
         dp_log_pth = "/home/will/MAGPIE/datasets/dp_grasp_logs"
-        su.dp_log(LAST_OBS_QUEUE, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG["vla"], dp_log_pth)
+        pol.dp_log(LAST_OBS_QUEUE, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG["vla"], dp_log_pth)
     GRIPPER.reset_parameters()
     LAST_OBS_QUEUE = []
     OBS_QUEUE = []
@@ -241,7 +241,7 @@ def vla_obs():
             "workspace_camera": WORKSPACE_CAMERA,
             "language_instruction": lang_task,
         }
-        OBS_QUEUE, LAST_OBS = su.get_observation(sensors, OBS_QUEUE, LAST_OBS, CONFIG["vla"])
+        OBS_QUEUE, LAST_OBS = pol.get_observation(sensors, OBS_QUEUE, LAST_OBS, CONFIG["vla"])
         LAST_OBS_QUEUE.append(LAST_OBS)
         print(f"Observation queue length: {len(OBS_QUEUE)}")
         args = [OBS_QUEUE[-1]]
@@ -264,7 +264,7 @@ def vla_obs():
         else:
             ACT = POLICY(OBS_QUEUE[-1])
         print(f"Policy generated action: {ACT}")
-        ad = su.parse_dp_action(ACT, CONFIG["vla"])
+        ad = pol.parse_dp_action(ACT, CONFIG["vla"])
         ACT_DICT_QUEUE.append(ad)
         ACT_QUEUE.append(ACT)
     except Exception as e:
@@ -288,7 +288,7 @@ def vla_act():
             "robot": VLA_ROBOT,
             "gripper": GRIPPER,
         }
-        su.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD, nograsp=NOGRASP)
+        pol.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD, nograsp=NOGRASP)
     except Exception as e:
         print(e)
         return(jsonify({"success": False, "message": f"Failed to act: {e}"}))
