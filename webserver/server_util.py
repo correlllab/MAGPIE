@@ -24,6 +24,11 @@ from typing import Any
 sys.path.append("../")
 SLEEP_RATE = 0.5
 
+import rerun as rr
+from rerun.utilities import build_color_spiral
+from rerun.utilities import bounce_lerp
+
+
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
     # list of dictionaries to json
     # get content after last newline of stdout

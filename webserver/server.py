@@ -23,6 +23,11 @@ import tensorflow_datasets as tfds
 from typing import Any
 sys.path.append("../")
 
+# trying rerun out
+import rerun as rr
+from rerun.utilities import build_color_spiral
+from rerun.utilities import bounce_lerp
+
 # LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
 from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptcv
