@@ -504,9 +504,87 @@ class Gripper:
         ### 
         # important! NEED to print grasp log so that it is captured in subprocess stdout
         print(grasp_log)
-        # do not uncomment !!
         ###
 
+        return curr_aperture, applied_force, k_avg, grasp_log
+
+    async def deligrasp_async(self, x, fc, dx, df, complete=True, debug=False): 
+        self.debug = debug
+        grasp_log = []
+        
+        # Run blocking functions in separate threads
+        await asyncio.to_thread(self.set_force, fc, 'both')
+        goal_aperture = x
+        await asyncio.to_thread(self.set_goal_aperture, goal_aperture + dx, 'both', False)
+
+        # Move to the initial goal aperture to attempt the grasp
+        load_data = await asyncio.to_thread(self.set_goal_aperture, goal_aperture, 'both', True)
+        slippage, avg_force, max_force = await asyncio.to_thread(self.check_slip, load_data, fc, 'both')
+        curr_aperture = await asyncio.to_thread(self.get_aperture, 'both')
+
+        prev_time = time.time()
+        grasp_log.append({
+            'timestamp': prev_time, 
+            'aperture': curr_aperture,
+            'gripper_vel': 0, 
+            'contact_force': np.average(avg_force),
+            'contact_force_l': avg_force[0], 
+            'contact_force_r': avg_force[1], 
+            'applied_force': fc, 
+            'k': 0
+        })
+        
+        applied_force = fc
+        prev_aperture = curr_aperture
+        k_avg = []
+
+        # Adjust grasp if slipping
+        while slippage:
+            goal_aperture -= dx
+            if np.mean(avg_force) > 0.10:
+                applied_force += df
+            await asyncio.to_thread(self.set_force, applied_force, 'both')
+            load_data = await asyncio.to_thread(self.set_goal_aperture, goal_aperture, 'both', True)
+            curr_aperture = await asyncio.to_thread(self.get_aperture, 'both')
+
+            if self.debug:
+                print(f"Previous aperture: {curr_aperture} mm, Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+                print(f"Current aperture: {curr_aperture} mm")
+
+            slippage, avg_force, max_force = await asyncio.to_thread(self.check_slip, load_data, fc, 'both')
+            curr_time = time.time()
+            distance = abs(curr_aperture - prev_aperture)
+            k = np.mean(avg_force) * distance * 1000.0
+            k_avg.append(k)
+            gripper_vel = distance / (curr_time - prev_time)
+            grasp_log.append({
+                'timestamp': curr_time, 
+                'aperture': curr_aperture,
+                'gripper_vel': gripper_vel, 
+                'contact_force': np.average(avg_force),
+                'contact_force_l': avg_force[0], 
+                'contact_force_r': avg_force[1], 
+                'applied_force': applied_force, 
+                'k': k
+            })
+            prev_time = curr_time
+            prev_aperture = curr_aperture
+
+        await asyncio.sleep(self.delay * 2.5)
+
+        # Final adjustment
+        if complete:
+            curr_aperture = await asyncio.to_thread(self.get_aperture, 'both')
+            await asyncio.to_thread(self.set_goal_aperture, curr_aperture - dx, 'both', False)
+        else:
+            await asyncio.to_thread(self.open_gripper)
+
+        if self.debug:
+            print(f"Final aperture: {curr_aperture} mm, Controller Goal Aperture: {goal_aperture} mm, Applied Force: {applied_force} N.")
+            print(f"Spring Constants: {k_avg} N/m")
+
+        print(grasp_log)
+        
         return curr_aperture, applied_force, k_avg, grasp_log
 
     # gripper motion
