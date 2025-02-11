@@ -15,7 +15,7 @@ import pandas as pd
 from PIL import Image
 import platform
 import server_util as su
-from server_util import encode_image, parse_object_description, log_grasp, log_to_df, df_to_rlds, move_robot_and_record_images
+from server_util import encode_image, parse_object_description, log_grasp, log_to_df, move_robot_and_record_images
 import sys
 import time
 import tensorflow as tf
