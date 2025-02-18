@@ -94,6 +94,7 @@ $(document).ready(function() {
             llmconf: $("input[name='llmconf']:checked").val(),
             vlmconf: $("input[name='vlmconf']:checked").val(),
             vlaconf: $("input[name='vlaconf']:checked").val(),
+            segconf: $("input[name='segconf']:checked").val(),
         };
         $("#connect-status").text("Configuring & Connecting");
         $("#connect-status").css("color", "gray");

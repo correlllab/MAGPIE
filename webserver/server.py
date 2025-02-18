@@ -42,7 +42,7 @@ from magpie.perception.label import Label
 from magpie.perception.label_owlvit import LabelOWLViT
 from magpie.perception.label_owlv2  import LabelOWLv2
 from magpie.perception.label_dino   import LabelDINO
-# from magpie.perception.mask_sam import MaskSAM
+from magpie_perception.mask_sam2    import MaskSAM2
 
 on_robot = platform.system() == "Linux"
 if on_robot:
@@ -341,6 +341,7 @@ def connect():
     CONFIG["llm"] = new_conf["llmconf"]
     CONFIG["vlm"] = new_conf["vlmconf"]
     CONFIG["vla"] = new_conf["vlaconf"]
+    CONFIG["seg"] = new_conf["segconf"]
     print(CONFIG)
     MODEL = CONFIG["llm"]
 
@@ -451,14 +452,31 @@ def chat():
         # cast queries to lower case and replace ' ' with '_'
         OBJECT_NAME = queries.lower().replace(' ', '_')
         bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
-        preds_plot = LABEL.preds_plot
-        enc_img = encode_image(Image.fromarray(preds_plot))
         index = 0 # TODO: make this user selection, for now take highest confidence
-        _, ptcld, GOAL_POSE, _ = pcd.get_segment(LABEL.sorted_labeled_boxes_coords, 
+        boxes = []
+        seg_type = "box-dbscan"
+        pred_image = None
+        if CONFIG["seg"] == "dbscan":
+            boxes = LABEL.sorted_labeled_boxes_coords
+            pred_image = LABEL.preds_plot
+        elif CONFIG["seg"] == "sam2":
+            mask_sam2 = MaskSAM2()
+            mask_sam2.set_image_and_labels(np.array(rgbd_image.color), 
+                                           LABEL.sorted_boxes_coords, 
+                                           LABEL.sorted_labels)
+            masks = mask_sam2.get_masks(LABEL.sorted_labels)
+            mask_sam2.plot_image(rgbd_image.color, masks[:3], 
+                                 LABEL.sorted_boxes_coords[:3],
+                                 LABEL.sorted_scores, show_plot=False)
+            pred_image = mask_sam2.pred_image
+            boxes = masks.astype(bool)
+            seg_type = "mask"
+        enc_img = encode_image(Image.fromarray(pred_image))
+        _, ptcld, GOAL_POSE, _ = pcd.get_segment(boxes, 
                                          index, 
                                          rgbd_image, 
                                          WRIST_CAMERA, 
-                                         type="box-dbscan", 
+                                         type=seg_type, 
                                         #  type="box", 
                                         #  method="quat", 
                                          method="iterative", 
