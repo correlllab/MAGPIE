@@ -72,9 +72,9 @@ CAMERA_PATH_DICT = None
 WRIST_CAMERA = None
 WORKSPACE_CAMERA = None
 CAMERA = None
-label_models = {'owl-vit': "google/owlvit-base-patch32",
-                'owl-v2':'google/owlv2-base-patch16-ensemble',
-                'dino': 'IDEA-Research/grounding-dino-tiny'}
+# label_models = {'owl-vit': LabelOWLViT(),
+#                 'owl-v2':  LabelOWLv2(),
+#                 'dino':    LabelDINO(),}
 LABEL = None
 APERTURE = None
 IMAGE = None
@@ -397,8 +397,13 @@ def connect():
                 CAMERA_SERIAL_INFO = real.poll_devices()
                 WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
                 print(f"Connected to workspace camera")
-        # LABEL = Label(label_models[CONFIG['vlm']])
-        LABEL = LabelOWLViT(pth=label_models['owl-vit'])
+        # LABEL = label_models[CONFIG['vlm']].init() ## TODO: implement this functionality later
+        if CONFIG["vlm"] == "owl-vit":
+            LABEL = LabelOWLViT()
+        elif CONFIG["vlm"] == "owl-v2":
+            LABEL = LabelOWLv2()
+        elif CONFIG["vlm"] == "dino":
+            LABEL = LabelDINO()
         connect_msg += "Connected to camera and perception models.\n"
     except Exception as e:
         CONNECTED = False
@@ -561,6 +566,7 @@ async def execute():
                                                           RESPONSE, 
                                                           CAMERA_PATH_DICT,
                                                           index=1)
+        # stdout = pm.code_executor(RESPONSE)
         # print("stdout:", stdout)
         log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
