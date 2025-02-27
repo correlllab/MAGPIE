@@ -70,7 +70,7 @@ async def execute_grasp_and_record_images(code_executor, code, cp_dict, index=0)
     print(cp_dict)
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    time.sleep(SLEEP_RATE*1)
+    time.sleep(SLEEP_RATE*2)
 
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
