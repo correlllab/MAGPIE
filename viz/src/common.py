@@ -69,7 +69,18 @@ def extract_extrinsics(pose: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def path_to_link(link: int) -> str:
-    return "/".join(f"panda_link{i}" for i in range(link + 1))
+    # return "/".join(f"panda_link{i}" for i in range(link + 1))
+    links = {
+        0: "base_link/base_link_inertia",
+        1: "shoulder_link",
+        2: "upper_arm_link",
+        3: "forearm_link",
+        4: "wrist_1_link",
+        5: "wrist_2_link",
+        6: "wrist_3_link/flange/tool0"
+    }
+
+    return "/".join(links[i] for i in range(link + 1))
 
 
 def log_angle_rot(
@@ -77,7 +88,8 @@ def log_angle_rot(
     link: int,
     angle_rad: float,
 ) -> None:
-    """Logs an angle for the franka panda robot"""
+    # """Logs an angle for the franka panda robot"""
+    """Logs an angle for the ur5 robot"""
     entity_path = path_to_link(link)
 
     start_translation, start_rotation_mat = entity_to_transform[entity_path]

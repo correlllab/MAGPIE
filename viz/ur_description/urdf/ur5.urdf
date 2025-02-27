@@ -119,7 +119,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/base.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/base.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -128,7 +128,7 @@
     <collision>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/base.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/base.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -141,7 +141,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/shoulder.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/shoulder.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -150,7 +150,7 @@
     <collision>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/shoulder.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/shoulder.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -163,7 +163,7 @@
     <visual>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/upperarm.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/upperarm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -172,7 +172,7 @@
     <collision>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.13585"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/upperarm.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/upperarm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -185,7 +185,7 @@
     <visual>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/forearm.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/forearm.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -194,7 +194,7 @@
     <collision>
       <origin rpy="1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0.0165"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/forearm.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/forearm.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -208,7 +208,7 @@
       <!-- TODO: Move this to a parameter -->
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/wrist1.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/wrist1.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -217,7 +217,7 @@
     <collision>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.093"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/wrist1.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/wrist1.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -230,7 +230,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 -0.095"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/wrist2.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/wrist2.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -239,7 +239,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 -0.095"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/wrist2.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/wrist2.stl"/>
       </geometry>
     </collision>
     <inertial>
@@ -252,7 +252,7 @@
     <visual>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.0818"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/visual/wrist3.dae"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/visual/wrist3.dae"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -261,7 +261,7 @@
     <collision>
       <origin rpy="1.5707963267948966 0 0" xyz="0 0 -0.0818"/>
       <geometry>
-        <mesh filename="package://ur_description/meshes/ur5/collision/wrist3.stl"/>
+        <mesh filename="/home/will/MAGPIE/viz/ur_description/meshes/ur5/collision/wrist3.stl"/>
       </geometry>
     </collision>
     <inertial>

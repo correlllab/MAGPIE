@@ -28,9 +28,11 @@ class RLDSDataset:
 
     def log_images(self, step):
         for cam in [
-            "exterior_image_1_left",
-            "exterior_image_2_left",
-            "wrist_image_left",
+            # "exterior_image_1_left",
+            # "exterior_image_2_left",
+            # "wrist_image_left",
+            'image',
+            'wrist_image'
         ]:
             rr.log(f"/cameras/{cam}", rr.Image(step["observation"][cam].numpy()))
 
@@ -66,19 +68,19 @@ class RLDSDataset:
             rr.Points3D([translation])
         )
 
-        for i, vel in enumerate(step["action_dict"]["cartesian_velocity"]):
-            rr.log(f"/action_dict/cartesian_velocity/{i}", rr.Scalar(vel))
+        # for i, vel in enumerate(step["action_dict"]["cartesian_velocity"]):
+        #     rr.log(f"/action_dict/cartesian_velocity/{i}", rr.Scalar(vel))
 
-        for i, vel in enumerate(step["action_dict"]["joint_velocity"]):
-            rr.log(f"/action_dict/joint_velocity/{i}", rr.Scalar(vel))
+        # for i, vel in enumerate(step["action_dict"]["joint_velocity"]):
+        #     rr.log(f"/action_dict/joint_velocity/{i}", rr.Scalar(vel))
 
         rr.log(
             "/action_dict/gripper_position",
             rr.Scalar(step["action_dict"]["gripper_position"]),
         )
         rr.log(
-            "/action_dict/gripper_velocity",
-            rr.Scalar(step["action_dict"]["gripper_velocity"]),
+            "/action_dict/gripper_force",
+            rr.Scalar(step["action_dict"]["gripper_force"]),
         )
         rr.log("/reward", rr.Scalar(step["reward"]))
 
@@ -92,9 +94,10 @@ class RLDSDataset:
                 cur_time_ns += int((1e9 * 1 / 15))
                 rr.log("instructions", rr.TextDocument(f'''
 **instruction 1**: {bytearray(step["language_instruction"].numpy()).decode()}
-**instruction 2**: {bytearray(step["language_instruction_2"].numpy()).decode()}
-**instruction 3**: {bytearray(step["language_instruction_3"].numpy()).decode()}
 ''',
+# **instruction 2**: {bytearray(step["language_instruction_2"].numpy()).decode()}
+# **instruction 3**: {bytearray(step["language_instruction_3"].numpy()).decode()}
+# ''',
                     media_type="text/markdown"))
                 self.log_images(step)
                 self.log_robot_states(step, entity_to_transform)
@@ -122,9 +125,11 @@ class RLDSDataset:
                         [
                             f"/cameras/{cam}"
                             for cam in [
-                                "exterior_image_1_left",
-                                "exterior_image_2_left",
-                                "wrist_image_left",
+                                # "exterior_image_1_left",
+                                # "exterior_image_2_left",
+                                # "wrist_image_left",
+                                "image",
+                                "wrist_image",
                             ]
                         ]
                     ),
@@ -132,23 +137,23 @@ class RLDSDataset:
                 ),
                 Vertical(
                     Tabs( # Tabs for all the different time serieses.
-                        Vertical(
-                            *(
-                                TimeSeriesView(origin=f"/action_dict/joint_velocity/{i}")
-                                for i in range(7)
-                            ),
-                            name="joint velocity",
-                        ),
-                        Vertical(
-                            *(
-                                TimeSeriesView(origin=f"/action_dict/cartesian_velocity/{i}")
-                                for i in range(6)
-                            ),
-                            name="cartesian position",
-                        ),
+                        # Vertical(
+                        #     *(
+                        #         TimeSeriesView(origin=f"/action_dict/joint_velocity/{i}")
+                        #         for i in range(7)
+                        #     ),
+                        #     name="joint velocity",
+                        # ),
+                        # Vertical(
+                        #     *(
+                        #         TimeSeriesView(origin=f"/action_dict/cartesian_velocity/{i}")
+                        #         for i in range(6)
+                        #     ),
+                        #     name="cartesian position",
+                        # ),
                         Vertical(
                             TimeSeriesView(origin="/action_dict/gripper_position"),
-                            TimeSeriesView(origin="/action_dict/gripper_velocity"),
+                            TimeSeriesView(origin="/action_dict/gripper_force"),
                             name="gripper",
                         ),
                         TimeSeriesView(origin="/discount"),
@@ -166,17 +171,18 @@ class RLDSDataset:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Visualizes the DROID dataset using Rerun."
+        description="Visualizes the DeliGrasp dataset using Rerun."
     )
 
     parser.add_argument("--data", required=False, type=Path)
-    parser.add_argument("--urdf", default="franka_description/panda.urdf", type=Path)
+    # parser.add_argument("--urdf", default="franka_description/panda.urdf", type=Path)
+    parser.add_argument("--urdf", default="ur_description/urdf/ur5.urdf", type=Path)
     args = parser.parse_args()
 
     urdf_logger = URDFLogger(args.urdf)
     rlds_scene = RLDSDataset(args.data)
     
-    rr.init("DROID-visualized", spawn=True)
+    rr.init("DeliGrasp-visualized", spawn=True)
 
     rr.send_blueprint(rlds_scene.blueprint())
 
