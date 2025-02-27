@@ -38,10 +38,10 @@ from magpie.prompt_planner import confirmation_safe_executor
 from magpie.prompt_planner import task_configs
 
 # Perception
-from magpie.perception.label import Label
-from magpie.perception.label_owlvit import LabelOWLViT
-from magpie.perception.label_owlv2  import LabelOWLv2
-from magpie.perception.label_dino   import LabelDINO
+from magpie_perception.label import Label
+from magpie_perception.label_owlvit import LabelOWLViT
+from magpie_perception.label_owlv2  import LabelOWLv2
+from magpie_perception.label_dino   import LabelDINO
 from magpie_perception.mask_sam2    import MaskSAM2
 
 on_robot = platform.system() == "Linux"
@@ -72,9 +72,9 @@ CAMERA_PATH_DICT = None
 WRIST_CAMERA = None
 WORKSPACE_CAMERA = None
 CAMERA = None
-# label_models = {'owl-vit': LabelOWLViT(),
-#                 'owl-v2':  LabelOWLv2(),
-#                 'dino':    LabelDINO(),}
+label_models = {'owl-vit': LabelOWLViT(),
+                'owl-v2':  LabelOWLv2(),
+                'dino':    LabelDINO(),}
 LABEL = None
 APERTURE = None
 IMAGE = None
@@ -172,48 +172,48 @@ def teach_mode():
             robot.ctrl.endTeachMode()
             if VLA_ROBOT is None: robot.stop()
         UR5_TEACH_MODE = not UR5_TEACH_MODE
-        return jsonify({"success": True, "message": f"UR5 teach mode enabled: {UR5_TEACH_MODE}."})
+        return jsonify({"success": True, "messages": f"UR5 teach mode enabled: {UR5_TEACH_MODE}."})
     except Exception as e:
-        return jsonify({"success": False, "message": f"Failed to toggle UR5 teach mode: {e}."})
+        return jsonify({"success": False, "messages": f"Failed to toggle UR5 teach mode: {e}."})
 
 @app.route("/vla_robot_toggle", methods=["GET", "POST"])
 def vla_robot_toggle():
     global VLA_MODE, VLA_ROBOT, ROBOT_TOGGLE, ROBOT_IP
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled"}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled"}))
     if ROBOT_TOGGLE:
         VLA_ROBOT.stop()
         time.sleep(0.1)
         ROBOT_TOGGLE = False
-        return(jsonify({"success": True, "message": "Robot stopped."}))
+        return(jsonify({"success": True, "messages": "Robot stopped."}))
     else:
         VLA_ROBOT = ur5.UR5_Interface(ROBOT_IP, record=False)
         VLA_ROBOT.start()
         time.sleep(0.1)
         ROBOT_TOGGLE = True
-        return(jsonify({"success": True, "message": "Robot started."}))
+        return(jsonify({"success": True, "messages": "Robot started."}))
 
 @app.route("/vla_record_load", methods=["GET", "POST"])
 def vla_record_load():
     global RECORD_LOAD
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     RECORD_LOAD = not RECORD_LOAD
-    return jsonify({"success": True, "message": f"Record load set to {RECORD_LOAD}."})
+    return jsonify({"success": True, "messages": f"Record load set to {RECORD_LOAD}."})
 
 @app.route("/vla_no_grasp", methods=["GET", "POST"])
 def vla_no_grasp():
     global NOGRASP
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     NOGRASP = not NOGRASP
-    return jsonify({"success": True, "message": f"No Grasp set to {NOGRASP}."})
+    return jsonify({"success": True, "messages": f"No Grasp set to {NOGRASP}."})
 
 @app.route("/vla_reset_policy", methods=["GET", "POST"])
 def vla_reset_policy():
     global POLICY, VLA_MODE, ACTED, OBS_QUEUE, ACT_QUEUE, LAST_OBS, LAST_OBS_QUEUE, ACT, ACT_DICT_QUEUE, OBJECT_NAME, CONFIG, GRIPPER
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     ACTED = False
     # write obs and act to file
     if len(LAST_OBS_QUEUE) > 0:
@@ -227,16 +227,16 @@ def vla_reset_policy():
     LAST_OBS = {}
     ACT = []
     if "dp" in CONFIG["vla"]: pol.reset_policy(POLICY)
-    return jsonify({"success": True, "message": "Policy reset."})
+    return jsonify({"success": True, "messages": "Policy reset."})
 
 @app.route("/vla_obs", methods=["GET", "POST"])
 def vla_obs():
     global VLA_MODE, LAST_OBS, OBS_QUEUE, LAST_OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, ACT_DICT_QUEUE, OCTO_MODEL
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, OBJECT_NAME, CONFIG
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     if not ACTED and len(OBS_QUEUE) > 0:
-        return(jsonify({"success": False, "message": "Have not acted, cannot observe."}))
+        return(jsonify({"success": False, "messages": "Have not acted, cannot observe."}))
     try:
         lang_task = f"grasp {OBJECT_NAME} {'and return to original position' if 'go' not in CONFIG['vla'] else ''}"
         sensors = {
@@ -275,9 +275,9 @@ def vla_obs():
     except Exception as e:
         print(f"error: {e}")
         del OCTO_MODEL
-        return(jsonify({"success": False, "message": f"Failed to observe: {e}"}))
+        return(jsonify({"success": False, "messages": f"Failed to observe: {e}"}))
     ACTED = False
-    return jsonify({"success": True, "message": f"obs: {LAST_OBS}"})
+    return jsonify({"success": True, "messages": f"obs: {LAST_OBS}"})
 
 
 @app.route("/vla_act", methods=["GET", "POST"])
@@ -285,9 +285,9 @@ def vla_act():
     global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE, NOGRASP
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, VLA_ROBOT, CONFIG, RECORD_LOAD
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     if ACTED or len(OBS_QUEUE) == 0:
-        return(jsonify({"success": False, "message": "Already acted or no observation, cannot act."}))
+        return(jsonify({"success": False, "messages": "Already acted or no observation, cannot act."}))
     try:
         actuators = {
             "robot": VLA_ROBOT,
@@ -296,23 +296,23 @@ def vla_act():
         pol.apply_action(ACT, actuators, action_flag=CONFIG["vla"], record_load=RECORD_LOAD, nograsp=NOGRASP)
     except Exception as e:
         print(e)
-        return(jsonify({"success": False, "message": f"Failed to act: {e}"}))
+        return(jsonify({"success": False, "messages": f"Failed to act: {e}"}))
     ACTED = True
-    return jsonify({"success": True, "message": f"act: {ACT}"})
+    return jsonify({"success": True, "messages": f"act: {ACT}"})
 
 @app.route("/vla_obs_act", methods=["GET", "POST"])
 def vla_obs_act():
     global VLA_MODE, LAST_OBS, OBS_QUEUE, ACTED, POLICY, ACT, ACT_QUEUE
     global GRIPPER, WORKSPACE_CAMERA, WRIST_CAMERA, ROBOT_IP, CONFIG, RECORD_LOAD
     if not VLA_MODE:
-        return(jsonify({"success": False, "message": "VLA mode not enabled."}))
+        return(jsonify({"success": False, "messages": "VLA mode not enabled."}))
     cycles = int(request.get_json()['message'])
     for i in range(int(cycles)):
         vla_obs()
         # time.sleep(0.05)
         vla_act()
         # time.sleep(0.22)
-    return jsonify({"success": True, "message": f"obs_act: {cycles} cycles"})
+    return jsonify({"success": True, "messages": f"obs_act: {cycles} cycles"})
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -360,7 +360,7 @@ def connect():
     except Exception as e:
         print(e)
         connect_msg += f"Failed to create conversation agent: {e}.\n"
-        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+        return jsonify({"CONFIG": CONFIG, "connected": False, "messages": connect_msg})
 
     # Robot + Gripper Configuration
     try:
@@ -378,7 +378,7 @@ def connect():
         CONNECTED = False
         print(e)
         connect_msg += f"Failed to connect to robot and gripper: {e}.\n"
-        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+        return jsonify({"CONFIG": CONFIG, "connected": False, "messages": connect_msg})
 
     # Camera(s) Configuration
     try:
@@ -397,22 +397,21 @@ def connect():
                 CAMERA_SERIAL_INFO = real.poll_devices()
                 WORKSPACE_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D435'])
                 print(f"Connected to workspace camera")
-        # LABEL = label_models[CONFIG['vlm']].init() ## TODO: implement this functionality later
-        if CONFIG["vlm"] == "owl-vit":
-            LABEL = LabelOWLViT()
-        elif CONFIG["vlm"] == "owl-v2":
-            LABEL = LabelOWLv2()
-        elif CONFIG["vlm"] == "dino":
-            LABEL = LabelDINO()
+        label_models[CONFIG['vlm']].init() ## TODO: implement this functionality later
+        LABEL = label_models[CONFIG['vlm']]
         connect_msg += "Connected to camera and perception models.\n"
     except Exception as e:
         CONNECTED = False
         print(e)
         connect_msg += f"Failed to connect to camera or perception models: {e}.\n"
-        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+        return jsonify({"CONFIG": CONFIG, "connected": False, "messages": connect_msg})
     
     # VLA Mode Configuration
     try:
+        print(f"config vla: {CONFIG['vla']}")
+        if CONFIG["vla"] == "":
+            connect_msg += "No VLA policy selected, not loading any models.\n"
+            return jsonify({"CONFIG": CONFIG, "connected": True, "messages": connect_msg})
         global POLICY, VLA_MODE, VLA_ROBOT
         VLA_MODE = True
         print(f"VLA mode enabled: {VLA_MODE}")
@@ -428,9 +427,9 @@ def connect():
         connect_msg += "Connected to VLA policy.\n"
     except Exception as e:
         connect_msg += f"No VLA policy found: exception {e}.\n"
-        return jsonify({"CONFIG": CONFIG, "connected": False, "message": connect_msg})
+        return jsonify({"CONFIG": CONFIG, "connected": False, "messages": connect_msg})
 
-    return jsonify({"CONFIG": CONFIG, "connected": True, "message": connect_msg})
+    return jsonify({"CONFIG": CONFIG, "connected": True, "messages": connect_msg, "messages": connect_msg})
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -456,7 +455,7 @@ def chat():
         queries, abbrevq = parse_object_description(user_command)
         # cast queries to lower case and replace ' ' with '_'
         OBJECT_NAME = queries.lower().replace(' ', '_')
-        bboxes, _ = LABEL.label(image, queries, abbrevq, topk=True, plot=False)
+        LABEL.label(image, queries, abbrevq, topk=True, plot=False)
         index = 0 # TODO: make this user selection, for now take highest confidence
         boxes = []
         seg_type = "box-dbscan"
@@ -518,11 +517,11 @@ def new_interaction():
     # save robot log to rlds
     # assert that GRASP_LOG_DIR exists
     if not os.path.exists(GRASP_LOG_DIR):
-        return jsonify({"success": False, "message": "No grasp log directory found."})
+        return jsonify({"success": False, "messages": "No grasp log directory found."})
     log_to_df(path=GRASP_LOG_DIR, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
 
     INTERACTIONS += 1
-    return jsonify({"success": True, "message": "New interaction started."})
+    return jsonify({"success": True, "messages": "New interaction started."})
 
 @app.route("/grasp_policy", methods=["POST"])
 def grasp_policy():
@@ -582,7 +581,7 @@ async def execute():
 @app.route("/home", methods=["POST"])
 async def home():
     global HOME_POSE, AT_GOAL, GRIPPER, CAMERA, ROBOT_IP, GRASP_TIMESTAMP, GRASP_LOG_DIR
-    msg = {"operation": "home", "success": False, "message": f"moving to home pose {HOME_POSE}"}
+    msg = {"operation": "home", "success": False, "messages": f"moving to home pose {HOME_POSE}"}
     try:
         if on_robot:
             robot = ur5.UR5_Interface(ROBOT_IP, 
@@ -598,20 +597,20 @@ async def home():
             msg["success"] = True
     except Exception as e:
         print(e)
-    return jsonify(msg)
+    return jsonify(messages=msg)
 
 @app.route("/move", methods=["POST"])
 async def move():
     global HOME_POSE, GOAL_POSE, APERTURE, CONFIG, AT_GOAL
     global CAMERA, CAMERA_PATH_DICT, CAMERA_SERIAL_INFO, WRIST_CAMERA, WORKSPACE_CAMERA
     global GRASP_TIMESTAMP, LOG_DIR, GRASP_LOG_DIR, OBJECT_NAME
-    msg = {"operation": "move", "success": False, "message": "moving to goal pose"}
+    msg = {"operation": "move", "success": False, "messages": "moving to goal pose"}
     if GOAL_POSE is None:
         msg["message"] = "No goal pose set."
-        return jsonify(msg)
+        return jsonify(messages=msg)
     if AT_GOAL:
         msg["message"] = "Already at goal pose."
-        return jsonify(msg)
+        return jsonify(messages=msg)
     try:
         if on_robot:
             GRASP_TIMESTAMP = time.time()
@@ -637,11 +636,11 @@ async def move():
                                             move_type="cartesian")
             AT_GOAL = True
             msg["success"] = True
-        return jsonify(msg)
+        return jsonify(messages=msg)
     except Exception as e:
         print(f"Error: {e}")
         msg["message"] = f"Failed to move to goal pose: {e}"
-        return jsonify(msg)
+        return jsonify(messages=msg)
 
 @app.route("/release", methods=["POST"])
 def release():
@@ -653,7 +652,7 @@ def release():
             msg["success"] = True
     except Exception as e:
         print(e)
-    return jsonify(msg)
+    return jsonify(messages=msg)
 
 @app.route("/grasp", methods=["POST"])
 def grasp():
@@ -672,7 +671,7 @@ def grasp():
     except Exception as e:
         print(e)
 
-    return jsonify(msg)
+    return jsonify(messages=msg)
 
 @app.route("/set_home", methods=["POST"])
 def set_home():
@@ -686,7 +685,7 @@ def set_home():
             robot.stop()
     except Exception as e:
         print(e)
-    return jsonify({"message": "Home pose set to current robot pose."})
+    return jsonify({"messages": "Home pose set to current robot pose."})
 
 @app.route("/keep_policy", methods=["POST"])
 def keep_policy():
