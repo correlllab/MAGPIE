@@ -86,6 +86,11 @@ $(document).ready(function() {
             return $(this).val();
         }).get();
         console.log("PolicyConf:", policyconfValues);
+        // log type of v
+        // check if a conf is empty
+        v = $("input[name='vlaconf']:checked").val()
+        vlaconf_val = typeof v != String ? "" : v;
+        console.log("VLAConf:", vlaconf_val);
         var formData = {
             moveconf: $("input[name='moveconf']:checked").val(),
             graspconf: $("input[name='graspconf']:checked").val(),
@@ -93,7 +98,7 @@ $(document).ready(function() {
             policyconf: policyconfValues,
             llmconf: $("input[name='llmconf']:checked").val(),
             vlmconf: $("input[name='vlmconf']:checked").val(),
-            vlaconf: $("input[name='vlaconf']:checked").val(),
+            vlaconf: vlaconf_val,
             segconf: $("input[name='segconf']:checked").val(),
         };
         $("#connect-status").text("Configuring & Connecting");
