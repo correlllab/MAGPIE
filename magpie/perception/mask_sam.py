@@ -10,6 +10,8 @@ import copy
 import cv2
 import numpy as np
 from magpie.perception.mask import Mask
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 class MaskSAM(Mask):
