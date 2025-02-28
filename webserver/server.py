@@ -15,18 +15,13 @@ import pandas as pd
 from PIL import Image
 import platform
 import server_util as su
-from server_util import encode_image, parse_object_description, log_grasp, log_to_df, move_robot_and_record_images
+from server_util import encode_image, parse_object_description, log_grasp, log_to_df, move_robot_and_record_images, viz_trajectory
 import sys
 import time
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from typing import Any
 sys.path.append("../")
-
-# trying rerun out
-import rerun as rr
-from rerun.utilities import build_color_spiral
-from rerun.utilities import bounce_lerp
 
 # LLM
 from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
@@ -43,6 +38,16 @@ from magpie_perception.label_owlvit import LabelOWLViT
 from magpie_perception.label_owlv2  import LabelOWLv2
 from magpie_perception.label_dino   import LabelDINO
 from magpie_perception.mask_sam2    import MaskSAM2
+
+# Rerun Viz
+import rerun as rr
+from rerun_rlds_ur5.rlds import RLDSDataset, DeliGraspTrajectory
+from rerun_rlds_ur5.rerun_loader_urdf import URDFLogger, get_urdf_paths, update_urdf
+ur5_urdf, _, _= get_urdf_paths("ur5")
+rr.init("DeliGrasp-visualized", spawn=True)
+urdf_logger = URDFLogger(ur5_urdf)
+urdf_logger.log()
+rr.log("annotation", rr.TextDocument("annotation_1",media_type="text/markdown"))
 
 on_robot = platform.system() == "Linux"
 if on_robot:
@@ -504,7 +509,7 @@ def chat():
 
 @app.route("/new_interaction", methods=["POST"])
 def new_interaction():
-    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE, GRASP_TIMESTAMP, OBJECT_NAME
+    global INTERACTIONS, MESSAGE_LOG, CONFIG, IMAGE, GRASP_TIMESTAMP, OBJECT_NAME, urdf_logger
     # save MESSAGE_LOG to json
     messages = {"messages": MESSAGE_LOG[INTERACTIONS], "config": CONFIG}
     print(messages)
@@ -518,7 +523,8 @@ def new_interaction():
     # assert that GRASP_LOG_DIR exists
     if not os.path.exists(GRASP_LOG_DIR):
         return jsonify({"success": False, "messages": "No grasp log directory found."})
-    log_to_df(path=GRASP_LOG_DIR, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
+    pkl_path, _, _, _ = log_to_df(path=GRASP_LOG_DIR, timestamp=GRASP_TIMESTAMP, obj=OBJECT_NAME)
+    viz_trajectory(pkl_path, urdf_logger, INTERACTIONS)
 
     INTERACTIONS += 1
     return jsonify({"success": True, "messages": "New interaction started."})

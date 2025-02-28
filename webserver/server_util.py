@@ -25,8 +25,14 @@ sys.path.append("../")
 SLEEP_RATE = 0.5
 
 import rerun as rr
-from rerun.utilities import build_color_spiral
-from rerun.utilities import bounce_lerp
+from rerun_rlds_ur5.rlds import RLDSDataset, DeliGraspTrajectory
+from rerun_rlds_ur5.rerun_loader_urdf import URDFLogger, get_urdf_paths, update_urdf
+
+def viz_trajectory(path, urdf_logger, index=0):
+    scene = DeliGraspTrajectory(path)
+    if index==0:
+        rr.send_blueprint(scene.blueprint())
+    scene.log_robot_dataset(urdf_logger.entity_to_transform)
 
 
 def log_grasp(grasp_log, path="robot_logs/grasp_log.json"):
@@ -51,7 +57,7 @@ async def move_robot_and_record_images(robot, pose, cp_dict, index=0, move_type=
     
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")
-    time.sleep(SLEEP_RATE*1)
+    time.sleep(SLEEP_RATE*2)
 
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor() as pool:
@@ -380,8 +386,9 @@ def log_to_df(path="robot_logs/", grasp_only=False, timestamp=0, obj=""):
 
     # return df as pickled np array
     df_pkl = df.to_numpy()
-    np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
+    pkl_path = f"{path}/episode_{obj}_{timestamp}.npy"
+    np.save(pkl_path, df_pkl)
     # np.save(f"data/train/episode_{obj}_{timestamp}.npy", df_pkl)
     # np.save(f"data/fails/episode_{obj}_{timestamp}_FAIL-{fail_reason}.npy", df_pkl)
 
-    return move, grasp_log, home
+    return pkl_path, move, grasp_log, home
