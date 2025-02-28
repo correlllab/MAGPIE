@@ -264,7 +264,7 @@ def log_to_df(path="robot_logs/", grasp_only=False, timestamp=0, obj=""):
     home['task'] = task
 
     # make last subtask of move be grasp_task
-    move['subtask'].iloc[-1] = grasp_task
+    # move['subtask'].iloc[-1] = grasp_task # TODO: 2/27/25 figure out why this is producing empty dataframe
 
     def extract_timestamp(filename):
         # extracting the float
@@ -380,8 +380,8 @@ def log_to_df(path="robot_logs/", grasp_only=False, timestamp=0, obj=""):
 
     # return df as pickled np array
     df_pkl = df.to_numpy()
-    # np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
-    np.save(f"data/train/episode_{obj}_{timestamp}.npy", df_pkl)
+    np.save(f"{path}/episode_{obj}_{timestamp}.npy", df_pkl)
+    # np.save(f"data/train/episode_{obj}_{timestamp}.npy", df_pkl)
     # np.save(f"data/fails/episode_{obj}_{timestamp}_FAIL-{fail_reason}.npy", df_pkl)
 
     return move, grasp_log, home
