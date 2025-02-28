@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation
 from common import log_angle_rot, blueprint_row_images, link_to_world_transform
 import rerun as rr
 import argparse
+import pandas as pd
 
 # Hide those pesky warnings.
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -82,6 +83,10 @@ class RLDSDataset:
             "/action_dict/gripper_force",
             rr.Scalar(step["action_dict"]["gripper_force"]),
         )
+        rr.log(
+            "/action_dict/contact_force",
+            rr.Scalar(step["action_dict"]["contact_force"]),
+        )
         rr.log("/reward", rr.Scalar(step["reward"]))
 
     def log_robot_dataset(
@@ -154,6 +159,7 @@ class RLDSDataset:
                         Vertical(
                             TimeSeriesView(origin="/action_dict/gripper_position"),
                             TimeSeriesView(origin="/action_dict/gripper_force"),
+                            TimeSeriesView(origin="/action_dict/contact_force"),
                             name="gripper",
                         ),
                         TimeSeriesView(origin="/discount"),
@@ -169,6 +175,84 @@ class RLDSDataset:
             TimePanel(expanded=False),
         )
 
+class DeliGraspTrajectory(RLDSDataset):
+    def __init__(self, data: Path | None = None):
+        # ex: ""../episode_yellow rubber_1740699609.3272698.npy"
+        ds = np.load(data, allow_pickle=True)
+        columns = ['timestamp', 'q0', 'q1', 'q2', 'q3', 'q4', 'q5', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'dx', 'dy', 'dz', 'drx', 'dry', 'drz', 'aperture', 'd_aperture', 'applied_force', 'd_applied_force', 'contact_force', 'subtask', 'task', 'image', 'wrist_image']        
+        self.prev_joint_origins = None
+        self.ds = pd.DataFrame(ds, columns=columns)
+    
+    def log_images(self, step):
+        for cam in [
+            'image',
+            'wrist_image'
+        ]:
+            print(step[cam])
+            rr.log(f"/cameras/{cam}", rr.Image(step[cam]))
+
+    def log_robot_states(self, step, entity_to_transform):
+        
+        joint_angles = step['q0':'q5'].to_numpy()
+
+        joint_origins = []
+        for joint_idx, angle in enumerate(joint_angles):
+            transform = link_to_world_transform(entity_to_transform, joint_angles, joint_idx+1)
+            joint_org = (transform @ np.array([0.0, 0.0, 0.0, 1.0]))[:3]
+            joint_origins.append(joint_org)
+
+            log_angle_rot(entity_to_transform, joint_idx + 1, angle)
+
+        if self.prev_joint_origins is not None:
+            for traj in range(len(joint_angles)):
+                rr.log(f"trajectory/{traj}", rr.LineStrips3D([joint_origins[traj], self.prev_joint_origins[traj]],))
+    
+        self.prev_joint_origins = joint_origins
+
+
+    def log_action_dict(self, step):
+        pose = step['x':'rz'].to_numpy()
+        translation = pose[:3]
+        rotation_mat = Rotation.from_euler("xyz", pose[3:]).as_matrix()
+        rr.log(
+            "/action_dict/cartesian_position/cord",
+            rr.Transform3D(translation=translation, mat3x3=rotation_mat),
+        )
+        rr.log(
+            "/action_dict/cartesian_position/origin",
+            rr.Points3D([translation])
+        )
+        rr.log(
+            "/action_dict/gripper_position",
+            rr.Scalar(step["aperture"]),
+        )
+        rr.log(
+            "/action_dict/gripper_force",
+            rr.Scalar(step["applied_force"]),
+        )
+        rr.log(
+            "/action_dict/contact_force",
+            rr.Scalar(step["contact_force"]),
+        )
+
+    def log_robot_dataset(
+        self, entity_to_transform: dict[str, tuple[np.ndarray, np.ndarray]]
+    ):
+        cur_time_ns = 0
+        for i in range(len(self.ds)):
+            step = self.ds.iloc[i]
+            rr.set_time_nanos("real_time", cur_time_ns)
+            cur_time_ns += int((1e9 * 1 / 15))
+            rr.log("instructions", rr.TextDocument(f'''
+**instruction 1**: {step["task"]}
+**instruction 2**: {step["subtask"]}
+''',
+                media_type="text/markdown"))
+            self.log_images(step)
+            self.log_robot_states(step, entity_to_transform)
+            self.log_action_dict(step)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Visualizes the DeliGrasp dataset using Rerun."
@@ -181,6 +265,7 @@ def main() -> None:
 
     urdf_logger = URDFLogger(args.urdf)
     rlds_scene = RLDSDataset(args.data)
+    # rlds_scene = DeliGraspTrajectory(args.data)
     
     rr.init("DeliGrasp-visualized", spawn=True)
 
@@ -193,4 +278,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    rr.log("annotation", rr.TextDocument("annotaion_1",media_type="text/markdown"))
+    rr.log("annotation", rr.TextDocument("annotation_1",media_type="text/markdown"))
