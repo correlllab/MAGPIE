@@ -197,7 +197,8 @@ def apply_action(actions=[], actuators={}, action_flag="dp", nograsp=False, reco
         scale = 100 # need to re-scale the actions
         delta_pos = actions[:3]
         delta_rot = actions[3:6] # not gonna use rotation for now
-        actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
+        # actuators["robot"].move_tcp_cartesian_delta(delta_pos, z_offset=0.0)
+        actuators["robot"].moveL_delta(delta_pos, z_offset=0.0)
     
     if nograsp: return
 
