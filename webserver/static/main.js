@@ -89,7 +89,7 @@ $(document).ready(function() {
         // log type of v
         // check if a conf is empty
         v = $("input[name='vlaconf']:checked").val()
-        vlaconf_val = typeof v != String ? "" : v;
+        vlaconf_val = typeof v != 'string' ? "" : v;
         console.log("VLAConf:", vlaconf_val);
         var formData = {
             moveconf: $("input[name='moveconf']:checked").val(),
