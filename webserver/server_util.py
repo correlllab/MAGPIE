@@ -16,7 +16,7 @@ import platform
 import spacy
 import sys
 sys.path.append("../")
-from magpie import poses
+from magpie_control import poses
 import time
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -52,8 +52,8 @@ async def move_robot_and_record_images(robot, pose, cp_dict, index=0, move_type=
     move_type = move_type.lower()
     if move_type == "linear":
         robot_motion = robot.moveL 
-    elif move_type == "cartesian":
-        robot_motion = robot.move_tcp_cartesian 
+    elif move_type == "translation":
+        robot_motion = robot.moveL_translation_tooltip
     
     for camera in cp_dict:
         camera.begin_record(filepath=f"{cp_dict[camera]}/{index}_")

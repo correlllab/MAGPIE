@@ -24,13 +24,13 @@ from typing import Any
 sys.path.append("../")
 
 # LLM
-from magpie.prompt_planner.prompts import mp_prompt_thinker_coder_muk as mptc
-from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptcv
-from magpie.prompt_planner.prompts import mp_prompt_tc_vision_phys as mptcvp
-from magpie.prompt_planner.prompts import mp_prompt_tc_phys as mptcp
-from magpie.prompt_planner import conversation
-from magpie.prompt_planner import confirmation_safe_executor
-from magpie.prompt_planner import task_configs
+from magpie_prompts.prompts import mp_prompt_thinker_coder_muk as mptc
+from magpie_prompts.prompts import mp_prompt_tc_vision as mptcv
+from magpie_prompts.prompts import mp_prompt_tc_vision_phys as mptcvp
+from magpie_prompts.prompts import mp_prompt_tc_phys as mptcp
+from magpie_prompts import conversation
+from magpie_prompts import confirmation_safe_executor
+from magpie_prompts import task_configs
 
 # Perception
 from magpie_perception.label import Label
@@ -52,12 +52,11 @@ rr.log("annotation", rr.TextDocument("annotation_1",media_type="text/markdown"))
 on_robot = platform.system() == "Linux"
 if on_robot:
     sys.path.append("../")
-    from magpie.gripper import Gripper
-    from magpie import grasp as gt # funky gripper-ur5 utilities, need to stop using/refactor
-    from magpie import ur5 as ur5
-    import magpie.realsense_wrapper as real
-    from magpie.perception import pcd
-    from magpie.prompt_planner.prompts import mp_prompt_tc_vision as mptc
+    from magpie_control.gripper import Gripper
+    from magpie_control import ur5 as ur5
+    import magpie_control.realsense_wrapper as real
+    from magpie_perception import pcd
+    from magpie_prompts.prompts import mp_prompt_tc_vision as mptc
 
 app = Flask(__name__)
 
@@ -169,6 +168,7 @@ def teach_mode():
     try:
         if VLA_ROBOT is None:
             robot = ur5.UR5_Interface(ROBOT_IP)
+            robot.provide_gripper = False
             robot.start()
         else: robot = VLA_ROBOT
         if not UR5_TEACH_MODE:
@@ -193,6 +193,7 @@ def vla_robot_toggle():
         return(jsonify({"success": True, "messages": "Robot stopped."}))
     else:
         VLA_ROBOT = ur5.UR5_Interface(ROBOT_IP, record=False)
+        VLA_ROBOT.provide_gripper = False
         VLA_ROBOT.start()
         time.sleep(0.1)
         ROBOT_TOGGLE = True
@@ -371,8 +372,8 @@ def connect():
     try:
         if on_robot:
             robot = ur5.UR5_Interface(ROBOT_IP)
+            robot.provide_gripper = False
             GRIPPER = Gripper(SERVO_PORT)
-            # GRIPPER.reset_parameters()
             robot.start()
             HOME_POSE = robot.getPose()
             time.sleep(SLEEP_RATE)
@@ -633,13 +634,14 @@ async def move():
                                       freq=6, # 10Hz frequency
                                       record=True, 
                                       record_path=f"{GRASP_LOG_DIR}/move.csv")
-            robot.z_offset = 0.02 # 1.2cm, move 4.0mm closer to object than typical
+            robot.z_offset = 0.03 # 1.2cm, move 4.0mm closer to object than typical
             print("moving robot")
+            print(GOAL_POSE)
             await su.move_robot_and_record_images(robot, 
                                             GOAL_POSE, 
                                             CAMERA_PATH_DICT, 
                                             index=0,
-                                            move_type="cartesian")
+                                            move_type="translation")
             AT_GOAL = True
             msg["success"] = True
         return jsonify(messages=msg)
@@ -686,6 +688,7 @@ def set_home():
     try:
         if on_robot and not AT_GOAL:
             robot = ur5.UR5_Interface(ROBOT_IP)
+            robot.provide_gripper = False
             robot.start()
             HOME_POSE = robot.getPose()
             robot.stop()
