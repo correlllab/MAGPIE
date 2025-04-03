@@ -14,6 +14,7 @@ tests/test_datasets
 tests/test_grasp_json
 datasets/npy
 datasets/dp_grasp_logs
+datasets
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
