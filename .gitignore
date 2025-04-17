@@ -137,6 +137,9 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+*wrist_log.npy
+*wkspc_log.npy
+
 # Environments
 .env
 .venv
