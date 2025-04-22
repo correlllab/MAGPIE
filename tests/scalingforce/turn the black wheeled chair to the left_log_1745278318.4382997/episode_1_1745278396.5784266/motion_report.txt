@@ -1,0 +1,34 @@
+Task: turn the black wheeled chair to the left while grasping black plastic seat frame
+Human Feedback: the gripper slipped out because you rotated counterclockwise, not clockwise
+Initial Motion Plan: {'world_motion_description': 'Rotate the chair counter-clockwise about the Z-axis while translating it backward and leftward.', 'world_motion_direction': [1, 1, 0], 'world_motion_magnitude': [0.3, 0.05, 0.0], 'world_motion_vector': [0.3, 0.05, 0.0], 'ft_description': 'Apply leftward and backward forces with a counter-clockwise torque about the Z-axis to turn the chair.', 'ft_magnitude': [10.0, 2.0, 0.0, 0.0, 0.0, 5.0], 'ft_vector': [10.0, 2.0, 0.0, 0.0, 0.0, 5.0], 'grasp_force': 15.0, 'duration': 5.0, 'wrist_motion_vector': array([-0.1  ,  0.287,  0.012]), 'wrist_wrench': array([-3.028,  9.73 ,  0.391, -4.414, -1.295, -1.949])}
+Distance traveled along base frame [x, y, z] (m) axes: [0.107 0.162 0.028]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.982649326324463s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 5.67 -4.29 -3.64  2.27  3.1  -0.23]
+0.5s to 1.0: [ 6.17 -7.9   4.03  1.61  0.36 -1.51]
+1.0s to 1.5: [ 2.74 -0.57  7.56 -1.48 -2.08  0.54]
+1.5s to 2.0: [ -0.72   5.96 -13.66   0.76   5.75   2.52]
+2.0s to 2.5: [  2.64  -3.97 -24.75   5.62  11.79  -1.06]
+2.5s to 3.0: [ 6.28 -8.32  6.09  1.71 -0.73 -2.66]
+3.0s to 3.5: [ 3.11 -2.97  2.83  0.53 -0.19 -0.95]
+3.5s to 4.0: [ 3.38 -2.84  2.53  0.62  0.05 -0.97]
+4.0s to 4.5: [ 3.57 -2.7   2.8   0.61 -0.01 -1.01]
+4.5s to 5.0: [ 3.73 -2.56  2.54  0.63  0.16 -1.  ]
+Overall Average Across Episode: [ 3.66 -3.02 -1.37  1.29  1.82 -0.63]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 4.891232252120972s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 9.98
+0.5s to 1.0: 10.28
+1.0s to 1.5: 11.35
+1.5s to 2.0: 11.83
+2.0s to 2.5: 12.3
+2.5s to 3.0: 11.55
+3.0s to 3.5: 5.39
+3.5s to 4.0: 2.81
+4.0s to 4.5: 3.48
+4.5s to 5.0: 3.15
+Overall Average Across Episode: 8.21

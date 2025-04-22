@@ -1,0 +1,25 @@
+Task: tip the bottle forward onto its edge while grasping side of the bottle
+Human Feedback: you need to move forward (negative), not backward. you also need to focus much more on rotating and reduce the downward/forward force
+Initial Motion Plan: {'world_motion_description': 'Grasp the bottle, move it slightly forward and downward, and tip it onto its side.', 'world_motion_direction': [0, 1, -1], 'world_motion_magnitude': [0.0, 0.05, 0.02], 'world_motion_vector': [0.0, 0.05, -0.02], 'ft_description': 'Apply a backward force and downward force, and a counterclockwise torque about the X-axis to tip the bottle.', 'ft_magnitude': [0.0, 1.0, 1.5, 0.5, 0.0, 0.0], 'ft_vector': [0.0, 1.0, -1.5, 0.5, 0.0, 0.0], 'grasp_force': 6.0, 'duration': 3.0, 'wrist_motion_vector': array([ 0.035,  0.02 , -0.036]), 'wrist_wrench': array([ 0.71 ,  1.502, -0.699, -0.06 , -0.026, -0.117])}
+Distance traveled along base frame [x, y, z] (m) axes: [ 0.011  0.029 -0.043]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 2.9961516857147217s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [-0.43  0.78 -1.78  0.67 -0.25 -0.3 ]
+0.5s to 1.0: [-0.25  1.38 -1.53  0.45 -0.17 -0.26]
+1.0s to 1.5: [-0.2   1.08 -1.2   0.35 -0.13 -0.2 ]
+1.5s to 2.0: [-0.08  1.12 -0.84  0.18 -0.08 -0.15]
+2.0s to 2.5: [-0.3   1.23 -1.03  0.26 -0.13 -0.25]
+Overall Average Across Episode: [-0.25  1.12 -1.28  0.38 -0.15 -0.23]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 2.8865294456481934s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 5.84
+0.5s to 1.0: 6.09
+1.0s to 1.5: 5.95
+1.5s to 2.0: 5.84
+2.0s to 2.5: 5.67
+2.5s to 3.0: 5.67
+Overall Average Across Episode: 5.84

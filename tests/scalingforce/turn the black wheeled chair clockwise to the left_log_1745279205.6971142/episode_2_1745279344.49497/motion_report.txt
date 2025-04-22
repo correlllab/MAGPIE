@@ -1,0 +1,35 @@
+Task: turn the black wheeled chair clockwise to the left while grasping black plastic seat frame
+Human Feedback: that's good
+Initial Motion Plan: {'world_motion_reflection': 'The motion plan is modified to decrease force along X and set force along Y and Z to zero, increase the Z-axis torque, and increase the grasping force to prevent slippage. Motion in X and Y is decreased. Motion in Z remains the same.', 'world_motion_direction': [1, 0, 0], 'world_motion_magnitude': [0.03, 0.0, 0.0], 'world_motion_vector': [0.03, 0.0, 0.0], 'ft_description': 'Apply a smaller leftward force and a greater clockwise torque around the Z-axis to rotate the chair.', 'ft_magnitude': [10.0, 0.0, 0.0, 0.0, 0.0, 5.0], 'ft_vector': [10.0, 0.0, 0.0, 0.0, 0.0, -5.0], 'grasp_force': 20.0, 'duration': 5.0, 'wrist_motion_vector': array([-0.023,  0.015,  0.011]), 'wrist_wrench': array([-7.668,  5.093,  3.907, -1.431, -4.692,  3.308])}
+Distance traveled along base frame [x, y, z] (m) axes: [0.244 0.05  0.007]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.995019912719727s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [  4.8   -1.9  -10.62  -0.97   7.13  -1.71]
+0.5s to 1.0: [ 3.27 -4.09  3.96  1.66 -1.54 -2.86]
+1.0s to 1.5: [ 4.71 -3.59 11.39  2.66 -5.7  -2.9 ]
+1.5s to 2.0: [  1.13  -0.37 -15.08  -2.59   9.95  -0.51]
+2.0s to 2.5: [ 4.9  -5.77  0.55  1.48  0.67 -4.85]
+2.5s to 3.0: [ 5.25 -5.01  7.18  2.68 -3.35 -4.44]
+3.0s to 3.5: [ 4.37 -0.63  0.7   0.28  1.18 -1.29]
+3.5s to 4.0: [ 4.22 -3.97 -5.7  -0.03  6.03 -3.97]
+4.0s to 4.5: [ 5.76 -7.37  1.09  2.33  1.2  -7.18]
+4.5s to 5.0: [ 7.99 -7.03  6.34  3.29 -2.4  -7.47]
+Overall Average Across Episode: [ 4.64 -3.97 -0.02  1.08  1.32 -3.72]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 4.913748741149902s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 17.84
+0.5s to 1.0: 19.81
+1.0s to 1.5: 19.39
+1.5s to 2.0: 20.04
+2.0s to 2.5: 20.04
+2.5s to 3.0: 19.93
+3.0s to 3.5: 11.57
+3.5s to 4.0: 10.06
+4.0s to 4.5: 10.24
+4.5s to 5.0: 10.24
+5.0s to 5.5: 10.14
+Overall Average Across Episode: 15.39
