@@ -1,0 +1,27 @@
+Task: open the blue case while grasping 
+Human Feedback: 
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.015 -0.009  0.212]
+Distance traveled along base frame [x, y, z] (m) axes since starting position: [-0.015 -0.01   0.212]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 2.9984829425811768s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 1.36  2.05  1.33 -1.03  0.45  0.36]
+0.5s to 1.0: [ 2.07  2.66  0.54 -0.84  0.53  0.6 ]
+1.0s to 1.5: [ 3.25  4.23 -0.81 -0.75  0.78  0.88]
+1.5s to 2.0: [ 4.28  6.04 -3.06 -0.45  1.01  1.09]
+2.0s to 2.5: [ 5.19  6.76 -2.34 -1.28  1.64  1.45]
+2.5s to 3.0: [ 5.68  6.6  -2.44 -1.27  1.92  1.72]
+Overall Average Across Episode: [ 3.64  4.72 -1.13 -0.94  1.06  1.01]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 2.9438364505767822s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 25.0
+0.5s to 1.0: 24.2
+1.0s to 1.5: 23.18
+1.5s to 2.0: 20.74
+2.0s to 2.5: 15.55
+2.5s to 3.0: 15.78
+3.0s to 3.5: 15.78
+Overall Average Across Episode: 20.03
