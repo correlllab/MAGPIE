@@ -1,0 +1,32 @@
+Task: push the wheeled chair forward 20cm while grasping back of the chair
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [-0.024  0.036 -0.01 ]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.035  0.027  0.007]
+Distance traveled along base frame [x, y, z] (m) axes since starting position: [-0.035  0.027  0.007]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.9805281162261963s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [  0.14  11.2  -14.27  -7.15  -5.92  -4.77]
+0.5s to 1.0: [ -3.69  12.14 -18.96  -8.7   -9.19  -4.12]
+1.0s to 1.5: [-3.37 14.55 14.9   0.2   5.89 -5.47]
+1.5s to 2.0: [-2.13 14.12 11.37 -0.76  4.72 -5.77]
+Overall Average Across Episode: [-2.26 13.   -1.74 -4.1  -1.13 -5.03]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.9805281162261963s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 1.015e+01  3.300e-01  1.505e+01  5.000e-02  1.380e+00 -1.000e-02]
+0.5s to 1.0: [ 9.96 -2.57 20.34  0.41  1.6  -0.04]
+1.0s to 1.5: [ 16.56  -4.34 -12.27   0.66   2.12  -0.16]
+1.5s to 2.0: [15.85 -2.7  -8.65  0.41  1.98 -0.18]
+Overall Average Across Episode: [13.13 -2.32  3.62  0.38  1.77 -0.1 ]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.8789374828338623s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 26.36
+0.5s to 1.0: 27.38
+1.0s to 1.5: 27.06
+Overall Average Across Episode: 26.93

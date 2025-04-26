@@ -1,0 +1,51 @@
+Task: turn the wheeled chair to the left while grasping back of the chair
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [-0.038 -0.002 -0.019]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.039  0.012  0.009]
+Distance traveled along base frame [x, y, z] (m) axes since starting position: [-0.081  0.025  0.02 ]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.982072114944458s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [-2.44  0.95  0.18  0.11  0.37 -0.03]
+0.5s to 1.0: [-2.87  2.16  6.29  0.23  0.59 -0.05]
+1.0s to 1.5: [ 4.33 -1.64 -6.39 -0.21 -0.97  0.06]
+1.5s to 2.0: [  1.78  -3.2  -24.79  -0.42  -1.22   0.08]
+2.0s to 2.5: [-7.    3.33  0.88  0.36  1.01 -0.1 ]
+2.5s to 3.0: [-5.72  3.53  9.17  0.37  1.01 -0.09]
+3.0s to 3.5: [-3.21  1.88  5.94  0.17  0.48 -0.02]
+3.5s to 4.0: [ 4.75 -2.11 -8.46 -0.28 -1.28  0.1 ]
+4.0s to 4.5: [  8.05  -5.79 -31.95  -0.7   -2.5    0.16]
+4.5s to 5.0: [  0.87  -2.36 -27.18  -0.43  -1.18   0.09]
+Overall Average Across Episode: [-0.15 -0.32 -7.63 -0.08 -0.37  0.02]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.982072114944458s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 2.58  0.23  0.41  0.    0.39 -0.  ]
+0.5s to 1.0: [ 4.74  0.77 -5.42 -0.06  0.63 -0.02]
+1.0s to 1.5: [-5.96  0.13  5.17 -0.07 -0.99  0.01]
+1.5s to 2.0: [-8.15 -0.57 23.68  0.07 -1.29  0.04]
+2.0s to 2.5: [ 7.67  1.21  0.77 -0.07  1.07 -0.01]
+2.5s to 3.0: [ 8.41  1.08 -7.57 -0.07  1.08 -0.01]
+3.0s to 3.5: [ 4.87  0.45 -5.02 -0.02  0.51 -0.02]
+3.5s to 4.0: [-6.9  -0.04  7.14 -0.08 -1.31 -0.01]
+4.0s to 4.5: [-1.607e+01 -7.600e-01  2.932e+01 -2.000e-02 -2.600e+00  5.000e-02]
+4.5s to 5.0: [-7.3   0.2  26.3   0.09 -1.26  0.03]
+Overall Average Across Episode: [-1.61  0.27  7.48 -0.02 -0.38  0.01]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 4.927629232406616s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 19.35
+0.5s to 1.0: 19.46
+1.0s to 1.5: 19.53
+1.5s to 2.0: 17.35
+2.0s to 2.5: 18.02
+2.5s to 3.0: 18.85
+3.0s to 3.5: 19.16
+3.5s to 4.0: 19.46
+4.0s to 4.5: 18.54
+4.5s to 5.0: 17.69
+Overall Average Across Episode: 18.74

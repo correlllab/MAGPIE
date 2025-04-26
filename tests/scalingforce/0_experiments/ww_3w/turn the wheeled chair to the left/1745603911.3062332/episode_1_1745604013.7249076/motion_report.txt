@@ -1,0 +1,51 @@
+Task: turn the wheeled chair to the left while grasping back of the chair
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [0.19  0.016 0.012]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [ 0.168 -0.09  -0.006]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.978648662567139s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [-9.27  3.37 -1.23  0.32  1.17 -0.03]
+0.5s to 1.0: [ 2.96 -0.96  6.   -0.12 -0.34  0.01]
+1.0s to 1.5: [-6.65  4.2   9.4   0.45  0.97 -0.03]
+1.5s to 2.0: [-4.07  3.21 17.01  0.4   0.71 -0.02]
+2.0s to 2.5: [-5.03  2.53 15.38  0.3   0.82 -0.03]
+2.5s to 3.0: [-5.13  1.22 13.94  0.15  0.8  -0.04]
+3.0s to 3.5: [-4.39 -0.14 12.34 -0.02  0.66 -0.05]
+3.5s to 4.0: [-16.69   6.56  15.31   0.69   2.3   -0.13]
+4.0s to 4.5: [-16.42   5.6    4.18   0.5    2.05  -0.07]
+4.5s to 5.0: [ 2.93 -5.28  1.77 -0.64 -0.42  0.04]
+Overall Average Across Episode: [-6.18  2.03  9.41  0.2   0.87 -0.03]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.978648662567139s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 9.79 -0.64  1.57  0.19  1.2   0.01]
+0.5s to 1.0: [-2.89  0.25 -6.1  -0.03 -0.36 -0.  ]
+1.0s to 1.5: [ 8.12  0.67 -9.16  0.02  1.07  0.  ]
+1.5s to 2.0: [  5.62   0.61 -16.86  -0.02   0.82   0.  ]
+2.0s to 2.5: [ 6.100e+00 -5.300e-01 -1.519e+01  1.300e-01  8.600e-01  1.000e-02]
+2.5s to 3.0: [  5.47  -1.83 -13.74   0.27   0.77   0.03]
+3.0s to 3.5: [  4.04  -2.69 -12.16   0.36   0.55   0.05]
+3.5s to 4.0: [ 18.05  -3.84 -14.7    0.66   2.31   0.09]
+4.0s to 4.5: [16.87 -4.53 -3.59  0.71  1.99  0.04]
+4.5s to 5.0: [-5.35 -2.75 -1.85  0.29 -0.71 -0.02]
+Overall Average Across Episode: [ 6.58 -1.53 -9.18  0.26  0.85  0.02]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 4.943827152252197s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 25.05
+0.5s to 1.0: 25.09
+1.0s to 1.5: 24.96
+1.5s to 2.0: 24.99
+2.0s to 2.5: 24.91
+2.5s to 3.0: 25.05
+3.0s to 3.5: 24.96
+3.5s to 4.0: 24.99
+4.0s to 4.5: 24.91
+4.5s to 5.0: 24.11
+5.0s to 5.5: 24.68
+Overall Average Across Episode: 24.88

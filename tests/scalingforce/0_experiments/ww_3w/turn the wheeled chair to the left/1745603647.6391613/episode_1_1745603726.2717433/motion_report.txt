@@ -1,0 +1,51 @@
+Task: turn the wheeled chair to the left while grasping back of the chair
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [-0.303 -0.042 -0.12 ]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.249  0.213  0.022]
+Distance traveled along base frame [x, y, z] (m) axes since starting position: [-0.249  0.213  0.022]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.9766364097595215s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 1.66 -0.74  1.4  -0.02 -0.05 -0.04]
+0.5s to 1.0: [-4.69  6.41 25.73  0.96  1.64 -0.27]
+1.0s to 1.5: [ 1.01 -3.04 -0.23 -0.58 -0.41 -0.06]
+1.5s to 2.0: [  3.09  -3.33 -36.6   -0.48  -1.68  -0.3 ]
+2.0s to 2.5: [ 1.29  2.22  3.92  0.4   0.21 -0.37]
+2.5s to 3.0: [-1.730e+00 -1.420e+00  1.141e+01 -3.200e-01  3.100e-01 -1.000e-02]
+3.0s to 3.5: [ 3.1  -3.67  6.88 -0.65 -0.54  0.04]
+3.5s to 4.0: [ 2.92 -3.69  6.84 -0.67 -0.53  0.04]
+4.0s to 4.5: [ 2.3  -3.79  6.76 -0.68 -0.53  0.04]
+4.5s to 5.0: [ 1.89 -3.55  6.24 -0.64 -0.53  0.02]
+Overall Average Across Episode: [ 1.08 -1.46  3.24 -0.27 -0.21 -0.09]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 4.9766364097595215s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [-1.25  0.15 -1.92 -0.03 -0.05  0.04]
+0.5s to 1.0: [ 15.23  -1.03 -22.18   0.2    1.9    0.09]
+1.0s to 1.5: [-2.67 -1.67 -0.39  0.14 -0.66  0.2 ]
+1.5s to 2.0: [-15.37   4.57  33.21  -0.82  -1.54   0.29]
+2.0s to 2.5: [ 1.67  1.86 -3.92 -0.25  0.46  0.24]
+2.5s to 3.0: [  3.63  -3.92 -10.33   0.42   0.02   0.14]
+3.0s to 3.5: [-2.57 -1.69 -7.81  0.08 -0.83  0.13]
+3.5s to 4.0: [-2.51 -1.76 -7.71  0.07 -0.84  0.13]
+4.0s to 4.5: [-2.26 -2.19 -7.44  0.06 -0.85  0.13]
+4.5s to 5.0: [-2.   -2.2  -6.8   0.02 -0.82  0.14]
+Overall Average Across Episode: [-0.81 -0.79 -3.53 -0.01 -0.32  0.15]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 4.921241998672485s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 24.91
+0.5s to 1.0: 21.66
+1.0s to 1.5: 13.21
+1.5s to 2.0: 24.02
+2.0s to 2.5: 25.5
+2.5s to 3.0: 16.86
+3.0s to 3.5: 2.54
+3.5s to 4.0: 0.39
+4.0s to 4.5: 0.39
+4.5s to 5.0: 0.39
+Overall Average Across Episode: 12.99

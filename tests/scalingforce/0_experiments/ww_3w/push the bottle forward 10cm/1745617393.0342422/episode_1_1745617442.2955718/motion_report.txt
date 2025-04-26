@@ -1,0 +1,23 @@
+Task: push the bottle forward 10cm while grasping the middle of the bottle
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [ 0.002  0.017 -0.006]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.001  0.008 -0.017]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 0.9924356937408447s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [-0.23  1.05 -4.12 -0.51  0.06  0.01]
+Overall Average Across Episode: [-0.23  1.05 -4.12 -0.51  0.06  0.01]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 0.9924356937408447s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [-0.03  4.02  1.4  -0.51  0.02  0.03]
+Overall Average Across Episode: [-0.03  4.02  1.4  -0.51  0.02  0.03]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 0.858328104019165s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 7.49
+Overall Average Across Episode: 7.49
