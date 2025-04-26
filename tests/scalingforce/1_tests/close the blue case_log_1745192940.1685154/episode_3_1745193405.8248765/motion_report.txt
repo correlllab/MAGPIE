@@ -1,0 +1,28 @@
+Task: close the blue case while grasping blue case top handle
+Human Feedback: you are still applying too much downward force, preventing the robot from moving back. you also flipped the force to move forward and negatively, when it should be moving backward!!
+Initial Motion Plan: {'world_motion_reflection': 'The robot should grasp the handle and rotate the lid downwards while moving the lid backward to close the blue case, but with less downward force.', 'world_motion_direction': [0, 1, -1], 'world_motion_magnitude': [0.01, 0.07, 0.1], 'world_motion_vector': [0.01, 0.07, -0.1], 'ft_description': 'Apply forces along X, Y, and Z axes and a torque along the X-axis to close the case, while maintaining a firm grasp, but with less downward force.', 'ft_magnitude': [1, 0.5, 1.5, 0, 0, 0], 'ft_vector': [-1, -0.5, -1.5, 0, 0, 0], 'grasp_force': 15, 'duration': 2, 'wrist_motion_vector': array([0.098, 0.016, 0.072]), 'wrist_wrench': array([-0.032, -0.751,  1.713,  0.375, -1.215, -0.526])}
+Distance traveled along base frame [x, y, z] (m) axes: [-0.019  0.004 -0.027]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.988699197769165s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [-0.26 -0.61 -1.42  1.1  -0.28 -0.08]
+0.5s to 1.0: [-0.7  -0.94 -1.47  1.22 -0.45 -0.27]
+1.0s to 1.5: [-2.66  0.38 -9.01  5.82 -2.27 -1.77]
+Overall Average Across Episode: [-1.21 -0.39 -3.97  2.71 -1.   -0.71]
+
+Left Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.852074384689331s
+Average cf_l Downsampled at 2Hz:
+0.0s to 0.5: 7.49
+0.5s to 1.0: 7.44
+1.0s to 1.5: 7.49
+Overall Average Across Episode: 7.47
+
+Right Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.852074384689331s
+Average cf_r Downsampled at 2Hz:
+0.0s to 0.5: 2.29
+0.5s to 1.0: 2.29
+1.0s to 1.5: 2.29
+Overall Average Across Episode: 2.29

@@ -1,0 +1,20 @@
+Task: pick up the bottle to see how much it weighs while grasping 
+Human Feedback: the gripper keeps slipping, you need to grasp way harder
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.005  0.03   0.02 ]
+Distance traveled along base frame [x, y, z] (m) axes since starting position: [-0.03   0.052  0.066]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.9892590045928955s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 2.32  1.24 -3.03  1.4  -0.1   1.02]
+0.5s to 1.0: [ 3.54  1.88 -4.74  2.2  -0.14  1.57]
+1.0s to 1.5: [ 0.07  0.1   2.57 -1.55  0.47 -0.02]
+Overall Average Across Episode: [ 1.98  1.07 -1.73  0.68  0.08  0.86]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.8679418563842773s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 8.24
+0.5s to 1.0: 7.62
+1.0s to 1.5: 7.68
+Overall Average Across Episode: 7.84

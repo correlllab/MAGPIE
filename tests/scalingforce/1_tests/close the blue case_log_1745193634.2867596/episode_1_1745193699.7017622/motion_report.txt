@@ -1,0 +1,22 @@
+Task: close the blue case while grasping blue case top handle
+Human Feedback: almost there, just finish the job
+Initial Motion Plan: {'world_motion_reflection': 'To close the blue case lid, move backward (positive Y direction) and downward (negative Z direction) while rotating the lid downward about the hinge (negative X torque).', 'world_motion_direction': [0, 1, -1], 'world_motion_magnitude': [0.0, 0.02, 0.02], 'world_motion_vector': [0.0, 0.02, -0.02], 'ft_description': 'Apply a closing torque to the blue case lid to close the case, with a positive force along the Y axis and negative along the Z axis.', 'ft_magnitude': [0.0, 2.0, 2.0, 0.1, 0.0, 0.0], 'ft_vector': [0.0, 2.0, -2.0, -0.1, 0.0, 0.0], 'grasp_force': 5.0, 'duration': 4.0, 'wrist_motion_vector': array([ 0.028, -0.001, -0.   ]), 'wrist_wrench': array([ 2.824, -0.153, -0.057, -0.041, -0.655, -0.291])}
+Distance traveled along base frame [x, y, z] (m) axes: [-0.005  0.009  0.019]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.996370792388916s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 1.07 -0.1   4.71 -3.08  1.11  0.73]
+0.5s to 1.0: [ 1.66  1.69  3.05 -2.5   1.05  0.75]
+1.0s to 1.5: [ 1.07  2.78 -1.36  0.    0.09  0.18]
+1.5s to 2.0: [ 0.9   2.71 -1.91  0.35 -0.07  0.08]
+Overall Average Across Episode: [ 1.17  1.77  1.12 -1.31  0.54  0.44]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.902963399887085s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 9.62
+0.5s to 1.0: 9.72
+1.0s to 1.5: 9.78
+1.5s to 2.0: 9.36
+Overall Average Across Episode: 9.62

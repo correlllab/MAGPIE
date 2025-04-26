@@ -1,0 +1,43 @@
+Task: close the blue case while grasping blue case handle
+Human Feedback: 
+Initial Motion Plan: {'world_motion_reflection': 'The robot will move the handle backwards to close the blue case. The previous attempt was too downward and not backward enough.', 'world_motion_direction': [0, 1, -1], 'world_motion_magnitude': [0.0, 0.2, 0.05], 'world_motion_vector': [0.0, 0.2, -0.05], 'ft_description': 'Apply a backward and downward force and clockwise torque around the Y-axis to close the case.', 'ft_magnitude': [0.0, 2.0, 1.0, 0.0, 0.5, 0.0], 'ft_vector': [0.0, 2.0, -1.0, 0.0, -0.5, 0.0], 'grasp_force': 7.5, 'duration': 2.0, 'wrist_motion_vector': array([ 0.091, -0.085, -0.165]), 'wrist_wrench': array([ 1.346, -0.952, -1.511, -0.322,  0.483,  0.071])}
+Distance traveled along base frame [x, y, z] (m) axes: [-0.082  0.17   0.016]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 3.9813451766967773s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 0.02  0.01 -0.37  0.18 -0.09  0.03]
+0.5s to 1.0: [ 0.22  0.24 -0.6   0.22 -0.08  0.07]
+1.0s to 1.5: [ 0.53  1.15 -1.46  0.33 -0.2  -0.01]
+1.5s to 2.0: [ 0.95  1.75 -3.19  0.84 -0.5  -0.02]
+2.0s to 2.5: [ 1.41  1.93 -3.31  0.76 -0.38  0.06]
+2.5s to 3.0: [ 0.19  0.3  -0.68  0.18 -0.01  0.04]
+3.0s to 3.5: [ 0.39  1.19 -1.29  0.06 -0.14 -0.17]
+3.5s to 4.0: [ 1.51  2.62 -6.12  1.05 -1.23 -0.36]
+Overall Average Across Episode: [ 0.65  1.15 -2.13  0.45 -0.33 -0.04]
+
+Left Gripper Contact Force (N) Log Summary:
+Motion Duration: 3.83964204788208s
+Average cf_l Downsampled at 2Hz:
+0.0s to 0.5: 0.23
+0.5s to 1.0: 0.23
+1.0s to 1.5: 0.23
+1.5s to 2.0: 0.23
+2.0s to 2.5: 0.23
+2.5s to 3.0: 0.23
+3.0s to 3.5: 0.23
+3.5s to 4.0: 0.2
+Overall Average Across Episode: 0.23
+
+Right Gripper Contact Force (N) Log Summary:
+Motion Duration: 3.83964204788208s
+Average cf_r Downsampled at 2Hz:
+0.0s to 0.5: 4.18
+0.5s to 1.0: 3.76
+1.0s to 1.5: 3.68
+1.5s to 2.0: 3.76
+2.0s to 2.5: 3.76
+2.5s to 3.0: 3.76
+3.0s to 3.5: 3.76
+3.5s to 4.0: 2.64
+Overall Average Across Episode: 3.66

@@ -1,0 +1,21 @@
+Task: turn the black wheeled chair to face forward while grasping Textured black seat rim
+Human Feedback: you cannot apply a pure torque to turn the chair, as it pivots about a central axis a distance away from the grasp
+Initial Motion Plan: {'property_description': 'The chair is black, wheeled, with a textured seat rim. It is estimated to be around 10 kg with friction coefficient of 0.6 with robot gripper, and 0.4 with the floor.', 'world_motion_description': 'The chair will be rotated around the Z-axis to face forward by grasping and rotating the textured black seat rim.', 'world_motion_direction': [0, 0, 0], 'world_motion_magnitude': [0.0, 0.0, 0.0], 'world_motion_vector': [0.0, 0.0, 0.0], 'ft_description': 'The robot will apply a torque around the Z-axis to turn the chair, while applying a grasping force to the seat rim.', 'ft_magnitude': [0.0, 0.0, 0.0, 0.0, 0.0, 3.0], 'ft_vector': [0.0, 0.0, 0.0, 0.0, 0.0, 3.0], 'grasp_force': 25.0, 'duration': 3.0, 'wrist_motion_vector': array([0., 0., 0.]), 'wrist_wrench': array([ 0.   ,  0.   ,  0.   , -0.063,  0.194, -2.993])}
+Distance traveled along base frame [x, y, z] (m) axes: [ 0.007 -0.059  0.014]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 1.988921880722046s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 0.36  0.46 -0.36  0.06  0.06  0.14]
+0.5s to 1.0: [ 0.35  0.59 -0.61  0.16  0.05  0.14]
+1.0s to 1.5: [ 0.27  0.74 -0.68  0.17  0.04  0.12]
+Overall Average Across Episode: [ 0.33  0.6  -0.55  0.13  0.05  0.13]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 1.9690234661102295s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 7.49
+0.5s to 1.0: 7.49
+1.0s to 1.5: 7.49
+1.5s to 2.0: 7.49
+Overall Average Across Episode: 7.49
