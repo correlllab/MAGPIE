@@ -1,0 +1,37 @@
+Task: close the blue case while grasping blue case top handle
+Human Feedback: 
+Motion Plan Results: 
+Distance traveled relative to original wrist base frame [x, y, z] (m) axes: [-0.015  0.033  0.094]
+Distance traveled along base frame [x, y, z] (m) axes since prior motion: [-0.01  -0.089 -0.047]
+
+6D Base Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 2.9808402061462402s
+Average base_wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 0.01  0.36 -1.56 -0.13  0.08  0.  ]
+0.5s to 1.0: [ 0.15  1.39  5.18  0.71 -0.26  0.08]
+1.0s to 1.5: [ 0.36  1.55 -1.52 -0.01  0.04  0.  ]
+1.5s to 2.0: [ 0.6   2.39  1.81  0.44 -0.13  0.04]
+2.0s to 2.5: [ 0.    1.08  7.37  0.91 -0.24  0.03]
+Overall Average Across Episode: [ 0.22  1.35  2.26  0.38 -0.1   0.03]
+
+6D Wrist Frame Wrench [x, y, z, rx, ry, rz] (N and Nm) Log Summary:
+Motion Duration: 2.9808402061462402s
+Average wrench Downsampled at 2Hz:
+0.0s to 0.5: [ 1.05  0.24  1.19 -0.01  0.15  0.  ]
+0.5s to 1.0: [-4.96  0.19 -2.05 -0.07 -0.75  0.02]
+1.0s to 1.5: [ 0.27  0.32  2.16 -0.02  0.03  0.03]
+1.5s to 2.0: [-2.92  0.34  0.86 -0.05 -0.46  0.02]
+2.0s to 2.5: [-6.5   0.35 -3.6  -0.09 -0.94  0.07]
+Overall Average Across Episode: [-2.61  0.29 -0.29 -0.05 -0.39  0.03]
+
+Gripper Contact Force (N) Log Summary:
+Motion Duration: 2.9546096324920654s
+Average cf Downsampled at 2Hz:
+0.0s to 0.5: 4.43
+0.5s to 1.0: 4.21
+1.0s to 1.5: 4.71
+1.5s to 2.0: 5.21
+2.0s to 2.5: 4.8
+2.5s to 3.0: 4.96
+3.0s to 3.5: 4.72
+Overall Average Across Episode: 4.72
