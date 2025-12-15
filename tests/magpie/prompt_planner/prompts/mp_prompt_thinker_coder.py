@@ -105,7 +105,7 @@ Returns True if the contact force is not reached, meaning the gripper has slippe
 
 Example answer code:
 ```
-from magpie.gripper import Gripper # must import the gripper class
+from magpie_control.gripper import Gripper # must import the gripper class
 G = Gripper() # create a gripper object
 import numpy as np  # import numpy because we are using it below
 
