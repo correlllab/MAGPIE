@@ -296,6 +296,17 @@ $(document).ready(function() {
         });
     });
 
+    $("#robot-deligrasp-eflesh").click(function() {
+        $.ajax({
+            type: "POST",
+            url: "/dg_eflesh",
+            success: function(data) {
+                console.log("DeliGrasp eFlesh:", data);
+                propagateChat(data, "robot-chat-window");
+            }
+        });
+    });
+
     $("#robot-release").click(function() {
         $.ajax({
             type: "POST",
