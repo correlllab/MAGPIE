@@ -136,7 +136,7 @@ RECORD_LOAD = False
 OCTO_MODEL = None
 
 # HARDWARE
-SERVO_PORT = "/dev/ttyACM0"
+SERVO_PORT = None # use autosearch 
 GRIPPER = None
 ROBOT_IP = "192.168.0.4"
 HOME_POSE = None
@@ -395,6 +395,7 @@ def connect():
                 rsc = real.RealSense(fps=15, w=640, h=480, device_name="D405")
                 rsc.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
                 WRIST_CAMERA = CAMERA = WORKSPACE_CAMERA = rsc
+                print(f"Connected to wrist camera")
             else:
                 WRIST_CAMERA = real.RealSense(fps=5, w=640, h=480, device_name="D405")
                 WRIST_CAMERA.initConnection(device_serial=CAMERA_SERIAL_INFO['D405'])
@@ -574,6 +575,31 @@ async def execute():
                                                           index=1)
         # stdout = pm.code_executor(RESPONSE)
         # print("stdout:", stdout)
+        log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
+        print(f"SERVER executed code with output {stdout}")
+        msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
+        MESSAGE_LOG[INTERACTIONS] += msg
+        print(MESSAGE_LOG[INTERACTIONS])
+        return jsonify(messages=[msg])
+    except Exception as e:
+        msg = "Execution failed. Is the robot connected? " + str(e) + "\n"
+        err_msg = {"type": "text", "role": "system", "content": msg}
+        return(jsonify(messages=[err_msg]))
+
+@app.route("/dg_eflesh", methods=["POST"])
+async def grasp_eflesh():
+    global PROMPT_MODEL, RESPONSE, MESSAGE_LOG, INTERACTIONS, GRASP_LOG_DIR, GRIPPER
+    pm = PROMPT_MODEL
+    if RESPONSE is None:
+        return jsonify(messages=[{"type": "text", "role": "system", "success": False, "content": "No response to execute."}])
+    try:
+        print("SERVER executing code")
+        # search for "deligrasp" in response and replace with "deligrasp_eflesh"
+        RESPONSE = RESPONSE.replace("deligrasp", "deligrasp_eflesh")
+        stdout = await su.execute_grasp_and_record_images(pm.code_executor, 
+                                                          RESPONSE, 
+                                                          CAMERA_PATH_DICT,
+                                                          index=1)
         log_grasp(stdout, path=f"{GRASP_LOG_DIR}/grasp.json") # still hardcoded...brittle...
         print(f"SERVER executed code with output {stdout}")
         msg = [{"type": "text", "role": "grasp", "content": f"{stdout}"}]
