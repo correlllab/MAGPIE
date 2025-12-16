@@ -13,6 +13,7 @@ import os
 import pandas as pd
 from PIL import Image
 import platform
+import re
 import spacy
 import sys
 sys.path.append("../")
@@ -27,6 +28,48 @@ SLEEP_RATE = 0.5
 import rerun as rr
 from rerun_rlds_ur5.rlds import RLDSDataset, DeliGraspTrajectory
 from rerun_rlds_ur5.rerun_loader_urdf import URDFLogger, get_urdf_paths, update_urdf
+
+
+def extract_deligrasp_params(code_text):
+    """
+    Extract x, fc, dx, df parameters from generated code text.
+    
+    Returns: dict with keys 'x', 'fc', 'dx', 'df', 'complete'
+    """
+    # Create namespace with dependencies
+    namespace = {'np': np}
+    params = {}
+    
+    # Extract in order so we can build up the namespace
+    # Extract goal_aperture (x)
+    match = re.search(r'goal_aperture\s*=\s*([^\s#]+)', code_text)
+    if match:
+        params['x'] = float(eval(match.group(1), namespace))
+        namespace['goal_aperture'] = params['x']
+    
+    # Extract initial_force (fc)
+    match = re.search(r'initial_force\s*=\s*([^\n]+?)(?:\s*#|$)', code_text)
+    if match:
+        params['fc'] = float(eval(match.group(1).strip(), namespace))
+        namespace['initial_force'] = params['fc']
+    
+    # Extract additional_closure (dx)
+    match = re.search(r'additional_closure\s*=\s*([^\s#]+)', code_text)
+    if match:
+        params['dx'] = float(eval(match.group(1), namespace))
+        namespace['additional_closure'] = params['dx']
+    
+    # Extract additional_force (df) - now namespace has additional_closure
+    match = re.search(r'additional_force\s*=\s*([^\n]+?)(?:\s*#|$)', code_text)
+    if match:
+        params['df'] = float(eval(match.group(1).strip(), namespace))
+    
+    # Extract complete_grasp
+    match = re.search(r'complete_grasp\s*=\s*(True|False)', code_text)
+    if match:
+        params['complete'] = match.group(1) == 'True'
+    
+    return params
 
 def viz_trajectory(path, urdf_logger, index=0):
     scene = DeliGraspTrajectory(path)
