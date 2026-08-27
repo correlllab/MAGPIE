@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this hardware or software, please cite the paper below."
+title: "MAGPIE: Manipulation Architecture for Grasping and Perception in Intelligent Experiments"
+abstract: >-
+  An open, 3D-printed, force-controlled two-finger robotic hand with a depth
+  camera in its palm, and the Python stack that drives it: perception,
+  force-controlled grasping, behaviour trees and PDDL replanning.
+type: software
+license: MIT
+repository-code: "https://github.com/correlllab/MAGPIE"
+authors:
+  - family-names: Correll
+    given-names: Nikolaus
+    affiliation: "University of Colorado Boulder"
+    email: ncorrell@colorado.edu
+  - family-names: Kriegman
+    given-names: Dylan
+    affiliation: "University of Colorado Boulder"
+  - family-names: Otto
+    given-names: Stephen
+    affiliation: "University of Colorado Boulder"
+  - family-names: Watson
+    given-names: James
+    affiliation: "University of Colorado Boulder"
+preferred-citation:
+  type: conference-paper
+  title: "A versatile robotic hand with 3D perception, force sensing for autonomous manipulation"
+  year: 2024
+  collection-title: "RSS Workshop on Perception and Manipulation Challenges for Warehouse Automation"
+  location:
+    name: "Daejeon, Korea"
+  url: "https://arxiv.org/abs/2402.06018"
+  identifiers:
+    - type: other
+      value: "arXiv:2402.06018"
+      description: "arXiv preprint"
+  authors:
+    - family-names: Correll
+      given-names: Nikolaus
+    - family-names: Kriegman
+      given-names: Dylan
+    - family-names: Otto
+      given-names: Stephen
+    - family-names: Watson
+      given-names: James
