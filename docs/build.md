@@ -7,6 +7,12 @@ squeezing. Budget an evening for printing and an afternoon for the rest.
 <img src="img/exploded.png" alt="Exploded view of the hand" width="420">
 </div>
 
+> [!TIP]
+> **Building one today?** This guide is for the hand as published. The revised
+> hardware — [correlllab/magpie_assembly](https://github.com/correlllab/magpie_assembly) —
+> has fewer parts and
+> [a guide with a photograph of every step](https://github.com/correlllab/magpie_assembly/blob/main/Documentation/assembly.md).
+
 > **On the provenance of this guide.** The repository ships CAD, STLs and a parts
 > list, but never shipped a written procedure. What follows is reconstructed from
 > the exploded view above, the bill of materials in the paper, and the driver code

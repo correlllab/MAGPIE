@@ -13,6 +13,7 @@ and the Python stack that sees, plans and grasps with it.
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab.svg)](pyproject.toml)
 [![Build guide](https://img.shields.io/badge/docs-build%20guide-0a7d33.svg)](docs/build.md)
+[![Hardware v2](https://img.shields.io/badge/hardware-magpie__assembly-24292f.svg)](https://github.com/correlllab/magpie_assembly)
 
 </div>
 
@@ -42,6 +43,15 @@ moves.
 
 > **New here?** [**docs/build.md**](docs/build.md) walks from an empty print bed
 > to a hand that opens and closes; [**docs/bom.md**](docs/bom.md) is what to buy.
+
+> [!NOTE]
+> **The hardware has moved on.** The mechanical design has been revised since the
+> paper — one-piece fingers, the controller's standoffs printed into the base
+> plate, a snap-on camera cover, 390 g instead of 414 g — and **version 2** lives
+> in **[correlllab/magpie_assembly](https://github.com/correlllab/magpie_assembly)**
+> with a [photographed step-by-step build](https://github.com/correlllab/magpie_assembly/blob/main/Documentation/assembly.md).
+> The STLs in [`hand/stls/`](hand/stls) here are the hand as published. This
+> repository is the software, and it drives either one.
 
 ## How the hand works
 
@@ -96,7 +106,11 @@ renders above are generated from the STLs in [`hand/stls/`](hand/stls) by
 [`tools/render_stl.py`](tools/render_stl.py), so they stay honest if a part is
 revised. SolidWorks sources are in [`hand/CAD/`](hand/CAD).
 
-→ [**Build guide**](docs/build.md) · [**Bill of materials**](docs/bom.md)
+This is the hand the paper describes. If you are building one **today**, build
+[version 2](https://github.com/correlllab/magpie_assembly) instead — fewer parts,
+fewer fasteners, and a guide with a photograph of every step.
+
+→ [**Build guide**](docs/build.md) · [**Bill of materials**](docs/bom.md) · [**Version 2 hardware**](https://github.com/correlllab/magpie_assembly)
 
 ## Software
 
@@ -215,7 +229,10 @@ openCM.rules          udev rule for the servo board
 ```
 
 Other branches carry the research built on top of this one (`ISRR_2024`,
-`open-grasp`, `encore`); `main` is the hand and the base stack.
+`open-grasp`, `encore`); `main` is the hand and the base stack. The hardware's
+own repository — CAD, bill of materials, assembly guide, and the record of what
+version 2 changed — is
+[correlllab/magpie_assembly](https://github.com/correlllab/magpie_assembly).
 
 ## License and credits
 
